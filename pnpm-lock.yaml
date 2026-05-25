@@ -12,11 +12,11 @@ importers:
   .:
     dependencies:
       '@nimiplatform/kit':
-        specifier: ^0.1.0
-        version: 0.1.0(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)(typescript@5.9.3)
+        specifier: ^0.2.0
+        version: 0.2.0(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)(typescript@5.9.3)
       '@nimiplatform/sdk':
-        specifier: ^0.5.15
-        version: 0.5.15(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
+        specifier: ^0.6.0
+        version: 0.6.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
       '@tauri-apps/api':
         specifier: ^2.9.1
         version: 2.11.0
@@ -368,8 +368,8 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@nimiplatform/kit@0.1.0':
-    resolution: {integrity: sha512-f8cbE24l8HaVcXmaHCDh40VVGcH2TIZfUKxwLr2DK9fKWVEmo60wdiqrES20Z/j/qSLzNc2q3w6TW2eAyMFkIw==}
+  '@nimiplatform/kit@0.2.0':
+    resolution: {integrity: sha512-nHWLbUZYc01jww5j03mfCdJY5JePTpxlmfYWaFSY93gXE/2/PBlXfQLWaRPbSbb6RmU0HltXOpMrZL0/8Q75jw==}
     peerDependencies:
       react: ^19.0.0
       react-dom: ^19.0.0
@@ -385,8 +385,8 @@ packages:
     engines: {node: '>=24.0.0', pnpm: '>=10.0.0'}
     hasBin: true
 
-  '@nimiplatform/sdk@0.5.15':
-    resolution: {integrity: sha512-44XhPDHOWWh4DJYGeTEbpq4kMq8iQnVYcXSl/nd0Sgu7Zx9eyim8Gw4C4OipDGsXv6mBet5Anb6i2n6/D2EfGQ==}
+  '@nimiplatform/sdk@0.6.0':
+    resolution: {integrity: sha512-CYqIvCmSiIDh0O+Gvw1g6JCaZ71QynbNA/afXyb7Gklc8YN/cnedZyA5DJoVaAcCwg+vUDVvX3huH6jWvgfX2g==}
     peerDependencies:
       react: '*'
 
@@ -2243,9 +2243,9 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@nimiplatform/kit@0.1.0(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)(typescript@5.9.3)':
+  '@nimiplatform/kit@0.2.0(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)(typescript@5.9.3)':
     dependencies:
-      '@nimiplatform/sdk': 0.5.15(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
+      '@nimiplatform/sdk': 0.6.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
       '@radix-ui/react-avatar': 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-popover': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -2281,7 +2281,7 @@ snapshots:
       '@openai/codex-sdk': 0.124.0
       yaml: 2.9.0
 
-  '@nimiplatform/sdk@0.5.15(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)':
+  '@nimiplatform/sdk@0.6.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
       '@grpc/grpc-js': 1.14.4
