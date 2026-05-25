@@ -1,0 +1,17 @@
+app_id: nimi.overtone
+display_name: Nimi Overtone
+profile: standalone
+submission_role: developer-submitted-input
+publish_readiness:
+  install_command: pnpm install
+  init_command: pnpm run init
+  dev_shell_command: pnpm dev:shell
+  build_command: pnpm run build
+  pack_command: pnpm run pack
+review_inputs:
+  manifest: nimi.app.yaml
+  build_profile: .nimi/admission/build-profile.yaml
+  scaffold_lock: .nimi/app-scaffold/lock.json
+  product_spec_index: .nimi/spec/INDEX.md
+  local_audit: pnpm run local-audit
+admission_truth: platform-owned-after-review

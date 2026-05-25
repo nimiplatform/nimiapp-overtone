@@ -1,0 +1,18 @@
+app_id: nimi.overtone
+display_name: Nimi Overtone
+profile: standalone
+manifest_role: submitted-input
+permissions:
+  declared_nimi_api_scopes:
+    - scope: app.local.drafts
+      qualifier: app-local-drafts
+      purpose: Store song-brief drafts, lyrics, and take metadata owned by this app between sessions.
+    - scope: runtime.ai.music.generate
+      qualifier: music-generation
+      purpose: Submit music-generation jobs and stream take artifacts back into the workspace.
+    - scope: runtime.ai.text.stream
+      qualifier: text-stream
+      purpose: Stream brief and lyric assistance text from runtime-bound text models.
+    - scope: realm.resources.publish
+      qualifier: realm-publish
+      purpose: Upload finalized take audio and publish posts to Nimi Realm when the author opts in.

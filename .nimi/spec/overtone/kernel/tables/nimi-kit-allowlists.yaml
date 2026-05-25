@@ -1,0 +1,70 @@
+schema:
+  version: 1
+  rule_authority: OVT-KIT-02
+  notes: |
+    Enumerates admitted @nimiplatform/kit/** module imports for Overtone.
+    Imports from any kit submodule path absent here are contract violations.
+
+admitted_imports:
+  - module: '@nimiplatform/kit/ui'
+    purpose: |
+      Primitives (Button, Toggle, SegmentedControl, ProgressIndicator),
+      Surface, StatusBadge, InlineAlert, OverlayShell, NimiThemeProvider,
+      TooltipProvider.
+    consumers:
+      - src/main.tsx
+      - src/dev-preview.tsx
+      - src/shell/**
+      - src/overtone/**
+
+  - module: '@nimiplatform/kit/ui/styles.css'
+    purpose: Base kit ui stylesheet.
+    consumers:
+      - src/styles.css
+
+  - module: '@nimiplatform/kit/ui/themes/light.css'
+    purpose: Light theme tokens.
+    consumers:
+      - src/styles.css
+
+  - module: '@nimiplatform/kit/ui/themes/overtone-accent.css'
+    purpose: Overtone accent pack token overrides.
+    consumers:
+      - src/styles.css
+
+  - module: '@nimiplatform/kit/auth'
+    purpose: DesktopShellAuthPage + AuthPlatformAdapter + ShellAuthDesktopBrowserAuth.
+    consumers:
+      - src/shell/auth/**
+
+  - module: '@nimiplatform/kit/auth/styles.css'
+    purpose: Kit auth stylesheet.
+    consumers:
+      - src/styles.css
+
+  - module: '@nimiplatform/kit/shell/renderer/bridge'
+    purpose: createTauriOAuthBridge for the desktop OAuth completion path.
+    consumers:
+      - src/shell/auth/**
+
+  - module: '@nimiplatform/kit/features/generation/runtime'
+    purpose: useRuntimeGenerationPanel hook + helpers.
+    consumers:
+      - src/overtone/**
+
+  - module: '@nimiplatform/kit/features/generation/ui'
+    purpose: RuntimeGenerationPanel component.
+    consumers:
+      - src/overtone/**
+
+forbidden_patterns:
+  - description: Importing kit submodule paths not enumerated above.
+    enforcement: scaffold-boundary test + reviewer audit.
+  - description: |
+      Re-exporting kit symbols through an app-local shim to bypass this
+      allowlist.
+    enforcement: reviewer audit.
+  - description: |
+      Vendoring kit sources into the Overtone repo or importing from a
+      patched fork.
+    enforcement: package.json pin + lockfile review.

@@ -1,0 +1,25 @@
+{
+  "productName": "Nimi Overtone",
+  "version": "0.1.0",
+  "identifier": "ai.nimi.apps.nimi.overtone",
+  "build": {
+    "beforeDevCommand": "pnpm run dev:renderer",
+    "beforeBuildCommand": "pnpm run build",
+    "devUrl": "http://127.0.0.1:1468",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Nimi Overtone",
+        "width": 1280,
+        "height": 820
+      }
+    ]
+  },
+  "bundle": {
+    "icon": [
+      "icons/icon.png"
+    ]
+  }
+}

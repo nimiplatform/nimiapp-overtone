@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "overtone-dev-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "dev:renderer"],
+      "port": 1468
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+schema:
+  version: 1
+  rule_authority: OVT-RT-01
+  notes: |
+    Binds Overtone feature ids to concrete SDK runtime surfaces and scenario
+    capability identifiers. Source must call only the SDK methods listed for
+    the matching feature; a renderer that calls a surface absent from this
+    table for the feature in scope is a contract violation.
+
+bindings:
+  - feature_id: F-001
+    capability: runtime.readiness
+    sdk_calls:
+      - runtime.ready({ timeoutMs })
+      - runtime.ai.listScenarioProfiles({})
+      - runtime.connector.listConnectors({ pageSize })
+      - runtime.connector.listConnectorModels({ connectorId, pageSize })
+    expected_outputs:
+      - ReadinessSnapshot (OVT-DATA-10)
+
+  - feature_id: F-002
+    capability: ai.text.stream
+    sdk_calls:
+      - runtime.ai.text.stream({ model, connectorId, input, system, temperature, maxTokens })
+    expected_outputs:
+      - SongBrief.description / SongBrief fields (OVT-DATA-02)
+      - LyricsDocument.text (OVT-DATA-03)
+
+  - feature_id: F-003
+    capability: media.music.generate
+    sdk_calls:
+      - runtime.media.music.generate({ model, connectorId, prompt, lyrics, style, title, durationSeconds, instrumental })
+      - runtime.media.jobs.submit({ modal: 'music', input })
+      - runtime.media.jobs.subscribe(jobId)
+      - runtime.media.jobs.get(jobId)
+      - runtime.media.jobs.getArtifacts(jobId)
+    expected_outputs:
+      - SongTake (origin = prompt) (OVT-DATA-04)
+      - TakeArtifact (OVT-DATA-05)
+
+  - feature_id: F-005
+    capability: media.music.generate.iteration
+    sdk_calls:
+      - runtime.media.music.generate({ ..., extensions })
+      - runtime.media.jobs.subscribe(jobId)
+      - runtime.media.jobs.getArtifacts(jobId)
+    extension_namespace: nimi.scenario.music_generate.request
+    extension_payload_owner: src/overtone/runtime-workflow.ts::buildMusicIterationExtensions
+    expected_outputs:
+      - SongTake (origin in [extend, remix, reference]) (OVT-DATA-04)
+      - parentTakeId populated (OVT-DATA-04)
+
+  - feature_id: F-007
+    capability: realm.media.publish
+    sdk_calls:
+      - client.domains.resources.createAudioDirectUpload({ mimeType })
+      - fetch(uploadUrl, { method: 'PUT', body: audioBlob, headers })
+      - client.domains.resources.finalizeResource(resourceId, { mimeType, durationSec, title, tags })
+      - client.domains.resources.createPost({ caption, attachments, tags })
+    expected_outputs:
+      - PublishDraft published + publishedPostId (OVT-DATA-09)
+
+  - feature_id: F-008
+    capability: media.image.generate
+    sdk_calls:
+      - runtime.media.image.generate({ model, connectorId, prompt, aspectRatio, n })
+    expected_outputs:
+      - Cover-art artifact (TakeArtifact-shaped)
+
+  - feature_id: F-009
+    capability: media.tts.synthesize
+    sdk_calls:
+      - runtime.media.tts.listVoices({ model })
+      - runtime.media.tts.synthesize({ model, text, voice, language, timingMode })
+    expected_outputs:
+      - Guide-vocal artifact (TakeArtifact-shaped)

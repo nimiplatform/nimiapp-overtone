@@ -1,0 +1,125 @@
+schema:
+  version: 1
+  rule_authority: OVT-PROD-01
+  notes: |
+    Registers each Overtone feature with its tier and the SDK runtime / realm
+    surfaces required to make the feature work. Source must keep feature
+    handlers in sync with this matrix; a feature listed P0 here must have a
+    matching renderer surface under src/overtone/**.
+
+features:
+  - id: F-001
+    name: Project workspace + readiness gate
+    tier: P0
+    rule_refs:
+      - OVT-FLOW-01
+      - OVT-IA-02
+    requires_sdk:
+      - runtime.ready
+      - runtime.ai.listScenarioProfiles
+      - runtime.connector.listConnectors
+      - runtime.connector.listConnectorModels
+    blocks_lower_tier_features: true
+
+  - id: F-002
+    name: Song brief + lyrics canvas
+    tier: P0
+    rule_refs:
+      - OVT-FLOW-02
+      - OVT-FLOW-03
+      - OVT-RT-02
+    requires_sdk:
+      - runtime.ai.text.stream
+
+  - id: F-003
+    name: Music generation
+    tier: P0
+    rule_refs:
+      - OVT-FLOW-04
+      - OVT-FLOW-05
+      - OVT-RT-03
+      - OVT-RT-04
+    requires_sdk:
+      - runtime.media.music.generate
+      - runtime.media.jobs.subscribe
+      - runtime.media.jobs.get
+      - runtime.media.jobs.getArtifacts
+
+  - id: F-004
+    name: Candidate stack + A/B compare
+    tier: P0
+    rule_refs:
+      - OVT-PROD-05
+      - OVT-DATA-04
+      - OVT-DATA-06
+      - OVT-FLOW-07
+      - OVT-FLOW-08
+      - OVT-IA-04
+      - OVT-IA-05
+
+  - id: F-005
+    name: Reference audio + extend + remix iteration
+    tier: P0
+    rule_refs:
+      - OVT-FLOW-06
+      - OVT-RT-05
+    requires_sdk:
+      - runtime.media.music.generate
+      - runtime.media.jobs.subscribe
+    extension_namespace: nimi.scenario.music_generate.request
+
+  - id: F-006
+    name: Playback + trim preview + metadata
+    tier: P0
+    rule_refs:
+      - OVT-IA-06
+      - OVT-DATA-05
+
+  - id: F-007
+    name: Realm publish + provenance confirmation
+    tier: P0
+    rule_refs:
+      - OVT-FLOW-09
+      - OVT-FLOW-10
+      - OVT-REALM-03
+      - OVT-REALM-04
+      - OVT-REALM-05
+      - OVT-REALM-06
+      - OVT-IA-07
+    requires_sdk:
+      - realm.resources.createAudioDirectUpload
+      - realm.resources.finalizeResource
+      - realm.resources.createPost
+
+  - id: F-008
+    name: Cover art generator
+    tier: P1
+    rule_refs:
+      - OVT-RT-07
+    requires_sdk:
+      - runtime.media.image.generate
+
+  - id: F-009
+    name: Scratch / guide vocals
+    tier: P1
+    rule_refs:
+      - OVT-RT-07
+    requires_sdk:
+      - runtime.media.tts.listVoices
+      - runtime.media.tts.synthesize
+
+  - id: F-010
+    name: Voice lab (clone / design)
+    tier: P2
+    rule_refs:
+      - OVT-RT-08
+    requires_sdk:
+      - runtime.ai.submitScenarioJob (VOICE_CLONE)
+      - runtime.ai.submitScenarioJob (VOICE_DESIGN)
+      - runtime.ai.listVoiceAssets
+      - runtime.ai.deleteVoiceAsset
+
+deferred_ideas:
+  - Stem-aware export / reimport once runtime artifacts support it.
+  - Session / timeline editing past single-take playback.
+  - Realm share permissions and derivative controls for published songs.

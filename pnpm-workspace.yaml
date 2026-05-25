@@ -1,0 +1,2 @@
+overrides:
+  '@nimiplatform/app-tools': link:../../nimi-realm/nimi/app-tools

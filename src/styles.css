@@ -1,0 +1,329 @@
+@import "@nimiplatform/kit/ui/styles.css";
+@import "@nimiplatform/kit/ui/themes/light.css";
+@import "@nimiplatform/kit/ui/themes/overtone-accent.css";
+@import "@nimiplatform/kit/auth/styles.css";
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+body {
+  background: linear-gradient(135deg, #0d0915 0%, #1a1227 48%, #221836 100%);
+  color: var(--nimi-text-primary);
+}
+
+.runtime-check-screen,
+.runtime-unavailable-screen,
+.runtime-login-screen {
+  min-height: 100vh;
+  position: relative;
+}
+
+.runtime-check-screen,
+.runtime-unavailable-screen {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.runtime-login-alert {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  max-width: min(420px, calc(100vw - 48px));
+}
+
+.runtime-alert-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.runtime-alert-copy strong,
+.runtime-alert-copy span {
+  min-width: 0;
+}
+
+.runtime-unavailable-panel {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 18px;
+}
+
+.runtime-unavailable-heading {
+  display: grid;
+  gap: 10px;
+}
+
+.runtime-unavailable-heading h1 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.runtime-action-hint {
+  margin: 0;
+  color: var(--nimi-text-secondary);
+  font-size: 13px;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 22px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+}
+
+.app-chrome {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--nimi-surface-panel) 78%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--nimi-elevation-base);
+}
+
+.app-chrome strong {
+  display: block;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.chrome-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-shell__body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--nimi-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+/* ── Overtone workspace ── */
+
+.overtone-workspace {
+  display: contents;
+}
+
+.overtone-compose {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--nimi-surface-panel) 78%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--nimi-elevation-base);
+  overflow: auto;
+}
+
+.overtone-output {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+}
+
+.overtone-takes {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--nimi-surface-panel) 78%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--nimi-elevation-base);
+  overflow: auto;
+}
+
+.overtone-transport {
+  min-height: 84px;
+  padding: 14px 18px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--nimi-surface-panel) 88%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--nimi-elevation-base);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.overtone-section {
+  display: grid;
+  gap: 10px;
+}
+
+.overtone-section__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.overtone-section h2 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nimi-text-secondary);
+}
+
+.overtone-field {
+  display: grid;
+  gap: 6px;
+}
+
+.overtone-field label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.overtone-take-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--nimi-surface-card) 78%, transparent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.overtone-take-card[data-selected="true"] {
+  border-color: var(--nimi-action-primary-bg);
+  box-shadow: 0 0 0 1px var(--nimi-action-primary-bg);
+}
+
+.overtone-take-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nimi-text-primary);
+}
+
+.overtone-take-card__meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-take-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.overtone-waveform {
+  width: 100%;
+  height: 56px;
+  display: block;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--nimi-surface-canvas) 80%, transparent);
+}
+
+.overtone-waveform--mini {
+  height: 36px;
+}
+
+.overtone-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 48px;
+  text-align: center;
+  color: var(--nimi-text-secondary);
+}
+
+.overtone-empty h2 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--nimi-text-primary);
+}
+
+.overtone-empty p {
+  margin: 0 0 18px;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-readiness {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-readiness__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nimi-text-muted);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.overtone-readiness__dot[data-state="ready"] {
+  background: var(--nimi-status-success);
+}
+
+.overtone-readiness__dot[data-state="error"] {
+  background: var(--nimi-status-danger);
+}
+
+@media (max-width: 980px) {
+  .app-shell__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .overtone-take-grid {
+    grid-template-columns: 1fr;
+  }
+}

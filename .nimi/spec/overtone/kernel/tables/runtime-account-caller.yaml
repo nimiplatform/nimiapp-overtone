@@ -1,0 +1,31 @@
+schema:
+  version: 1
+  rule_authority: OVT-AUTH-01
+  notes: |
+    Authoritative Overtone runtime-account caller identity. Every
+    runtime.account.* call from src/shell/auth/** and src/overtone/** MUST
+    pass this caller exactly. Diverging fields (other mode, mismatched
+    appInstanceId) MUST fail-close at the call site.
+
+caller:
+  app_id: app.nimi.overtone
+  app_instance_id: app.nimi.overtone.local-first-party
+  device_id: local-first-party-device
+  mode_constant: ACCOUNT_CALLER_MODE_LOCAL_FIRST_PARTY_APP
+  mode_proto_value: 1
+  scopes: []
+
+admission_notes:
+  - Overtone is admitted only on the local-first-party caller mode. Mode
+    ACCOUNT_CALLER_MODE_DESKTOP_LAUNCHED_AVATAR is not admitted; runtime
+    rejects it as AVATAR_BINDING_ONLY.
+  - Admission resolves on the (app_id, app_instance_id) pair. Overtone MUST
+    NOT introduce a parallel RegisterApp flow; admission is reached by
+    consuming createNimiAppRuntimePlatformClient(...).
+
+wire_constraints:
+  - runtime.account.completeLogin.refreshToken: ''
+    rule: OVT-AUTH-04
+    reason: |
+      Wire-level constraint required by R-OAUTH-008 / PROOF_UNSUPPORTED.
+      Runtime rejects any non-empty refreshToken on completeLogin.

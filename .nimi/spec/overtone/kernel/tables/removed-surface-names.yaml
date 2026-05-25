@@ -1,0 +1,80 @@
+schema:
+  version: 1
+  rule_authority: OVT-REMOVED-11
+  notes: |
+    Names whose reappearance as active Overtone source / route / test id /
+    exported symbol MUST fail closed. These names belong only to history;
+    a present-day reappearance is a contract violation.
+
+removed_names:
+  - name: TesterWorkbench
+    rule_ref: OVT-REMOVED-05
+    reason: scaffold-tester app-owned shell, not Overtone product.
+  - name: tester-workbench
+    rule_ref: OVT-REMOVED-05
+  - name: kit-component-gallery
+    rule_ref: OVT-REMOVED-05
+  - name: world-tour-viewer
+    rule_ref: OVT-REMOVED-05
+  - name: world_tour_render_acceptance
+    rule_ref: OVT-REMOVED-05
+  - name: tester_image_history_load
+    rule_ref: OVT-REMOVED-05
+  - name: tester_image_history_save
+    rule_ref: OVT-REMOVED-05
+  - name: tester_run_history_load
+    rule_ref: OVT-REMOVED-05
+  - name: tester_run_history_save
+    rule_ref: OVT-REMOVED-05
+
+  - name: OvertoneBackend
+    rule_ref: OVT-REMOVED-01
+    reason: no Overtone-specific backend admitted.
+  - name: overtoneApiClient
+    rule_ref: OVT-REMOVED-01
+
+  - name: applyToken
+    rule_ref: OVT-AUTH-03
+    reason: app-owned token custody forbidden.
+  - name: persistSession
+    rule_ref: OVT-AUTH-03
+  - name: persistSharedDesktopAuthSession
+    rule_ref: OVT-AUTH-06
+  - name: resolveDesktopBootstrapAuthSession
+    rule_ref: OVT-AUTH-06
+  - name: auth_session_load
+    rule_ref: OVT-AUTH-06
+  - name: auth_session_save
+    rule_ref: OVT-AUTH-06
+  - name: auth_session_clear
+    rule_ref: OVT-AUTH-06
+
+  - name: ProjectPicker
+    rule_ref: OVT-REMOVED-08
+    reason: single-workspace product (OVT-PROD-04).
+  - name: ProjectListSidebar
+    rule_ref: OVT-REMOVED-08
+  - name: WorkspaceTabs
+    rule_ref: OVT-REMOVED-08
+
+  - name: ChatPanel
+    rule_ref: OVT-REMOVED-04
+    reason: Overtone is not a chat product.
+  - name: AgentSupervisorPanel
+    rule_ref: OVT-REMOVED-10
+  - name: AutonomousLoopRunner
+    rule_ref: OVT-REMOVED-10
+
+  - name: ModRuntimeConsole
+    rule_ref: OVT-REMOVED-07
+  - name: ModRegistry
+    rule_ref: OVT-REMOVED-07
+
+  - name: DatasetConsole
+    rule_ref: OVT-REMOVED-06
+  - name: BatchImportPanel
+    rule_ref: OVT-REMOVED-06
+  - name: BatchExportPanel
+    rule_ref: OVT-REMOVED-06
+  - name: ModelEvaluationGrid
+    rule_ref: OVT-REMOVED-06

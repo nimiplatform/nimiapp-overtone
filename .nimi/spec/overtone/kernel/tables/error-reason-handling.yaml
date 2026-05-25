@@ -1,0 +1,79 @@
+schema:
+  version: 1
+  rule_authority: OVT-RT-09
+  notes: |
+    Maps runtime / realm reason codes to admitted Overtone app-facing
+    responses. The renderer MUST surface the reason in user-readable form
+    and apply the admitted recovery hint. Swallowing, rewriting, or
+    coercing a reason code into a generic message is a contract violation.
+
+mappings:
+  - reason_code: AI_PROVIDER_UNAVAILABLE
+    surface: inline_alert_warning
+    user_message: |
+      The AI provider is currently unavailable. Retry, or pick a different
+      connector / model pair in the runtime connector setup.
+    recovery_hint: pick_different_connector
+
+  - reason_code: AI_PROVIDER_AUTH_FAILED
+    surface: inline_alert_danger
+    user_message: |
+      The AI provider rejected the connector credentials. Open the runtime
+      connector setup and re-authenticate.
+    recovery_hint: open_connector_setup
+
+  - reason_code: AI_MEDIA_SPEC_INVALID
+    surface: inline_alert_warning
+    user_message: |
+      The generation request is missing or has invalid fields. Review the
+      brief, lyrics, and style controls.
+    recovery_hint: review_inputs
+
+  - reason_code: AI_MEDIA_OPTION_UNSUPPORTED
+    surface: inline_alert_warning
+    user_message: |
+      The selected model does not support one of the requested options.
+      Adjust duration, instrumental, or style controls.
+    recovery_hint: disable_unsupported_controls
+
+  - reason_code: AI_RATE_LIMITED
+    surface: inline_alert_warning
+    user_message: |
+      The connector is rate-limited. Wait and retry, or switch to another
+      connector / model pair.
+    recovery_hint: wait_and_retry
+
+  - reason_code: AI_CONTENT_FILTERED
+    surface: inline_alert_warning
+    user_message: |
+      The provider filtered the content. Adjust prompt or lyrics and try
+      again.
+    recovery_hint: edit_brief_or_lyrics
+
+  - reason_code: AI_JOB_TIMEOUT
+    surface: inline_alert_danger
+    user_message: |
+      The generation job timed out before producing audio. Retry or use a
+      shorter duration.
+    recovery_hint: retry_or_shorten
+
+  - reason_code: PROOF_UNSUPPORTED
+    surface: inline_alert_danger
+    user_message: |
+      Runtime rejected the login completion proof. This is a developer-level
+      regression; retry the login or re-check the scaffold-managed auth glue.
+    recovery_hint: retry_login
+
+  - reason_code: REALM_UPLOAD_FAILED
+    surface: publish_modal_error
+    user_message: |
+      Realm could not accept the audio upload. Verify network connectivity
+      and retry from the publish modal.
+    recovery_hint: retry_publish
+
+  - reason_code: REALM_POST_REJECTED
+    surface: publish_modal_error
+    user_message: |
+      Realm rejected the post payload. Review title, description, and tags
+      then retry.
+    recovery_hint: edit_post_metadata
