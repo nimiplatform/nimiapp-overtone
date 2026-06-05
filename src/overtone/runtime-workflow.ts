@@ -112,7 +112,7 @@ export async function submitMusicGenerate(
   }
 }
 
-export interface RuntimeTextGenerateInput {
+export interface RuntimeTextGenerationInput {
   readonly runtime: Runtime;
   readonly model: string;
   readonly connectorId: string;
@@ -122,7 +122,7 @@ export interface RuntimeTextGenerateInput {
   readonly maxTokens?: number;
 }
 
-export async function generateRuntimeText(input: RuntimeTextGenerateInput): Promise<string> {
+export async function generateRuntimeText(input: RuntimeTextGenerationInput): Promise<string> {
   const model = createNimiRuntimeAIModel({
     runtime: input.runtime,
     appId,

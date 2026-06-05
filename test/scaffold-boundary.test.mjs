@@ -11,10 +11,10 @@ const appSource = [authSource, runtimeLoginSource, productSource, demoSource].jo
 const manifest = readFileSync(new URL('../nimi.app.yaml', import.meta.url), 'utf8');
 const submission = readFileSync(new URL('../.nimi/admission/submission.yaml', import.meta.url), 'utf8');
 
-test('auth glue uses Nimi App runtime platform helper', () => {
-  assert.match(authSource, /createNimiAppRuntimePlatformClient/);
-  assert.match(authSource, /mode: 'dev-standalone'/);
-  assert.match(authSource, /mode: 'third-party-nimi-app'/);
+test('auth glue uses app-scoped NimiClient with Runtime auth modes', () => {
+  assert.match(authSource, /createNimiClient/);
+  assert.match(authSource, /VITE_NIMI_APP_AUTH_MODE === 'dev-standalone'/);
+  assert.match(authSource, /'third-party-nimi-app'/);
   assert.match(runtimeLoginSource, /DesktopShellAuthPage/);
   assert.doesNotMatch(authSource, /createPlatformClient\s*\(/);
 });

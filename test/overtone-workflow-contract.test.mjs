@@ -84,14 +84,15 @@ test('music iteration extension namespace stays nimi.scenario.music_generate.req
   assert.match(runtimeWorkflowSource, /nimi\.scenario\.music_generate\.request/);
 });
 
-test('music generation uses job subscription before artifact resolution', () => {
-  assert.match(runtimeWorkflowSource, /media\.jobs\.submit/);
-  assert.match(runtimeWorkflowSource, /media\.jobs\.subscribe/);
-  assert.match(runtimeWorkflowSource, /media\.jobs\.getArtifacts/);
+test('music generation uses Scenario job lifecycle before artifact projection', () => {
+  assert.match(runtimeWorkflowSource, /runNimiRuntimeScenarioJob/);
+  assert.match(runtimeWorkflowSource, /ScenarioType\.MUSIC_GENERATE/);
+  assert.match(runtimeWorkflowSource, /ExecutionMode\.ASYNC_JOB/);
 });
 
-test('readiness probes scenario profiles before connector/model matching', () => {
+test('readiness probes scenario profiles before route option matching', () => {
   assert.match(readinessSource, /runtime\.ai\.listScenarioProfiles\(\{ modelId: '' \}\)/);
+  assert.match(readinessSource, /listNimiRuntimeRouteOptionsWithHost/);
 });
 
 test('iteration panel creates child takes through app-owned extension builder', () => {
@@ -101,10 +102,9 @@ test('iteration panel creates child takes through app-owned extension builder', 
   assert.match(iterationSource, /origin: mode/);
 });
 
-test('publish flow uses realm direct upload + finalizeResource + createPost', () => {
-  assert.match(publishSource, /createAudioDirectUpload/);
-  assert.match(publishSource, /finalizeResource/);
-  assert.match(publishSource, /createPost/);
+test('publish flow uses SDK Realm resource upload + post helpers', () => {
+  assert.match(publishSource, /uploadNimiRealmResourceFile/);
+  assert.match(publishSource, /createNimiRealmPost/);
   assert.match(publishSource, /provenanceConfirmed/);
 });
 

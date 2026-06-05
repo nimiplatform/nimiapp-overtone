@@ -4,46 +4,43 @@
 
 import type { NimiClient } from '@nimiplatform/sdk';
 import { isNimiRealmExpectedAnonymousSessionError } from '@nimiplatform/sdk/realm';
-import type { Runtime } from '@nimiplatform/sdk/runtime';
-import { ConnectorKind, ConnectorStatus } from '@nimiplatform/sdk/runtime/generated';
+import {
+  createNimiRuntimeRouteOptionsHostDeps,
+  listNimiRuntimeRouteOptionsWithHost,
+  type NimiRuntimeCanonicalCapability,
+  type NimiRuntimeRouteOptionsSnapshot,
+} from '@nimiplatform/sdk/runtime';
 import { getOvertoneNimiClient } from '../shell/auth/runtime-platform.js';
 import type { ReadinessSnapshot } from './types.js';
 
 const READY_TIMEOUT_MS = 5_000;
-
-const TEXT_CAPABILITIES = ['text.stream', 'text.generate'];
-const MUSIC_CAPABILITIES = ['music.generate'];
 
 type ConnectorModelMatch = {
   connectorId: string;
   modelId: string;
 };
 
-async function findModelWithCapability(
-  runtime: Runtime,
-  connectorIds: string[],
-  capabilities: string[],
-): Promise<ConnectorModelMatch | undefined> {
-  for (const connectorId of connectorIds) {
-    try {
-      const response = await runtime.connectors.listConnectorModels({
-        connectorId,
-        forceRefresh: false,
-        pageSize: 50,
-        pageToken: '',
-      });
-      const models = response.models ?? [];
-      const match = models.find((model) =>
-        model.available && capabilities.some((capability) => model.capabilities.includes(capability)),
-      );
-      if (match?.modelId) {
-        return { connectorId, modelId: match.modelId };
-      }
-    } catch {
-      // skip this connector — it might be unauthenticated or unreachable
-    }
+function pickCloudModel(snapshot: NimiRuntimeRouteOptionsSnapshot): ConnectorModelMatch | undefined {
+  if (snapshot.selected?.source === 'cloud' && snapshot.selected.connectorId && snapshot.selected.model) {
+    return {
+      connectorId: snapshot.selected.connectorId,
+      modelId: snapshot.selected.model,
+    };
   }
-  return undefined;
+  const connector = snapshot.connectors.find((item) => item.models.length > 0);
+  const modelId = connector?.models[0];
+  return connector && modelId ? { connectorId: connector.id, modelId } : undefined;
+}
+
+async function findRouteModel(
+  client: NimiClient,
+  capability: NimiRuntimeCanonicalCapability,
+): Promise<ConnectorModelMatch | undefined> {
+  const snapshot = await listNimiRuntimeRouteOptionsWithHost(
+    { capability },
+    createNimiRuntimeRouteOptionsHostDeps(client.runtime),
+  );
+  return pickCloudModel(snapshot);
 }
 
 export async function probeReadiness(): Promise<ReadinessSnapshot> {
@@ -89,20 +86,10 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
   let musicMatch: ConnectorModelMatch | undefined;
 
   try {
-    const connectors = await runtime.connectors.listConnectors({
-      pageSize: 50,
-      pageToken: '',
-      kindFilter: ConnectorKind.UNSPECIFIED,
-      statusFilter: ConnectorStatus.UNSPECIFIED,
-      providerFilter: '',
-    });
-    const connectorIds = (connectors.connectors ?? [])
-      .filter((connector) => connector.status === ConnectorStatus.ACTIVE || connector.status === ConnectorStatus.UNSPECIFIED)
-      .map((connector) => connector.connectorId)
-      .filter((id): id is string => Boolean(id));
-
-    textMatch = await findModelWithCapability(runtime, connectorIds, TEXT_CAPABILITIES);
-    musicMatch = await findModelWithCapability(runtime, connectorIds, MUSIC_CAPABILITIES);
+    [textMatch, musicMatch] = await Promise.all([
+      findRouteModel(client, 'text.generate'),
+      findRouteModel(client, 'music.generate'),
+    ]);
   } catch (error) {
     return {
       ...snapshot,
