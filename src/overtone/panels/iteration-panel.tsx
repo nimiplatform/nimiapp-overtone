@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { getPlatformClient } from '@nimiplatform/sdk';
-import { ScenarioJobStatus } from '@nimiplatform/sdk/runtime';
+import { ScenarioJobStatus } from '@nimiplatform/sdk/runtime/generated';
 import { Button, InlineAlert, Surface } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
+import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
 import {
   arrayBufferToBase64,
   buildMusicIterationExtensions,
@@ -70,7 +70,7 @@ export function IterationPanel() {
         throw new Error('Trim end must be greater than trim start.');
       }
 
-      const runtime = getPlatformClient().runtime;
+      const runtime = getOvertoneNimiClient().runtime;
       const result = await submitMusicGenerate(runtime, {
         model: state.readiness.selectedMusicModelId!,
         connectorId: state.readiness.selectedMusicConnectorId!,

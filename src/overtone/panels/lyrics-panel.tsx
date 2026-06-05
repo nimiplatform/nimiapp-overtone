@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { getPlatformClient } from '@nimiplatform/sdk';
 import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { collectTextStream } from '../runtime-workflow.js';
+import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
+import { generateRuntimeText } from '../runtime-workflow.js';
 import type { SongBrief } from '../types.js';
 
 const LYRICS_SYSTEM = `You are a songwriting assistant.
@@ -31,8 +31,8 @@ export function LyricsPanel() {
     setGenerating(true);
     setError(null);
     try {
-      const runtime = getPlatformClient().runtime;
-      const output = await runtime.ai.text.stream({
+      const text = await generateRuntimeText({
+        runtime: getOvertoneNimiClient().runtime,
         model: readiness.selectedTextModelId!,
         connectorId: readiness.selectedTextConnectorId!,
         input: buildBriefContext(brief),
@@ -40,7 +40,6 @@ export function LyricsPanel() {
         temperature: 0.85,
         maxTokens: 768,
       });
-      const text = await collectTextStream(output);
       setLyrics(text.trim(), 'assistant');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));

@@ -1,9 +1,8 @@
-import type { NimiAppAuthUnavailable } from '@nimiplatform/sdk';
 import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
-import { appTitle } from './runtime-platform.js';
+import { appTitle, type RuntimePlatformUnavailableProjection } from './runtime-platform.js';
 
 type RuntimeUnavailablePageProps = {
-  projection?: NimiAppAuthUnavailable;
+  projection?: RuntimePlatformUnavailableProjection;
   message?: string;
   onRetry: () => void;
 };

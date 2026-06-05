@@ -1,13 +1,26 @@
 // Runtime workflow helpers: scenario job status translation, music-iteration
-// extension builder, text-stream collector. Authority:
+// extension builder, and Runtime-backed text generation. Authority:
 // .nimi/spec/overtone/kernel/runtime-integration-contract.md (OVT-RT-*).
 
 import {
-  ScenarioJobEventType,
-  ScenarioJobStatus,
-  type MusicGenerateOutput,
+  runNimiRuntimeScenarioJob,
+  toNimiRuntimeProtoStruct,
   type Runtime,
 } from '@nimiplatform/sdk/runtime';
+import { createNimiRuntimeAIModel, runNimiTextGenerate } from '@nimiplatform/sdk/ai';
+import type { NimiJsonObject } from '@nimiplatform/sdk/contracts';
+import {
+  ExecutionMode,
+  FallbackPolicy,
+  RoutePolicy,
+  ScenarioJobStatus,
+  ScenarioType,
+  type ScenarioArtifact,
+  type ScenarioExtension,
+  type ScenarioJob,
+  type SubmitScenarioJobRequest,
+} from '@nimiplatform/sdk/runtime/generated';
+import { appId } from '../shell/auth/runtime-platform.js';
 import type { GenerationJob, TakeOrigin } from './types.js';
 
 export function scenarioJobStatusToGenerationStatus(status: ScenarioJobStatus): GenerationJob['status'] {
@@ -42,7 +55,7 @@ export function scenarioJobStatusLabel(status: ScenarioJobStatus): string {
   }
 }
 
-export function scenarioJobProgressLabel(job: MusicGenerateOutput['job']): string {
+export function scenarioJobProgressLabel(job: ScenarioJob): string {
   const base = scenarioJobStatusLabel(job.status);
   if (job.reasonDetail) return job.reasonDetail;
   if (job.progressPercent > 0) return `${base} (${job.progressPercent}%)`;
@@ -59,12 +72,12 @@ export interface MusicSubmitOptions {
   title?: string;
   durationSeconds?: number;
   instrumental?: boolean;
-  extensions?: Record<string, unknown>;
+  extensions?: readonly ScenarioExtension[];
 }
 
 export interface MusicGenerateJobResult {
-  job: MusicGenerateOutput['job'];
-  artifacts: MusicGenerateOutput['artifacts'];
+  job: ScenarioJob;
+  artifacts: readonly ScenarioArtifact[];
 }
 
 function isTerminalScenarioStatus(status: ScenarioJobStatus): boolean {
@@ -74,66 +87,70 @@ function isTerminalScenarioStatus(status: ScenarioJobStatus): boolean {
     status === ScenarioJobStatus.TIMEOUT;
 }
 
-function isTerminalScenarioEvent(eventType: ScenarioJobEventType): boolean {
-  return eventType === ScenarioJobEventType.SCENARIO_JOB_EVENT_COMPLETED ||
-    eventType === ScenarioJobEventType.SCENARIO_JOB_EVENT_FAILED ||
-    eventType === ScenarioJobEventType.SCENARIO_JOB_EVENT_CANCELED ||
-    eventType === ScenarioJobEventType.SCENARIO_JOB_EVENT_TIMEOUT;
-}
-
 // OVT-FLOW-05 / OVT-RT-04: use the job lifecycle surfaces directly so the
 // renderer can project job progress and only fetch artifacts after completion.
 export async function submitMusicGenerate(
   runtime: Runtime,
   input: MusicSubmitOptions,
-  onJob?: (job: MusicGenerateOutput['job']) => void,
+  onJob?: (job: ScenarioJob) => void,
 ): Promise<MusicGenerateJobResult> {
-  const submitted = await runtime.media.jobs.submit({ modal: 'music', input });
-  onJob?.(submitted);
-
-  let finalJob = submitted;
-  const events = await runtime.media.jobs.subscribe(submitted.jobId);
-  for await (const event of events) {
-    if (event.job) {
-      finalJob = event.job;
-      onJob?.(event.job);
-      if (isTerminalScenarioStatus(event.job.status)) break;
+  let lastJob: ScenarioJob | undefined;
+  try {
+    return await runNimiRuntimeScenarioJob({
+      ai: runtime.ai,
+      request: buildMusicGenerateScenarioRequest(input),
+      onJobUpdate: (job) => {
+        lastJob = job;
+        onJob?.(job);
+      },
+    });
+  } catch (error) {
+    if (lastJob && isTerminalScenarioStatus(lastJob.status)) {
+      return { job: lastJob, artifacts: [] };
     }
-    if (isTerminalScenarioEvent(event.eventType)) break;
+    throw error;
   }
-
-  if (!isTerminalScenarioStatus(finalJob.status)) {
-    finalJob = await runtime.media.jobs.get(submitted.jobId);
-    onJob?.(finalJob);
-  }
-
-  if (finalJob.status !== ScenarioJobStatus.COMPLETED) {
-    return { job: finalJob, artifacts: [] };
-  }
-
-  const { artifacts } = await runtime.media.jobs.getArtifacts(finalJob.jobId);
-  return { job: finalJob, artifacts };
 }
 
-export async function collectTextStream(
-  output: AsyncIterable<{ type: string; text?: string; error?: unknown }> | { stream: AsyncIterable<{ type: string; text?: string; error?: unknown }> },
-): Promise<string> {
-  const iterable: AsyncIterable<{ type: string; text?: string; error?: unknown }> =
-    'stream' in (output as { stream: AsyncIterable<unknown> })
-      ? (output as { stream: AsyncIterable<{ type: string; text?: string; error?: unknown }> }).stream
-      : (output as AsyncIterable<{ type: string; text?: string; error?: unknown }>);
+export interface RuntimeTextGenerateInput {
+  readonly runtime: Runtime;
+  readonly model: string;
+  readonly connectorId: string;
+  readonly input: string;
+  readonly system: string;
+  readonly temperature?: number;
+  readonly maxTokens?: number;
+}
 
-  let text = '';
-  for await (const part of iterable) {
-    if (part.type === 'delta' && typeof part.text === 'string') {
-      text += part.text;
-      continue;
-    }
-    if (part.type === 'error') {
-      throw part.error instanceof Error ? part.error : new Error(String(part.error || 'text stream error'));
-    }
+export async function generateRuntimeText(input: RuntimeTextGenerateInput): Promise<string> {
+  const model = createNimiRuntimeAIModel({
+    runtime: input.runtime,
+    appId,
+    routePolicy: 'cloud',
+    connectorId: input.connectorId,
+    model: {
+      providerId: input.connectorId,
+      modelId: input.model,
+    },
+  });
+  const result = await runNimiTextGenerate({
+    runtime: { model },
+    request: {
+      model: model.model,
+      messages: [
+        { role: 'system', content: [{ type: 'text', text: input.system }] },
+        { role: 'user', content: [{ type: 'text', text: input.input }] },
+      ],
+      parameters: {
+        temperature: input.temperature,
+        maxTokens: input.maxTokens,
+      },
+    },
+  });
+  if (!result.ok) {
+    throw new Error(result.error.message);
   }
-  return text;
+  return result.text;
 }
 
 export function copyArtifactBytesToArrayBuffer(bytes: Uint8Array | undefined): ArrayBuffer | null {
@@ -157,20 +174,67 @@ export interface MusicIterationExtensionInput {
 
 export function buildMusicIterationExtensions(
   input: MusicIterationExtensionInput,
-): Record<string, unknown> {
-  const payload: Record<string, unknown> = { mode: input.mode };
-  if (input.sourceTakeId) payload.source_take_id = input.sourceTakeId;
-  if (input.sourceAudioBase64) {
-    payload.source_audio = {
-      mime_type: input.sourceMimeType || 'audio/mpeg',
-      data_base64: input.sourceAudioBase64,
-    };
-  }
-  if (typeof input.trimStartSec === 'number') payload.trim_start_sec = input.trimStartSec;
-  if (typeof input.trimEndSec === 'number') payload.trim_end_sec = input.trimEndSec;
-  return {
-    'nimi.scenario.music_generate.request': payload,
+): readonly ScenarioExtension[] {
+  const payload: NimiJsonObject = {
+    mode: input.mode,
+    ...(input.sourceTakeId ? { source_take_id: input.sourceTakeId } : {}),
+    ...(input.sourceAudioBase64
+      ? {
+          source_audio: {
+            mime_type: input.sourceMimeType || 'audio/mpeg',
+            data_base64: input.sourceAudioBase64,
+          },
+        }
+      : {}),
+    ...(typeof input.trimStartSec === 'number' ? { trim_start_sec: input.trimStartSec } : {}),
+    ...(typeof input.trimEndSec === 'number' ? { trim_end_sec: input.trimEndSec } : {}),
   };
+  return [{
+    namespace: 'nimi.scenario.music_generate.request',
+    payload: toNimiRuntimeProtoStruct(payload),
+  }];
+}
+
+function buildMusicGenerateScenarioRequest(input: MusicSubmitOptions): SubmitScenarioJobRequest {
+  const requestId = createScenarioId('overtone-music');
+  return {
+    head: {
+      appId,
+      subjectUserId: '',
+      modelId: input.model,
+      routePolicy: RoutePolicy.CLOUD,
+      fallback: FallbackPolicy.DENY,
+      timeoutMs: 0,
+      connectorId: input.connectorId,
+    },
+    scenarioType: ScenarioType.MUSIC_GENERATE,
+    executionMode: ExecutionMode.ASYNC_JOB,
+    spec: {
+      spec: {
+        oneofKind: 'musicGenerate',
+        musicGenerate: {
+          prompt: input.prompt,
+          negativePrompt: '',
+          lyrics: input.lyrics || '',
+          style: input.style || '',
+          title: input.title || '',
+          durationSeconds: input.durationSeconds || 0,
+          instrumental: Boolean(input.instrumental),
+        },
+      },
+    },
+    requestId,
+    idempotencyKey: requestId,
+    labels: {
+      appId,
+      scenario: 'music.generate',
+    },
+    extensions: [...(input.extensions ?? [])],
+  };
+}
+
+function createScenarioId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {

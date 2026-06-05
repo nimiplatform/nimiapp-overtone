@@ -1,17 +1,16 @@
-import { getPlatformClient, type PlatformClient } from '@nimiplatform/sdk';
-import { AccountSessionState } from '@nimiplatform/sdk/runtime';
+import type { NimiClient } from '@nimiplatform/sdk';
+import { AccountCallerMode, AccountSessionState } from '@nimiplatform/sdk/runtime/generated';
 import type { AuthPlatformAdapter, ShellAuthDesktopBrowserAuth } from '@nimiplatform/kit/auth';
 import { createTauriOAuthBridge } from '@nimiplatform/kit/shell/renderer/bridge';
-import { appId, runtimeAccountLoginEnabled } from './runtime-platform.js';
+import { appId, getOvertoneNimiClient, runtimeAccountLoginEnabled } from './runtime-platform.js';
 
 const DEVICE_ID = 'local-first-party-device';
-const ACCOUNT_CALLER_MODE_LOCAL_FIRST_PARTY_APP = 1;
 
 export const runtimeAccountCaller = {
   appId,
   appInstanceId: `${appId}.local-first-party`,
   deviceId: DEVICE_ID,
-  mode: ACCOUNT_CALLER_MODE_LOCAL_FIRST_PARTY_APP,
+  mode: AccountCallerMode.LOCAL_FIRST_PARTY_APP,
   scopes: [] as string[],
 };
 
@@ -27,7 +26,7 @@ function unsupported<T>(): Promise<T> {
   return Promise.reject(new Error('This shell uses Runtime account browser login only; app-owned credential login is forbidden.'));
 }
 
-export async function loadRuntimeAccountUser(client: PlatformClient = getPlatformClient()) {
+export async function loadRuntimeAccountUser(client: NimiClient = getOvertoneNimiClient()) {
   if (!runtimeAccountLoginEnabled) {
     return null;
   }
@@ -43,7 +42,7 @@ export async function loadRuntimeAccountUser(client: PlatformClient = getPlatfor
 
 export async function logoutRuntimeAccount() {
   requireRuntimeAccountLogin();
-  await getPlatformClient().runtime.account.logout({
+  await getOvertoneNimiClient().runtime.account.logout({
     caller: runtimeAccountCaller,
     reason: 'generated_app_logout',
   });
@@ -53,7 +52,7 @@ export function createNimiAppRuntimeAccountBroker(): ShellAuthDesktopBrowserAuth
   return {
     begin: async (input) => {
       requireRuntimeAccountLogin();
-      const response = await getPlatformClient().runtime.account.beginLogin({
+      const response = await getOvertoneNimiClient().runtime.account.beginLogin({
         caller: runtimeAccountCaller,
         redirectUri: input.callbackUrl,
         callbackOrigin: new URL(input.callbackUrl).origin,
@@ -72,7 +71,7 @@ export function createNimiAppRuntimeAccountBroker(): ShellAuthDesktopBrowserAuth
     },
     complete: async (input) => {
       requireRuntimeAccountLogin();
-      const response = await getPlatformClient().runtime.account.completeLogin({
+      const response = await getOvertoneNimiClient().runtime.account.completeLogin({
         caller: runtimeAccountCaller,
         loginAttemptId: input.loginAttemptId,
         code: input.code,

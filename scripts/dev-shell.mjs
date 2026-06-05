@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { Runtime, AppMode, WorldRelation } from '@nimiplatform/sdk/runtime';
+import { Runtime } from '@nimiplatform/sdk/runtime';
+import { AppMode, WorldRelation } from '@nimiplatform/sdk/runtime/generated';
 
 const APP_INSTANCE_SUFFIX = '.developer-local';
 const DEVICE_ID = 'developer-local-device';
@@ -32,11 +33,6 @@ async function openDeveloperSession(identity) {
   const ttlSeconds = Number.isFinite(ttlSecondsInput) && ttlSecondsInput > 0 ? ttlSecondsInput : DEFAULT_TTL_SECONDS;
   const runtime = new Runtime({
     appId: identity.appId,
-    defaults: {
-      appInstanceId,
-      callerKind: 'third-party-app',
-      callerId: identity.appId,
-    },
   });
 
   const registered = await runtime.auth.registerApp({

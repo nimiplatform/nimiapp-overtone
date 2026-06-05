@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { getPlatformClient } from '@nimiplatform/sdk';
-import { ScenarioJobStatus } from '@nimiplatform/sdk/runtime';
+import { ScenarioJobStatus } from '@nimiplatform/sdk/runtime/generated';
 import { Button, InlineAlert, Surface, Toggle } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
+import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
 import {
   copyArtifactBytesToArrayBuffer,
   scenarioJobProgressLabel,
@@ -45,7 +45,7 @@ export function GeneratePanel() {
     const localJobId = makeId('job-pending');
     setJob({ jobId: localJobId, status: 'pending', progressLabel: 'Submitting...' });
     try {
-      const runtime = getPlatformClient().runtime;
+      const runtime = getOvertoneNimiClient().runtime;
       const result = await submitMusicGenerate(runtime, {
         model: readiness.selectedMusicModelId!,
         connectorId: readiness.selectedMusicConnectorId!,

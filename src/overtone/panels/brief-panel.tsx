@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { getPlatformClient } from '@nimiplatform/sdk';
 import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { collectTextStream } from '../runtime-workflow.js';
+import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
+import { generateRuntimeText } from '../runtime-workflow.js';
 import type { SongBrief } from '../types.js';
 
 const BRIEF_SYSTEM = `You are a music production assistant. Given a song idea, output a structured brief as JSON with these fields:
@@ -35,8 +35,8 @@ export function BriefPanel() {
     setGenerating(true);
     setError(null);
     try {
-      const runtime = getPlatformClient().runtime;
-      const output = await runtime.ai.text.stream({
+      const text = await generateRuntimeText({
+        runtime: getOvertoneNimiClient().runtime,
         model: readiness.selectedTextModelId!,
         connectorId: readiness.selectedTextConnectorId!,
         input: idea.trim(),
@@ -44,7 +44,6 @@ export function BriefPanel() {
         temperature: 0.9,
         maxTokens: 1024,
       });
-      const text = await collectTextStream(output);
       const parsed = parseBriefJson(text);
       if (!parsed) throw new Error('Assistant returned non-JSON brief content.');
       setBrief(parsed);

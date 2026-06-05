@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { getPlatformClient } from '@nimiplatform/sdk';
+import { createNimiRealmPost, uploadNimiRealmResourceFile } from '@nimiplatform/sdk/realm';
 import { Button, InlineAlert, OverlayShell, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
+import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
 import type { PublishDraft } from '../types.js';
 
 interface PublishModalProps {
@@ -39,29 +40,30 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
     if (!canPublish || !audioBuffer || !draft || !take) return;
     setPublishStatus('uploading');
     try {
-      const client = getPlatformClient();
-      const upload = await client.domains.resources.createAudioDirectUpload({ mimeType: 'audio/mpeg' });
+      const realm = getOvertoneNimiClient().requireRealm();
       const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
-      const uploadResponse = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        body: audioBlob,
-        headers: { 'Content-Type': 'audio/mpeg' },
-      });
-      if (!uploadResponse.ok) {
-        setPublishStatus('error', `Audio upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
-        return;
-      }
-      await client.domains.resources.finalizeResource(upload.resourceId, {
-        mimeType: 'audio/mpeg',
-        title: draft.title || undefined,
-        tags: draft.tags.length > 0 ? draft.tags : undefined,
+      const upload = await uploadNimiRealmResourceFile(realm, {
+        kind: 'audio',
+        file: audioBlob,
+        contentType: 'audio/mpeg',
+        fileName: `${take.takeId}.mp3`,
+        finalizePayload: {
+          mimeType: 'audio/mpeg',
+          title: draft.title || undefined,
+          tags: draft.tags.length > 0 ? draft.tags : undefined,
+          sourceArtifactId: take.artifactId,
+          sourceJobId: take.jobId,
+          style: take.styleSnapshot,
+          durationSec: take.durationSeconds,
+          instrumental: take.instrumental,
+        },
       });
       setPublishStatus('creating');
-      const post = await client.domains.resources.createPost({
+      const post = await createNimiRealmPost(realm, () => {}, {
         caption: draft.description || draft.title,
         attachments: [{ targetId: upload.resourceId, targetType: 'RESOURCE' }],
         tags: draft.tags.length > 0 ? draft.tags : undefined,
-      }) as { id: string };
+      });
       setPublishedPostId(post.id);
       setPublishStatus('done');
     } catch (error) {

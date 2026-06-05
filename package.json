@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@nimiplatform/kit": "^0.2.0",
-    "@nimiplatform/sdk": "^0.6.0",
+    "@nimiplatform/sdk": "file:../../nimi-realm/nimi/sdks/typescript",
     "@tauri-apps/api": "^2.9.1",
     "i18next": "^25.8.18",
     "lucide-react": "^0.577.0",

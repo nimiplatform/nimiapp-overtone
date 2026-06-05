@@ -15,8 +15,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)(typescript@5.9.3)
       '@nimiplatform/sdk':
-        specifier: ^0.6.0
-        version: 0.6.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
+        specifier: file:../../nimi-realm/nimi/sdks/typescript
+        version: file:../../nimi-realm/nimi/sdks/typescript(@grpc/grpc-js@1.14.4)
       '@tauri-apps/api':
         specifier: ^2.9.1
         version: 2.11.0
@@ -389,6 +389,14 @@ packages:
     resolution: {integrity: sha512-CYqIvCmSiIDh0O+Gvw1g6JCaZ71QynbNA/afXyb7Gklc8YN/cnedZyA5DJoVaAcCwg+vUDVvX3huH6jWvgfX2g==}
     peerDependencies:
       react: '*'
+
+  '@nimiplatform/sdk@file:../../nimi-realm/nimi/sdks/typescript':
+    resolution: {directory: ../../nimi-realm/nimi/sdks/typescript, type: directory}
+    peerDependencies:
+      '@grpc/grpc-js': ^1.14.4
+    peerDependenciesMeta:
+      '@grpc/grpc-js':
+        optional: true
 
   '@openai/codex-sdk@0.124.0':
     resolution: {integrity: sha512-CfL0JRBbjXdR6BdmCtEEWA0Z+7O2+4ZP4rEf+TggyX2kQAWaDDAXPZbgH4iQuGR7hjV/oyr++d7vmheNc2U1Tg==}
@@ -2295,6 +2303,12 @@ snapshots:
       - react-dom
       - react-native
       - typescript
+
+  '@nimiplatform/sdk@file:../../nimi-realm/nimi/sdks/typescript(@grpc/grpc-js@1.14.4)':
+    dependencies:
+      '@protobuf-ts/runtime': 2.11.1
+    optionalDependencies:
+      '@grpc/grpc-js': 1.14.4
 
   '@openai/codex-sdk@0.124.0':
     dependencies:

@@ -2,8 +2,11 @@
 // (OVT-FLOW-01) and .nimi/spec/overtone/kernel/runtime-integration-contract.md
 // (OVT-RT-06).
 
-import { getPlatformClient } from '@nimiplatform/sdk';
-import { ConnectorKind, ConnectorStatus, type Runtime } from '@nimiplatform/sdk/runtime';
+import type { NimiClient } from '@nimiplatform/sdk';
+import { isNimiRealmExpectedAnonymousSessionError } from '@nimiplatform/sdk/realm';
+import type { Runtime } from '@nimiplatform/sdk/runtime';
+import { ConnectorKind, ConnectorStatus } from '@nimiplatform/sdk/runtime/generated';
+import { getOvertoneNimiClient } from '../shell/auth/runtime-platform.js';
 import type { ReadinessSnapshot } from './types.js';
 
 const READY_TIMEOUT_MS = 5_000;
@@ -23,7 +26,7 @@ async function findModelWithCapability(
 ): Promise<ConnectorModelMatch | undefined> {
   for (const connectorId of connectorIds) {
     try {
-      const response = await runtime.connector.listConnectorModels({
+      const response = await runtime.connectors.listConnectorModels({
         connectorId,
         forceRefresh: false,
         pageSize: 50,
@@ -54,7 +57,7 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
 
   let client;
   try {
-    client = getPlatformClient();
+    client = getOvertoneNimiClient();
   } catch (error) {
     return {
       ...snapshot,
@@ -86,7 +89,7 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
   let musicMatch: ConnectorModelMatch | undefined;
 
   try {
-    const connectors = await runtime.connector.listConnectors({
+    const connectors = await runtime.connectors.listConnectors({
       pageSize: 50,
       pageToken: '',
       kindFilter: ConnectorKind.UNSPECIFIED,
@@ -108,6 +111,8 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     };
   }
 
+  const realmAuthenticated = await probeRealmAuthenticated(client, snapshot.realmConfigured);
+
   return {
     ...snapshot,
     runtimeStatus: scenarioErrorMessage ? 'degraded' : 'ready',
@@ -118,8 +123,19 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     selectedTextModelId: textMatch?.modelId,
     selectedMusicConnectorId: musicMatch?.connectorId,
     selectedMusicModelId: musicMatch?.modelId,
-    realmAuthenticated: snapshot.realmConfigured,
+    realmAuthenticated,
   };
+}
+
+async function probeRealmAuthenticated(client: NimiClient, realmConfigured: boolean): Promise<boolean> {
+  if (!realmConfigured || !client.realm) return false;
+  try {
+    await client.realm.me({ timeoutMs: READY_TIMEOUT_MS });
+    return true;
+  } catch (error) {
+    if (isNimiRealmExpectedAnonymousSessionError(error)) return false;
+    throw error;
+  }
 }
 
 function detectRealmConfigured(): boolean {
