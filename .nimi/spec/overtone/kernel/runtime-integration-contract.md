@@ -96,6 +96,11 @@ Readiness probes MUST use:
 
 A renderer that infers readiness by submitting a probe generation job
 is a contract violation; readiness probes must not consume credits.
+If the route projection does not provide a selected binding, the
+renderer MAY use a single unambiguous cloud candidate. Multiple
+candidate connector/model pairs without a selected binding MUST fail
+closed as not configured; choosing the first candidate is a contract
+violation.
 
 ## OVT-RT-07 — Optional surfaces (P1)
 

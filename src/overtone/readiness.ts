@@ -20,16 +20,28 @@ type ConnectorModelMatch = {
   modelId: string;
 };
 
+function normalizeRouteText(value: unknown): string {
+  return String(value || '').trim();
+}
+
 function pickCloudModel(snapshot: NimiRuntimeRouteOptionsSnapshot): ConnectorModelMatch | undefined {
-  if (snapshot.selected?.source === 'cloud' && snapshot.selected.connectorId && snapshot.selected.model) {
+  const selectedModel = normalizeRouteText(snapshot.selected?.model || snapshot.selected?.modelId);
+  const selectedConnectorId = normalizeRouteText(snapshot.selected?.connectorId);
+  if (snapshot.selected?.source === 'cloud' && selectedConnectorId && selectedModel) {
     return {
-      connectorId: snapshot.selected.connectorId,
-      modelId: snapshot.selected.model,
+      connectorId: selectedConnectorId,
+      modelId: selectedModel,
     };
   }
-  const connector = snapshot.connectors.find((item) => item.models.length > 0);
-  const modelId = connector?.models[0];
-  return connector && modelId ? { connectorId: connector.id, modelId } : undefined;
+  const candidates = snapshot.connectors.flatMap((connector) =>
+    connector.models
+      .map((model) => ({
+        connectorId: normalizeRouteText(connector.id),
+        modelId: normalizeRouteText(model),
+      }))
+      .filter((candidate) => candidate.connectorId && candidate.modelId),
+  );
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 async function findRouteModel(

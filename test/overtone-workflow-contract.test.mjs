@@ -95,6 +95,11 @@ test('readiness probes scenario profiles before route option matching', () => {
   assert.match(readinessSource, /listNimiRuntimeRouteOptionsWithHost/);
 });
 
+test('readiness does not silently choose the first route candidate', () => {
+  assert.match(readinessSource, /candidates\.length === 1/);
+  assert.doesNotMatch(readinessSource, /\.find\(\(item\) => item\.models\.length > 0\)/);
+});
+
 test('iteration panel creates child takes through app-owned extension builder', () => {
   assert.match(workspaceSource, /IterationPanel/);
   assert.match(iterationSource, /buildMusicIterationExtensions/);
