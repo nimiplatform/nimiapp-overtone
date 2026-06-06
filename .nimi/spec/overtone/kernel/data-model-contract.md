@@ -169,5 +169,5 @@ type ReadinessSnapshot = {
 
 `ReadinessSnapshot` is recomputed on each readiness pass
 (`OVT-FLOW-01`). The shape of `selected*` fields is a direct projection
-of `runtime.connector.listConnectors` + `listConnectorModels`; the
-renderer must not synthesize ids that runtime did not return.
+of `listNimiRuntimeRouteOptionsWithHost(...)`; the renderer must not
+synthesize ids that runtime did not return.

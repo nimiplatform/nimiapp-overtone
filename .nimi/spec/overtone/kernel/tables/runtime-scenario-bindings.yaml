@@ -13,37 +13,38 @@ bindings:
     sdk_calls:
       - runtime.ready({ timeoutMs })
       - runtime.ai.listScenarioProfiles({})
-      - runtime.connector.listConnectors({ pageSize })
-      - runtime.connector.listConnectorModels({ connectorId, pageSize })
+      - listNimiRuntimeRouteOptionsWithHost({ capability: 'text.generate' }, createNimiRuntimeRouteOptionsHostDeps(runtime))
+      - listNimiRuntimeRouteOptionsWithHost({ capability: 'music.generate' }, createNimiRuntimeRouteOptionsHostDeps(runtime))
     expected_outputs:
       - ReadinessSnapshot (OVT-DATA-10)
 
   - feature_id: F-002
-    capability: ai.text.stream
+    capability: ai.text.generate
     sdk_calls:
-      - runtime.ai.text.stream({ model, connectorId, input, system, temperature, maxTokens })
+      - createNimiRuntimeAIModel({ runtime, appId, routePolicy, connectorId, model })
+      - runNimiTextGenerate({ runtime: { model }, request })
     expected_outputs:
       - SongBrief.description / SongBrief fields (OVT-DATA-02)
       - LyricsDocument.text (OVT-DATA-03)
 
   - feature_id: F-003
-    capability: media.music.generate
+    capability: ai.scenario.music.generate
     sdk_calls:
-      - runtime.media.music.generate({ model, connectorId, prompt, lyrics, style, title, durationSeconds, instrumental })
-      - runtime.media.jobs.submit({ modal: 'music', input })
-      - runtime.media.jobs.subscribe(jobId)
-      - runtime.media.jobs.get(jobId)
-      - runtime.media.jobs.getArtifacts(jobId)
+      - runNimiRuntimeScenarioJob({ ai: runtime.ai, request })
+      - runtime.ai.submitScenarioJob({ scenarioType: MUSIC_GENERATE, executionMode: ASYNC_JOB, ... })
+      - runtime.ai.subscribeScenarioJobEvents({ jobId })
+      - runtime.ai.getScenarioJob({ jobId })
+      - runtime.ai.getScenarioArtifacts({ jobId })
     expected_outputs:
       - SongTake (origin = prompt) (OVT-DATA-04)
       - TakeArtifact (OVT-DATA-05)
 
   - feature_id: F-005
-    capability: media.music.generate.iteration
+    capability: ai.scenario.music.generate.iteration
     sdk_calls:
-      - runtime.media.music.generate({ ..., extensions })
-      - runtime.media.jobs.subscribe(jobId)
-      - runtime.media.jobs.getArtifacts(jobId)
+      - runNimiRuntimeScenarioJob({ ai: runtime.ai, request: SubmitScenarioJobRequest with extensions })
+      - runtime.ai.subscribeScenarioJobEvents({ jobId })
+      - runtime.ai.getScenarioArtifacts({ jobId })
     extension_namespace: nimi.scenario.music_generate.request
     extension_payload_owner: src/overtone/runtime-workflow.ts::buildMusicIterationExtensions
     expected_outputs:
@@ -61,16 +62,16 @@ bindings:
       - PublishDraft published + publishedPostId (OVT-DATA-09)
 
   - feature_id: F-008
-    capability: media.image.generate
+    capability: ai.scenario.image.generate
     sdk_calls:
-      - runtime.media.image.generate({ model, connectorId, prompt, aspectRatio, n })
+      - runtime.ai.executeScenario({ scenarioType: IMAGE_GENERATE, executionMode: SYNC, ... })
     expected_outputs:
       - Cover-art artifact (TakeArtifact-shaped)
 
   - feature_id: F-009
-    capability: media.tts.synthesize
+    capability: ai.scenario.audio.synthesize
     sdk_calls:
-      - runtime.media.tts.listVoices({ model })
-      - runtime.media.tts.synthesize({ model, text, voice, language, timingMode })
+      - runtime.ai.listPresetVoices({ ... })
+      - runtime.ai.executeScenario({ scenarioType: SPEECH_SYNTHESIZE, executionMode: SYNC, ... })
     expected_outputs:
       - Guide-vocal artifact (TakeArtifact-shaped)

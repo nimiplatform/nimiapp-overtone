@@ -62,7 +62,7 @@ reaching success, or returned a typed `unavailable` projection.
 
 Source must not embed connector ids, provider ids, or model ids as
 constants in the product code. The connector / model surface is
-discovered at runtime through `runtime.connector.*` and
+discovered at runtime through SDK route option helpers and
 `runtime.ai.listScenarioProfiles(...)`. A renderer that hardcodes a
 provider id, model id, or connector vendor name in product UI strings is
 a contract violation.

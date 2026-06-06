@@ -5,39 +5,43 @@ shapes, and forbidden patterns.
 
 ## OVT-RT-01 — SDK entry point
 
-The renderer MUST obtain the runtime through `getPlatformClient().runtime`
-or the equivalent helper from `@nimiplatform/sdk`. Direct construction
-of any platform client through `createPlatformClient(...)` is forbidden
-in the renderer (`OVT-AUTH-02`).
+The renderer MUST obtain runtime access through the app-scoped
+`NimiClient` helper (`getOvertoneNimiClient()` or equivalent
+`createNimiClient(...)` bootstrap). Direct construction through
+legacy `createPlatformClient(...)` is forbidden in the renderer
+(`OVT-AUTH-02`).
 
-## OVT-RT-02 — Text streaming
+## OVT-RT-02 — Text generation
 
-Brief and lyrics assistance MUST call
-`runtime.ai.text.stream(...)` with at minimum:
+Brief and lyrics assistance MUST call the SDK AI runtime helper:
+`createNimiRuntimeAIModel(...)` plus `runNimiTextGenerate(...)`.
+The model binding MUST come from the readiness route projection and
+MUST include:
 
 ```ts
 {
-  model: selectedTextModelId,
+  routePolicy: 'cloud',
   connectorId: selectedTextConnectorId,
-  input: string,
+  model: { providerId: selectedTextConnectorId, modelId: selectedTextModelId },
+  messages: NimiMessage[],
   system?: string,
   temperature?: number,
   maxTokens?: number,
 }
 ```
 
-The renderer MUST consume `output.stream` as an async iterator,
-handling `{ type: 'delta', text }` and `{ type: 'error', error }`
-parts. A renderer that ignores `error` parts is a contract violation.
+The renderer MUST fail closed before dispatch if no route model is
+available. Treating an implicit Runtime default, placeholder model,
+or empty connector/model pair as success is a contract violation.
 
 ## OVT-RT-03 — Music generation submission
 
-Music generation MUST use either:
-
-- `runtime.media.music.generate({ ... })` for the high-level helper
-  path, or
-- `runtime.media.jobs.submit({ modal: 'music', input })` followed by
-  `runtime.media.jobs.subscribe(jobId)` for fine-grained control.
+Music generation MUST use `runNimiRuntimeScenarioJob(...)` with a
+`SubmitScenarioJobRequest` carrying `ScenarioType.MUSIC_GENERATE` and
+`ExecutionMode.ASYNC_JOB`. The helper owns the submit / event
+subscription / terminal lookup / artifact fetch sequence over
+`runtime.ai.submitScenarioJob`, `subscribeScenarioJobEvents`,
+`getScenarioJob`, and `getScenarioArtifacts`.
 
 The stable input shape is:
 
@@ -51,7 +55,7 @@ type MusicGenerateInput = {
   title?: string;
   durationSeconds?: number;
   instrumental?: boolean;
-  extensions?: Record<string, unknown>;
+  extensions?: readonly ScenarioExtension[];
 };
 ```
 
@@ -59,12 +63,12 @@ type MusicGenerateInput = {
 
 For job-level control the renderer MUST follow:
 
-1. `submitted = await runtime.media.jobs.submit({ modal, input })`
-2. iterate `await runtime.media.jobs.subscribe(submitted.jobId)`
+1. submit `SubmitScenarioJobRequest` through `runtime.ai.submitScenarioJob`
+2. iterate `runtime.ai.subscribeScenarioJobEvents({ jobId })`
 3. stop on terminal status `COMPLETED | FAILED | CANCELED | TIMEOUT`
-4. if non-terminal at iterator end,
-   `await runtime.media.jobs.get(submitted.jobId)` once
-5. `await runtime.media.jobs.getArtifacts(submitted.jobId)` only after
+4. if non-terminal at iterator end, call
+   `runtime.ai.getScenarioJob({ jobId })` once
+5. call `runtime.ai.getScenarioArtifacts({ jobId })` only after
    the terminal status is `COMPLETED`
 
 Calling `getArtifacts` before a terminal-completed status is a contract
@@ -85,20 +89,21 @@ Readiness probes MUST use:
 
 - `runtime.ready({ timeoutMs })` for liveness
 - `runtime.ai.listScenarioProfiles({})` for scenario discovery
-- `runtime.connector.listConnectors({ pageSize })` for connector
-  inventory
-- `runtime.connector.listConnectorModels({ connectorId, pageSize })`
-  for model availability
+- `listNimiRuntimeRouteOptionsWithHost({ capability: 'text.generate' }, createNimiRuntimeRouteOptionsHostDeps(runtime))`
+  for text route availability
+- `listNimiRuntimeRouteOptionsWithHost({ capability: 'music.generate' }, createNimiRuntimeRouteOptionsHostDeps(runtime))`
+  for music route availability
 
 A renderer that infers readiness by submitting a probe generation job
 is a contract violation; readiness probes must not consume credits.
 
 ## OVT-RT-07 — Optional surfaces (P1)
 
-Cover-art generation MAY call `runtime.media.image.generate(...)` with a
-non-empty model id and aspect ratio. Guide-vocal generation MAY call
-`runtime.media.tts.synthesize(...)` and `runtime.media.tts.listVoices(...)`.
-Both surfaces stay optional and MUST NOT gate the P0 loop.
+Cover-art generation MAY use `runtime.ai.executeScenario` with
+`ScenarioType.IMAGE_GENERATE`. Guide-vocal generation MAY use
+`runtime.ai.executeScenario` with `ScenarioType.SPEECH_SYNTHESIZE` and
+the generated voice-listing surfaces when admitted. Both surfaces stay
+optional and MUST NOT gate the P0 loop.
 
 ## OVT-RT-08 — Voice asset surfaces (P2)
 
@@ -123,5 +128,6 @@ message.
 - Reading from `runtime/internal/**` in any source path.
 - Treating `runtime.ready()` failure as a soft warning that lets
   music-generation calls proceed.
-- Submitting `runtime.media.jobs.submit` with `modal` other than
-  `'music'`, `'image'` (P1), or `'tts'` (P1).
+- Submitting Scenario jobs with scenario types other than
+  `MUSIC_GENERATE` for the P0 loop, or optional admitted P1/P2 scenario
+  types for explicitly optional surfaces.

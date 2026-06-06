@@ -14,9 +14,9 @@ Normative surfaces:
 - `workflow-contract.md` for the **Brief → Lyrics → Generate → Compare →
   Iterate → Publish** loop (`OVT-FLOW-*`).
 - `runtime-integration-contract.md` for runtime SDK surfaces
-  (`OVT-RT-*`): text streaming, music generation, async job lifecycle,
-  scenario readiness, image and TTS optional surfaces, extension
-  namespace for iteration semantics.
+  (`OVT-RT-*`): text generation, music Scenario jobs, async job
+  lifecycle, route readiness, image and voice optional surfaces,
+  extension namespace for iteration semantics.
 - `realm-integration-contract.md` for realm SDK surfaces
   (`OVT-REALM-*`): media upload, post creation, provenance metadata,
   publish failure handling.

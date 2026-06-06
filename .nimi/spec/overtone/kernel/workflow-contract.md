@@ -10,9 +10,10 @@ fresh `ReadinessSnapshot` covering:
 
 - runtime liveness via `runtime.ready({ timeoutMs })`
 - scenario availability via `runtime.ai.listScenarioProfiles({})`
-- connector inventory via `runtime.connector.listConnectors({ pageSize })`
-- model availability for the chosen connector via
-  `runtime.connector.listConnectorModels({ connectorId, pageSize })`
+- text route availability via `listNimiRuntimeRouteOptionsWithHost(...)`
+  for `text.generate`
+- music route availability via `listNimiRuntimeRouteOptionsWithHost(...)`
+  for `music.generate`
 - realm configuration via the SDK realm helper
 
 If runtime is `unavailable`, the workspace MUST render an unavailable
@@ -47,26 +48,27 @@ edited field after a regenerate from a sibling field.
 
 ## OVT-FLOW-04 — Generation submission
 
-Music generation MUST submit through `runtime.media.music.generate(...)`
-or the `runtime.media.jobs.submit({ modal: 'music', input })`
-equivalent. The submission MUST snapshot the brief description,
-lyrics text, joined style tags, duration, and instrumental flag into
-the resulting `SongTake` at submission time (`OVT-DATA-04`).
+Music generation MUST submit through `runNimiRuntimeScenarioJob(...)`
+with `ScenarioType.MUSIC_GENERATE` and `ExecutionMode.ASYNC_JOB`.
+The submission MUST snapshot the brief description, lyrics text,
+joined style tags, duration, and instrumental flag into the resulting
+`SongTake` at submission time (`OVT-DATA-04`).
 
 ## OVT-FLOW-05 — Job subscription discipline
 
 After submission, the renderer MUST drive job progress via
-`runtime.media.jobs.subscribe(jobId)` and resolve artifacts via
-`runtime.media.jobs.getArtifacts(jobId)`. The renderer must not poll
-faster than the subscription rate and must not present completion before
-the artifact bytes are available for decoding.
+`runtime.ai.subscribeScenarioJobEvents({ jobId })` and resolve artifacts
+via `runtime.ai.getScenarioArtifacts({ jobId })`. The renderer must not
+poll faster than the subscription rate and must not present completion
+before the artifact bytes are available for decoding.
 
 ## OVT-FLOW-06 — Iteration payload
 
 Iteration (extend / remix / reference) MUST construct its iteration
 payload through an app-owned `buildMusicIterationExtensions(...)`
 helper. The helper MUST serialize only to
-`runtime.media.music.generate({ extensions: { 'nimi.scenario.music_generate.request': ... } })`.
+`SubmitScenarioJobRequest.extensions[]` under
+`nimi.scenario.music_generate.request`.
 A renderer that passes provider-specific raw JSON or top-level fields
 unrelated to the stable music input shape is a contract violation
 (`OVT-RT-05`).

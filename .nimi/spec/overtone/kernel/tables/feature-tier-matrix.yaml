@@ -17,8 +17,8 @@ features:
     requires_sdk:
       - runtime.ready
       - runtime.ai.listScenarioProfiles
-      - runtime.connector.listConnectors
-      - runtime.connector.listConnectorModels
+      - sdk.runtime.listNimiRuntimeRouteOptionsWithHost(text.generate)
+      - sdk.runtime.listNimiRuntimeRouteOptionsWithHost(music.generate)
     blocks_lower_tier_features: true
 
   - id: F-002
@@ -29,7 +29,8 @@ features:
       - OVT-FLOW-03
       - OVT-RT-02
     requires_sdk:
-      - runtime.ai.text.stream
+      - sdk.ai.createNimiRuntimeAIModel
+      - sdk.ai.runNimiTextGenerate
 
   - id: F-003
     name: Music generation
@@ -40,10 +41,11 @@ features:
       - OVT-RT-03
       - OVT-RT-04
     requires_sdk:
-      - runtime.media.music.generate
-      - runtime.media.jobs.subscribe
-      - runtime.media.jobs.get
-      - runtime.media.jobs.getArtifacts
+      - sdk.runtime.runNimiRuntimeScenarioJob
+      - runtime.ai.submitScenarioJob
+      - runtime.ai.subscribeScenarioJobEvents
+      - runtime.ai.getScenarioJob
+      - runtime.ai.getScenarioArtifacts
 
   - id: F-004
     name: Candidate stack + A/B compare
@@ -64,8 +66,8 @@ features:
       - OVT-FLOW-06
       - OVT-RT-05
     requires_sdk:
-      - runtime.media.music.generate
-      - runtime.media.jobs.subscribe
+      - sdk.runtime.runNimiRuntimeScenarioJob
+      - runtime.ai.subscribeScenarioJobEvents
     extension_namespace: nimi.scenario.music_generate.request
 
   - id: F-006
@@ -97,7 +99,7 @@ features:
     rule_refs:
       - OVT-RT-07
     requires_sdk:
-      - runtime.media.image.generate
+      - runtime.ai.executeScenario(IMAGE_GENERATE)
 
   - id: F-009
     name: Scratch / guide vocals
@@ -105,8 +107,8 @@ features:
     rule_refs:
       - OVT-RT-07
     requires_sdk:
-      - runtime.media.tts.listVoices
-      - runtime.media.tts.synthesize
+      - runtime.ai.listPresetVoices
+      - runtime.ai.executeScenario(SPEECH_SYNTHESIZE)
 
   - id: F-010
     name: Voice lab (clone / design)

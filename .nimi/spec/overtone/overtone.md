@@ -83,11 +83,11 @@ nimiapp-overtone/                   # Tauri 2 desktop Nimi App
 ├── renderer-owned product code     # all workspace UX and business logic
 │   └── src/overtone/**             # brief, lyrics, generate, takes, publish
 ├── @nimiplatform/sdk/runtime  ────→ nimi runtime (local gRPC via Tauri)
-│   ├── ai.text.stream              # brief + lyrics assistance
-│   ├── media.music.generate        # MUSIC_GENERATE jobs
-│   ├── media.jobs.subscribe/get    # async job lifecycle
-│   ├── media.image.generate        # P1 cover art
-│   └── media.tts.*                 # P1 guide vocals
+│   ├── createNimiRuntimeAIModel    # brief + lyrics assistance
+│   ├── runNimiTextGenerate         # text.generate scenario helper
+│   ├── runNimiRuntimeScenarioJob   # MUSIC_GENERATE async jobs
+│   ├── route option helpers        # text/music model availability
+│   └── ScenarioService execute/job # optional image / voice surfaces
 ├── @nimiplatform/sdk/realm  ──────→ nimi realm (HTTPS)
 │   ├── media.upload                # take audio + cover upload
 │   └── posts.create                # publish post

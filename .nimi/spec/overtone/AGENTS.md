@@ -76,9 +76,9 @@ tree.
    connectors and models; Overtone reads its selection through the
    readiness flow.
 6. Reference-audio, extend, remix, and style-reference semantics MUST
-   stay behind `runtime.media.music.generate({ extensions: ... })`
-   namespaced as `nimi.scenario.music_generate.request`. Do not promote
-   them into top-level public fields before runtime exposes them.
+   stay behind `SubmitScenarioJobRequest.extensions[]` namespaced as
+   `nimi.scenario.music_generate.request`. Do not promote them into
+   top-level public fields before runtime exposes them.
 7. Do not expose raw provider JSON in user-facing surfaces; keep an
    app-owned extension builder so the UI contract stays stable.
 8. Do not bypass the `OVT-KIT-*` allowlist by introducing parallel

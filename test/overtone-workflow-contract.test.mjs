@@ -42,8 +42,8 @@ test('product-area mounts Overtone workspace, not tester', () => {
 test('manifest declares overtone app identity and runtime scopes', () => {
   assert.match(manifest, /app_id: nimi\.overtone/);
   assert.match(manifest, /display_name: Nimi Overtone/);
-  assert.match(manifest, /runtime\.ai\.music\.generate/);
-  assert.match(manifest, /runtime\.ai\.text\.stream/);
+  assert.match(manifest, /runtime\.ai\.submitScenarioJob\.music\.generate/);
+  assert.match(manifest, /runtime\.ai\.text\.generate/);
   assert.match(manifest, /realm\.resources\.publish/);
 });
 

@@ -5,10 +5,9 @@ flow rules.
 
 ## OVT-REALM-01 — SDK realm entry point
 
-Realm access MUST go through `getPlatformClient().domains.resources` or
-the equivalent `@nimiplatform/sdk` realm helper exposed by the platform
-client. Direct construction of a realm HTTP client inside Overtone is
-forbidden.
+Realm access MUST go through the app-scoped `NimiClient.realm` helper
+and SDK Realm helpers from `@nimiplatform/sdk/realm`. Direct
+construction of a realm HTTP client inside Overtone is forbidden.
 
 ## OVT-REALM-02 — Realm readiness
 
@@ -26,19 +25,18 @@ not flip `realmAuthenticated` back to `false` retroactively.
 
 Audio upload MUST use the SDK resources helper, in this order:
 
-1. `client.domains.resources.createAudioDirectUpload({ mimeType })` to
-   reserve a `resourceId` and `uploadUrl`.
-2. `fetch(uploadUrl, { method: 'PUT', body: audioBlob, headers })` to
-   upload the bytes directly.
-3. `client.domains.resources.finalizeResource(resourceId, { mimeType,
-   durationSec?, title?, tags? })` to finalize the resource record.
+1. `uploadNimiRealmResourceFile(realm, { kind: 'audio', file })` to
+   reserve, upload, and finalize the audio resource through the SDK
+   resource helper.
+2. Use the returned canonical resource id as the only audio attachment
+   reference in the post payload.
 
 Embedding the audio bytes inline in `createPost` payloads is a contract
 violation.
 
 ## OVT-REALM-04 — Post creation
 
-`client.domains.resources.createPost({ caption, attachments, tags? })`
+`createNimiRealmPost(realm, onProgress, { caption, attachments, tags? })`
 MUST be the publish entry point. `attachments` MUST reference the
 finalized audio `resourceId` with type `AUDIO`. Cover art (P1) is an
 additional attachment with type `IMAGE`.
@@ -71,7 +69,7 @@ errors, or post-creation errors MUST surface as typed publish errors
 with `publishStatus = 'error'` and `publishError = <message>`. The
 renderer MUST NOT roll back to `'idle'` automatically; the user must
 dismiss the error explicitly. Retry MUST start from
-`createAudioDirectUpload(...)`.
+`uploadNimiRealmResourceFile(...)`.
 
 ## OVT-REALM-08 — Out-of-scope realm surfaces
 
