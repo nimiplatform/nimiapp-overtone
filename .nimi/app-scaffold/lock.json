@@ -204,7 +204,7 @@
     },
     "scripts/tauri-dev-runner.cmd": {
       "class": "scaffold-managed glue",
-      "sha256": "46b0b35dd720846e619d2f47e8a4f65299e0b13183e026dd5f0bb74497555b0a"
+      "sha256": "3d44c33ac94db76a1023dfdf0f64d63ae54b74891bca9e5f76909ba33caebbe4"
     },
     "scripts/tauri-dev-runner.mjs": {
       "class": "scaffold-managed glue",

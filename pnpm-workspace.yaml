@@ -1,9 +1,9 @@
 packages:
   - .
-  - ../../nimi-realm/nimi/kit
-  - ../../nimi-realm/nimi/sdks/typescript
+  - ../../nimi/kit
+  - ../../nimi/sdks/typescript
 
 overrides:
-  '@nimiplatform/app-tools': link:../../nimi-realm/nimi/app-tools
-  '@nimiplatform/kit': link:../../nimi-realm/nimi/kit
-  '@nimiplatform/sdk': link:../../nimi-realm/nimi/sdks/typescript
+  '@nimiplatform/app-tools': link:../../nimi/app-tools
+  '@nimiplatform/kit': link:../../nimi/kit
+  '@nimiplatform/sdk': link:../../nimi/sdks/typescript
