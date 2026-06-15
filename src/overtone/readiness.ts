@@ -3,14 +3,13 @@
 // (OVT-RT-06).
 
 import type { NimiClient } from '@nimiplatform/sdk';
-import { isNimiRealmExpectedAnonymousSessionError } from '@nimiplatform/sdk/realm';
 import {
   createNimiRuntimeRouteOptionsHostDeps,
   listNimiRuntimeRouteOptionsWithHost,
   type NimiRuntimeCanonicalCapability,
   type NimiRuntimeRouteOptionsSnapshot,
 } from '@nimiplatform/sdk/runtime';
-import { getOvertoneNimiClient } from '../shell/auth/runtime-platform.js';
+import { getRuntimeNimiClient } from '../shell/auth/runtime-platform.js';
 import type { ReadinessSnapshot } from './types.js';
 
 const READY_TIMEOUT_MS = 5_000;
@@ -60,13 +59,13 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     runtimeStatus: 'checking',
     textConnectorAvailable: false,
     musicConnectorAvailable: false,
-    realmConfigured: detectRealmConfigured(),
+    realmConfigured: false,
     realmAuthenticated: false,
   };
 
   let client;
   try {
-    client = getOvertoneNimiClient();
+    client = getRuntimeNimiClient();
   } catch (error) {
     return {
       ...snapshot,
@@ -110,8 +109,6 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     };
   }
 
-  const realmAuthenticated = await probeRealmAuthenticated(client, snapshot.realmConfigured);
-
   return {
     ...snapshot,
     runtimeStatus: scenarioErrorMessage ? 'degraded' : 'ready',
@@ -122,22 +119,6 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     selectedTextModelId: textMatch?.modelId,
     selectedMusicConnectorId: musicMatch?.connectorId,
     selectedMusicModelId: musicMatch?.modelId,
-    realmAuthenticated,
+    realmAuthenticated: false,
   };
-}
-
-async function probeRealmAuthenticated(client: NimiClient, realmConfigured: boolean): Promise<boolean> {
-  if (!realmConfigured || !client.realm) return false;
-  try {
-    await client.realm.me({ timeoutMs: READY_TIMEOUT_MS });
-    return true;
-  } catch (error) {
-    if (isNimiRealmExpectedAnonymousSessionError(error)) return false;
-    throw error;
-  }
-}
-
-function detectRealmConfigured(): boolean {
-  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env || {};
-  return Boolean(env.VITE_NIMI_REALM_BASE_URL);
 }

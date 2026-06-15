@@ -1,6 +1,6 @@
 {
   "lockVersion": 1,
-  "scaffoldVersion": "2026-05-24.wave-4-remediation-b",
+  "scaffoldVersion": "2026-05-29.app-source-snapshot",
   "profile": "standalone",
   "appId": "nimi.overtone",
   "appTitle": "Nimi Overtone",
@@ -8,6 +8,45 @@
   "packageAuthor": null,
   "cargoPackageName": "nimiapp-overtone-shell",
   "tauriIdentifier": "ai.nimi.apps.nimi.overtone",
+  "accentPack": "nimi-accent",
+  "permissionDeclarations": [
+    {
+      "scope": "ai.spend.meter",
+      "purpose": "Meter Runtime AI execution for text assistance and music generation."
+    },
+    {
+      "scope": "ai_profile.selection.consume",
+      "purpose": "Consume Runtime route and model profile selections for Overtone generation."
+    },
+    {
+      "scope": "data.scope.write",
+      "purpose": "Publish finalized Overtone takes and metadata through Realm."
+    },
+    {
+      "scope": "file.read.scoped",
+      "qualifier": "app-local-drafts",
+      "purpose": "Read drafts owned by this app during author testing."
+    },
+    {
+      "scope": "file.write.scoped",
+      "qualifier": "app-local-drafts",
+      "purpose": "Store drafts owned by this app during author testing."
+    }
+  ],
+  "scaffoldOmissions": [
+    "dev-preview.html",
+    "src-tauri/src/tester_storage.rs",
+    "src-tauri/src/world_tour.rs",
+    "src/dev-preview.tsx",
+    "src/shell/ai/**",
+    "src/shell/routes/settings.tsx",
+    "src/shell/routes/settings/**",
+    "src/tester/**",
+    "test/settings-surface-read.mjs",
+    "test/tester-*",
+    "test/tsc-build.mjs",
+    "test/world-tour-contract.test.mjs"
+  ],
   "appIdentity": {
     "appId": "nimi.overtone",
     "appTitle": "Nimi Overtone",
@@ -15,6 +54,45 @@
     "packageAuthor": null,
     "cargoPackageName": "nimiapp-overtone-shell",
     "tauriIdentifier": "ai.nimi.apps.nimi.overtone",
+    "accentPack": "nimi-accent",
+    "permissionDeclarations": [
+      {
+        "scope": "ai.spend.meter",
+        "purpose": "Meter Runtime AI execution for text assistance and music generation."
+      },
+      {
+        "scope": "ai_profile.selection.consume",
+        "purpose": "Consume Runtime route and model profile selections for Overtone generation."
+      },
+      {
+        "scope": "data.scope.write",
+        "purpose": "Publish finalized Overtone takes and metadata through Realm."
+      },
+      {
+        "scope": "file.read.scoped",
+        "qualifier": "app-local-drafts",
+        "purpose": "Read drafts owned by this app during author testing."
+      },
+      {
+        "scope": "file.write.scoped",
+        "qualifier": "app-local-drafts",
+        "purpose": "Store drafts owned by this app during author testing."
+      }
+    ],
+    "scaffoldOmissions": [
+      "dev-preview.html",
+      "src-tauri/src/tester_storage.rs",
+      "src-tauri/src/world_tour.rs",
+      "src/dev-preview.tsx",
+      "src/shell/ai/**",
+      "src/shell/routes/settings.tsx",
+      "src/shell/routes/settings/**",
+      "src/tester/**",
+      "test/settings-surface-read.mjs",
+      "test/tester-*",
+      "test/tsc-build.mjs",
+      "test/world-tour-contract.test.mjs"
+    ],
     "identityRole": "scaffold-generated-authoring-input"
   },
   "managedFileTaxonomy": {
@@ -32,18 +110,24 @@
       "nimi.app.yaml",
       "package.json",
       "README.md",
-      "scripts/dev-shell.mjs",
+      "scripts/ensure-dev-renderer-port.mjs",
       "scripts/local-audit.mjs",
       "scripts/pack.mjs",
+      "scripts/run-tauri-dev.mjs",
+      "scripts/tauri-dev-runner.cmd",
+      "scripts/tauri-dev-runner.mjs",
       "scripts/validate.mjs",
       "SECURITY.md",
       "src-tauri/build.rs",
+      "src-tauri/capabilities/default.json",
       "src-tauri/Cargo.toml",
       "src-tauri/icons/icon.png",
       "src-tauri/src/main.rs",
       "src-tauri/tauri.conf.json",
+      "src-tauri/tauri.dev.windows.conf.json",
       "src/main.tsx",
       "src/shell/App.tsx",
+      "src/shell/auth/app-identity.ts",
       "src/shell/auth/auth-gate.tsx",
       "src/shell/auth/auth-i18n.ts",
       "src/shell/auth/runtime-account-auth.ts",
@@ -52,37 +136,197 @@
       "src/shell/auth/runtime-unavailable-page.tsx",
       "src/shell/authenticated-shell.tsx",
       "src/shell/routes/demo-surfaces.tsx",
-      "src/shell/routes/settings.tsx",
       "src/styles.css",
       "test/scaffold-boundary.test.mjs",
       "tsconfig.json",
       "vite.config.ts"
     ],
     "appOwnedProductCode": [
-      "src/shell/routes/product-area.tsx",
-      "src/overtone/workspace-page.tsx",
-      "src/overtone/store.tsx",
-      "src/overtone/runtime-workflow.ts",
-      "src/overtone/types.ts",
-      "src/overtone/panels/brief-panel.tsx",
-      "src/overtone/panels/lyrics-panel.tsx",
-      "src/overtone/panels/generate-panel.tsx",
-      "src/overtone/panels/takes-panel.tsx",
-      "src/overtone/panels/player-panel.tsx",
-      "src/overtone/panels/publish-panel.tsx",
-      "src/overtone/panels/waveform.tsx",
-      "src/overtone/panels/empty-state.tsx",
-      "test/overtone-workflow-contract.test.mjs"
+      "src/shell/routes/product-area.tsx"
     ]
   },
-  "managedFileHashes": {},
-  "appOwnedInitialHashes": {},
+  "managedFileHashes": {
+    ".gitignore": {
+      "class": "scaffold-managed glue",
+      "sha256": "49ae980426dbe942734dcbe9ea288f45ef9d6396ca90cd2b9f13d7e2bc527e5e"
+    },
+    "package.json": {
+      "class": "scaffold-managed glue",
+      "sha256": "80e6f5c2ed870acdb1dbd12e084e7ffaa35a389eedd4802d7d455485a2b0c17b"
+    },
+    ".github/workflows/ci.yml": {
+      "class": "scaffold-managed glue",
+      "sha256": "5e954b520b8eada911b530f2d4f2411045c5920eff888161ee974a949f59d288"
+    },
+    "src-tauri/icons/icon.png": {
+      "class": "scaffold-managed glue",
+      "sha256": "43739c566e26fd7cb88f69d3864ea34740372f5ee99acac169e090beffbce5c6"
+    },
+    "ADMISSION.md": {
+      "class": "scaffold-managed glue",
+      "sha256": "17f00174d39177cf285afbfac09230e341afdf53ad2ae1d9663db2b28241b4e6"
+    },
+    "AGENTS.md": {
+      "class": "scaffold-managed glue",
+      "sha256": "fb6853479794cfede3deb5158d41bc9760d97cfe36d4fc95abe0368682d51597"
+    },
+    "index.html": {
+      "class": "scaffold-managed glue",
+      "sha256": "fa9315a072f7cda6ea2cb99fe075f1171dbc6e06a9171c31f43745a12838df16"
+    },
+    "LICENSE": {
+      "class": "scaffold-managed glue",
+      "sha256": "2fd0d201f66a4dd8c53a10fa340fee8466c0113024d40f2b0d962c16a7bfe188"
+    },
+    "nimi.app.yaml": {
+      "class": "scaffold-managed glue",
+      "sha256": "561637d5d8aedbab0648ab45ee9f0e06699a84f6d8d485ce295167ac37730bb0"
+    },
+    "README.md": {
+      "class": "scaffold-managed glue",
+      "sha256": "88131096cc21e04d40fc5760a67621f754d8d1c4b56d9e47236b25c9bde63b82"
+    },
+    "scripts/ensure-dev-renderer-port.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "9be00240f2ead060ace916923b767f4ad22cc658237c0f7adf6713aa3fa53394"
+    },
+    "scripts/local-audit.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "aeb3223d43f790c4ec6d56f7a7222dbcd118fd8f82e7d30f59fc16433b05e6de"
+    },
+    "scripts/pack.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "8a4f885912aed81deca55029ecf661b518eee92d5aa28a4caebe3e90d84d84f4"
+    },
+    "scripts/run-tauri-dev.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "ccea831f3c395a1cee8c6a4cfd2bbc96c16400c2e771d680b7a419a25ac2662f"
+    },
+    "scripts/tauri-dev-runner.cmd": {
+      "class": "scaffold-managed glue",
+      "sha256": "46b0b35dd720846e619d2f47e8a4f65299e0b13183e026dd5f0bb74497555b0a"
+    },
+    "scripts/tauri-dev-runner.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "2be1225a713cdea58d14b35f467faba448eca9e7a2b1432bd09f9d2667e04a07"
+    },
+    "scripts/validate.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "54cbdb168ba926b7e19f1b38c8a309acdeb1af6fbb8237e50d1940bf7a79fcb9"
+    },
+    "SECURITY.md": {
+      "class": "scaffold-managed glue",
+      "sha256": "2857475bb6db94329f8cb098ccb7e2c7f5dd0180b49fafb2f830ed1a12582d35"
+    },
+    "src-tauri/build.rs": {
+      "class": "scaffold-managed glue",
+      "sha256": "6aeeab41bc35efde4e3c2b644a6248f7fc06d24ae30b75c0d33491cbb0c1fa31"
+    },
+    "src-tauri/capabilities/default.json": {
+      "class": "scaffold-managed glue",
+      "sha256": "4c80a5329c0b53ffa1a7cbe380b9da27b4b65211f29feddba4e40a78a412ee82"
+    },
+    "src-tauri/Cargo.toml": {
+      "class": "scaffold-managed glue",
+      "sha256": "f322cb9e2d6155a8984f837d6eb4e3a0c6d752fbb6c5d91f48670943985f038c"
+    },
+    "src-tauri/src/main.rs": {
+      "class": "scaffold-managed glue",
+      "sha256": "246d06c436dfe54b39a7a5cabdbb336917ff56a2de08624fd4a4ec94ebadbf83"
+    },
+    "src-tauri/tauri.conf.json": {
+      "class": "scaffold-managed glue",
+      "sha256": "1610bb92ec4b961ac250f3f13d9b5303b165a04ba1c01c7c09b765fd434d9c65"
+    },
+    "src-tauri/tauri.dev.windows.conf.json": {
+      "class": "scaffold-managed glue",
+      "sha256": "911833a4f0933834c7f0723c3fe085fb5f0ebff1a8352a3017c1ddf5e932af4f"
+    },
+    "src/main.tsx": {
+      "class": "scaffold-managed glue",
+      "sha256": "e53f2e5521267568b062cb6dba83f7e8d4295668dc555e767b2ce164b82d6e81"
+    },
+    "src/shell/App.tsx": {
+      "class": "scaffold-managed glue",
+      "sha256": "a798b17f878b0c9a0553b1d61d52bffb7699c4c10a8d9c7c85fbd839378da6e5"
+    },
+    "src/shell/auth/app-identity.ts": {
+      "class": "scaffold-managed glue",
+      "sha256": "082037f5d4e421d4934989d62af6a403044aa0f538e52b579d74ec8aba64d500"
+    },
+    "src/shell/auth/auth-gate.tsx": {
+      "class": "scaffold-managed glue",
+      "sha256": "8015dd9a14c10f96d628aa4e10fcc8b25ee8a4494a821d99e39b006819b9cdf1"
+    },
+    "src/shell/auth/auth-i18n.ts": {
+      "class": "scaffold-managed glue",
+      "sha256": "c319f600c036072863509682574be99fc6ca3c861a814089d08d5208d1b72fdf"
+    },
+    "src/shell/auth/runtime-account-auth.ts": {
+      "class": "scaffold-managed glue",
+      "sha256": "45558fffaed97652083976651e938e392a5941bbd01586124f901375610d7946"
+    },
+    "src/shell/auth/runtime-login-page.tsx": {
+      "class": "scaffold-managed glue",
+      "sha256": "0765915b3dbb1a42bfda1abb91b00189c0a60a788e4be811676e6f7411c89378"
+    },
+    "src/shell/auth/runtime-platform.ts": {
+      "class": "scaffold-managed glue",
+      "sha256": "9fe0cdf0c7bcaa018edfb616adef99207d648fa2c10bd15b15e2d57ae73c1da3"
+    },
+    "src/shell/auth/runtime-unavailable-page.tsx": {
+      "class": "scaffold-managed glue",
+      "sha256": "9f64f233e350791136e2cfca3e65df325fa52e5ab3c4ca4541e71372c3e094b9"
+    },
+    "src/shell/authenticated-shell.tsx": {
+      "class": "scaffold-managed glue",
+      "sha256": "a47711544e200493999e8217c3a6cbffc77e7723f2eb2401b778939f9cfbc8ba"
+    },
+    "src/shell/routes/demo-surfaces.tsx": {
+      "class": "scaffold-managed glue",
+      "sha256": "0b7630de369ef192a9ac0e324f71091fa4fd459956b700f3b5b4419c06a7f259"
+    },
+    "src/styles.css": {
+      "class": "scaffold-managed glue",
+      "sha256": "7e679b42650e52795bfa0d098ec4c627c2637fb33ac69bf005ab2f5197e6f468"
+    },
+    "test/scaffold-boundary.test.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "29c7960a946c62ea2d332d5572ed0666218807fffd6a0506172adf4ea3ce2bb4"
+    },
+    "tsconfig.json": {
+      "class": "scaffold-managed glue",
+      "sha256": "7f250f2ae99ba0a4ce89f7174a44a221af875d9e3b13c52f2af6420dbb4d07f4"
+    },
+    "vite.config.ts": {
+      "class": "scaffold-managed glue",
+      "sha256": "1a581fa68d04f4fa40ff0992c7caae35747c06f40f84404a483ebbb98564039d"
+    },
+    ".nimi/app-scaffold/intent.json": {
+      "class": "scaffold-managed glue",
+      "sha256": "8d760ea375c0111bbd25735b9603edc7c7cdbc434052ce113a3eb02e0803bf2a"
+    },
+    ".nimi/admission/submission.yaml": {
+      "class": "scaffold-managed glue",
+      "sha256": "9515b5704924956b28d2e88f314d129bde5f053cd8984b629178444f77ac84cd"
+    },
+    ".nimi/admission/build-profile.yaml": {
+      "class": "scaffold-managed glue",
+      "sha256": "88e019ae3eee22f50d597be68c3c2e9b75aeb15828fc6442c2db99decea6490d"
+    }
+  },
+  "appOwnedInitialHashes": {
+    "src/shell/routes/product-area.tsx": {
+      "class": "app-owned product code",
+      "sha256": "9381b8f714089d43ef852ae8fd4211a423b1ec1232afab0ef8b9e070f8ca28ba"
+    }
+  },
   "dependencyMatrix": {
     "npm": {
       "@nimiplatform/app-tools": "^0.1.4",
       "@nimiplatform/nimi-coding": "0.2.5",
-      "@nimiplatform/sdk": "^0.5.15",
-      "@nimiplatform/kit": "^0.1.0",
+      "@nimiplatform/sdk": "^0.6.0",
+      "@nimiplatform/kit": "^0.2.0",
       "@tauri-apps/api": "^2.9.1",
       "i18next": "^25.8.18",
       "lucide-react": "^0.577.0",
@@ -95,7 +339,8 @@
       "@tauri-apps/cli": "^2.11.2",
       "@tailwindcss/vite": "^4.3.0",
       "@types/three": "^0.184.1",
-      "@vitejs/plugin-react": "^5.1.1"
+      "@vitejs/plugin-react": "^5.1.1",
+      "yaml": "^2.9.0"
     },
     "cargo": {
       "nimi-shell-tauri": "0.1.0",

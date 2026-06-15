@@ -6,7 +6,7 @@ shapes, and forbidden patterns.
 ## OVT-RT-01 — SDK entry point
 
 The renderer MUST obtain runtime access through the app-scoped
-`NimiClient` helper (`getOvertoneNimiClient()` or equivalent
+`NimiClient` helper (`getRuntimeNimiClient()` or equivalent
 `createNimiClient(...)` bootstrap). Direct construction through
 legacy `createPlatformClient(...)` is forbidden in the renderer
 (`OVT-AUTH-02`).

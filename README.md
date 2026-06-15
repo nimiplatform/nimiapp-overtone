@@ -1,38 +1,28 @@
 # Nimi Overtone
 
-AI-native music creation Nimi App. Tauri 2 + React 19 + `@nimiplatform/sdk` + `@nimiplatform/kit`.
+Profile: `standalone`
 
-Overtone walks an author from a short idea to a publishable song through the
-**Brief → Lyrics → Generate → Compare Takes → Publish** loop, talking directly
-to `nimi runtime` for AI work and `nimi realm` for publishing. There is no
-Overtone-specific backend.
+This repository is a Nimi App authoring scaffold. `nimi.app.yaml`, the build profile, permission declarations, pack output, validate output, and local audit output are submitted inputs and pre-submission self-checks only.
 
-## Quick start
+## Development
 
 ```bash
 pnpm install
 pnpm run init
-pnpm dev:shell      # full Tauri shell + Vite renderer
-pnpm dev:renderer   # renderer only (browser preview)
-pnpm run check      # doctor + tests + validate
-pnpm run pack       # produce dist/nimi-app-submission.json
+pnpm dev:shell
+pnpm run validate
+pnpm run local-audit
+pnpm run pack
+pnpm run doctor
+pnpm run update
 ```
 
-## Authority surface
+`init` runs the pinned local `nimicoding sync --apply` projection and writes app-scaffold admission/build-profile/lock state. It is explicit after install; package installation does not mutate `.nimi/**` by itself.
 
-| Path | Role |
-|---|---|
-| `nimi.app.yaml` | App identity + declared Nimi API scopes |
-| `.nimi/spec/**` | Active normative product authority |
-| `.nimi/{config,contracts,methodology}/**` | nimicoding-managed projection (do not hand-edit) |
-| `.nimi/app-scaffold/**` | Scaffold intent + lock for `nimi-app` tooling |
-| `.nimi/admission/**` + `ADMISSION.md` | Developer-submitted listing inputs |
-| `src/shell/**` | Scaffold-managed auth + Runtime + Tauri shell glue |
-| `src/overtone/**` | App-owned product code (workspace, takes, publish) |
+`dev:shell` launches the Tauri shell (`tauri dev`). The app authenticates through the in-app Runtime account login, exactly like a shipped app — there is no standalone developer session. For a not-yet-admitted local app, enable Developer Mode in the desktop app; the Runtime developer-registration gate then admits the local app under your real logged-in account. This is local developer material only; it is not Nimi listing admission, install truth, or a permission grant.
 
-## Boundaries
+`doctor` and `update` are developer scaffold checks for this source repository. They do not update an installed app, publish admission truth, create release descriptors, or grant permissions.
 
-- Renderer owns all product logic. Rust side stays transport / daemon only.
-- All AI flows go through `@nimiplatform/sdk/runtime`; publish goes through `@nimiplatform/sdk/realm`.
-- UI composed from `@nimiplatform/kit/ui`, `@nimiplatform/kit/auth`, and `@nimiplatform/kit/features/generation`.
-- No fallback that hides typed contract failures; auth/runtime/realm errors surface as typed empty states.
+For Nimi listing review, keep `nimi.app.yaml`, `.nimi/admission/submission.yaml`, `.nimi/admission/build-profile.yaml`, and `ADMISSION.md` in sync with the product behavior under `src/shell/routes/product-area.tsx`.
+
+Upstream Platform/Runtime review produces release descriptors, ordinary visibility, install truth, and scope authorization. This scaffold does not mint those outcomes.

@@ -36,8 +36,9 @@ The product loop runs in a fixed order:
 6. `publish` — author selects a master take and publishes to realm.
 
 A renderer must not present steps 3+ as available before a `SongBrief`
-exists (`description` non-empty). Iteration (step 5) must not be
-available before at least one take exists.
+exists (`description` non-empty). Extend / remix iteration requires an
+existing non-discarded source take; reference iteration may start from an
+uploaded `audio/*` reference without an existing take.
 
 ## OVT-FLOW-03 — Manual edits win
 
@@ -48,19 +49,23 @@ edited field after a regenerate from a sibling field.
 
 ## OVT-FLOW-04 — Generation submission
 
-Music generation MUST submit through `runNimiRuntimeScenarioJob(...)`
-with `ScenarioType.MUSIC_GENERATE` and `ExecutionMode.ASYNC_JOB`.
-The submission MUST snapshot the brief description, lyrics text,
-joined style tags, duration, and instrumental flag into the resulting
-`SongTake` at submission time (`OVT-DATA-04`).
+Music generation MUST consume the Kit generation lifecycle
+(`useRuntimeGenerationPanel` + `RuntimeGenerationPanel`), which submits
+through the SDK runtime scenario job path with
+`ScenarioType.MUSIC_GENERATE` and `ExecutionMode.ASYNC_JOB`. The app
+owns only the domain request projection and the completed-artifact to
+`SongTake` projection. The resulting `SongTake` MUST snapshot the brief
+description, lyrics text, joined style tags, duration, and instrumental
+flag at completion time from the immutable submission input
+(`OVT-DATA-04`).
 
 ## OVT-FLOW-05 — Job subscription discipline
 
-After submission, the renderer MUST drive job progress via
-`runtime.ai.subscribeScenarioJobEvents({ jobId })` and resolve artifacts
-via `runtime.ai.getScenarioArtifacts({ jobId })`. The renderer must not
-poll faster than the subscription rate and must not present completion
-before the artifact bytes are available for decoding.
+After submission, job progress and artifact resolution MUST remain inside
+the Kit generation lifecycle. The app must not duplicate subscription,
+polling, terminal lookup, or artifact fetch orchestration. The app may
+create a `SongTake` only after Kit returns a completed job with decoded
+artifact bytes.
 
 ## OVT-FLOW-06 — Iteration payload
 
@@ -100,10 +105,10 @@ A renderer that bypasses any of these gates is a contract violation.
 ## OVT-FLOW-10 — Publish artifact path
 
 Publishing MUST upload the take audio through
-`realm.media.upload({ file, type: 'audio', filename })` (or the SDK
-direct-upload equivalent), then call `realm.posts.create(...)` with the
-returned media reference plus the `PublishDraft` metadata. The renderer
-must not embed the audio bytes inline in the post payload.
+`uploadNimiRealmResourceFile(...)`, then call
+`createNimiRealmPost(...)` with the returned resource reference plus the
+`PublishDraft` metadata. The renderer must not embed the audio bytes
+inline in the post payload.
 
 ## OVT-FLOW-11 — Project reset
 

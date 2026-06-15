@@ -1,6 +1,6 @@
 {
   "intentVersion": 1,
-  "scaffoldVersion": "2026-05-24.wave-4-remediation-b",
+  "scaffoldVersion": "2026-05-29.app-source-snapshot",
   "initRequired": true,
   "initCommand": "pnpm exec nimi-app init",
   "initOrder": [
@@ -15,13 +15,52 @@
   "packageAuthor": null,
   "cargoPackageName": "nimiapp-overtone-shell",
   "tauriIdentifier": "ai.nimi.apps.nimi.overtone",
-  "devPort": 1468,
+  "accentPack": "nimi-accent",
+  "permissionDeclarations": [
+    {
+      "scope": "ai.spend.meter",
+      "purpose": "Meter Runtime AI execution for text assistance and music generation."
+    },
+    {
+      "scope": "ai_profile.selection.consume",
+      "purpose": "Consume Runtime route and model profile selections for Overtone generation."
+    },
+    {
+      "scope": "data.scope.write",
+      "purpose": "Publish finalized Overtone takes and metadata through Realm."
+    },
+    {
+      "scope": "file.read.scoped",
+      "qualifier": "app-local-drafts",
+      "purpose": "Read drafts owned by this app during author testing."
+    },
+    {
+      "scope": "file.write.scoped",
+      "qualifier": "app-local-drafts",
+      "purpose": "Store drafts owned by this app during author testing."
+    }
+  ],
+  "scaffoldOmissions": [
+    "dev-preview.html",
+    "src-tauri/src/tester_storage.rs",
+    "src-tauri/src/world_tour.rs",
+    "src/dev-preview.tsx",
+    "src/shell/ai/**",
+    "src/shell/routes/settings.tsx",
+    "src/shell/routes/settings/**",
+    "src/tester/**",
+    "test/settings-surface-read.mjs",
+    "test/tester-*",
+    "test/tsc-build.mjs",
+    "test/world-tour-contract.test.mjs"
+  ],
+  "devPort": 1507,
   "dependencyMatrix": {
     "npm": {
       "@nimiplatform/app-tools": "^0.1.4",
       "@nimiplatform/nimi-coding": "0.2.5",
-      "@nimiplatform/sdk": "^0.5.15",
-      "@nimiplatform/kit": "^0.1.0",
+      "@nimiplatform/sdk": "^0.6.0",
+      "@nimiplatform/kit": "^0.2.0",
       "@tauri-apps/api": "^2.9.1",
       "i18next": "^25.8.18",
       "lucide-react": "^0.577.0",
@@ -34,7 +73,8 @@
       "@tauri-apps/cli": "^2.11.2",
       "@tailwindcss/vite": "^4.3.0",
       "@types/three": "^0.184.1",
-      "@vitejs/plugin-react": "^5.1.1"
+      "@vitejs/plugin-react": "^5.1.1",
+      "yaml": "^2.9.0"
     },
     "cargo": {
       "nimi-shell-tauri": "0.1.0",

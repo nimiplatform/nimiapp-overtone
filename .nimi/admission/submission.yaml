@@ -12,6 +12,5 @@ review_inputs:
   manifest: nimi.app.yaml
   build_profile: .nimi/admission/build-profile.yaml
   scaffold_lock: .nimi/app-scaffold/lock.json
-  product_spec_index: .nimi/spec/INDEX.md
   local_audit: pnpm run local-audit
 admission_truth: platform-owned-after-review

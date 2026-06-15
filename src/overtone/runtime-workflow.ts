@@ -3,21 +3,20 @@
 // .nimi/spec/overtone/kernel/runtime-integration-contract.md (OVT-RT-*).
 
 import {
-  runNimiRuntimeScenarioJob,
   toNimiRuntimeProtoStruct,
   type Runtime,
+  type NimiRuntimeScenarioJob,
+  type NimiRuntimeScenarioJobSubmitRequest,
 } from '@nimiplatform/sdk/runtime';
 import { createNimiRuntimeAIModel, runNimiTextGenerate } from '@nimiplatform/sdk/ai';
 import type { NimiJsonObject } from '@nimiplatform/sdk/contracts';
+import { createNimiClientId } from '@nimiplatform/sdk/types';
 import {
   ExecutionMode,
   FallbackPolicy,
   RoutePolicy,
   ScenarioJobStatus,
   ScenarioType,
-  type ScenarioArtifact,
-  type ScenarioExtension,
-  type ScenarioJob,
   type SubmitScenarioJobRequest,
 } from '@nimiplatform/sdk/runtime/generated';
 import { appId } from '../shell/auth/runtime-platform.js';
@@ -55,7 +54,7 @@ export function scenarioJobStatusLabel(status: ScenarioJobStatus): string {
   }
 }
 
-export function scenarioJobProgressLabel(job: ScenarioJob): string {
+export function scenarioJobProgressLabel(job: NimiRuntimeScenarioJob): string {
   const base = scenarioJobStatusLabel(job.status);
   if (job.reasonDetail) return job.reasonDetail;
   if (job.progressPercent > 0) return `${base} (${job.progressPercent}%)`;
@@ -72,45 +71,10 @@ export interface MusicSubmitOptions {
   title?: string;
   durationSeconds?: number;
   instrumental?: boolean;
-  extensions?: readonly ScenarioExtension[];
+  extensions?: readonly MusicScenarioExtension[];
 }
 
-export interface MusicGenerateJobResult {
-  job: ScenarioJob;
-  artifacts: readonly ScenarioArtifact[];
-}
-
-function isTerminalScenarioStatus(status: ScenarioJobStatus): boolean {
-  return status === ScenarioJobStatus.COMPLETED ||
-    status === ScenarioJobStatus.FAILED ||
-    status === ScenarioJobStatus.CANCELED ||
-    status === ScenarioJobStatus.TIMEOUT;
-}
-
-// OVT-FLOW-05 / OVT-RT-04: use the job lifecycle surfaces directly so the
-// renderer can project job progress and only fetch artifacts after completion.
-export async function submitMusicGenerate(
-  runtime: Runtime,
-  input: MusicSubmitOptions,
-  onJob?: (job: ScenarioJob) => void,
-): Promise<MusicGenerateJobResult> {
-  let lastJob: ScenarioJob | undefined;
-  try {
-    return await runNimiRuntimeScenarioJob({
-      ai: runtime.ai,
-      request: buildMusicGenerateScenarioRequest(input),
-      onJobUpdate: (job) => {
-        lastJob = job;
-        onJob?.(job);
-      },
-    });
-  } catch (error) {
-    if (lastJob && isTerminalScenarioStatus(lastJob.status)) {
-      return { job: lastJob, artifacts: [] };
-    }
-    throw error;
-  }
-}
+export type MusicScenarioExtension = NimiRuntimeScenarioJobSubmitRequest['extensions'][number];
 
 export interface RuntimeTextGenerationInput {
   readonly runtime: Runtime;
@@ -160,6 +124,91 @@ export function copyArtifactBytesToArrayBuffer(bytes: Uint8Array | undefined): A
   return buffer;
 }
 
+export interface CompletedMusicArtifactProjection {
+  artifactId: string;
+  mimeType: string;
+  fileExtension: string;
+  byteLength: number;
+  durationSeconds?: number;
+  buffer: ArrayBuffer;
+}
+
+export function requireCompletedMusicArtifact(input: {
+  readonly job: {
+    readonly jobId: string;
+    readonly status: ScenarioJobStatus;
+    readonly reasonDetail?: string | null;
+  };
+  readonly artifacts: readonly {
+    readonly artifactId?: string | null;
+    readonly mimeType?: string | null;
+    readonly bytes?: Uint8Array;
+    readonly sizeBytes?: string | number | null;
+    readonly durationMs?: string | number | null;
+  }[];
+}): CompletedMusicArtifactProjection {
+  if (input.job.status !== ScenarioJobStatus.COMPLETED) {
+    throw new Error(input.job.reasonDetail || scenarioJobStatusLabel(input.job.status));
+  }
+  const artifact = input.artifacts[0];
+  if (!artifact) {
+    throw new Error(`Runtime job ${input.job.jobId} completed without an audio artifact.`);
+  }
+  const artifactId = String(artifact.artifactId || '').trim();
+  if (!artifactId) {
+    throw new Error(`Runtime job ${input.job.jobId} returned an audio artifact without artifactId.`);
+  }
+  const mimeType = String(artifact.mimeType || '').trim().toLowerCase();
+  if (!mimeType || !mimeType.startsWith('audio/')) {
+    throw new Error(`Runtime job ${input.job.jobId} returned an artifact without a valid audio MIME type.`);
+  }
+  const buffer = copyArtifactBytesToArrayBuffer(artifact.bytes);
+  if (!buffer) {
+    throw new Error(`Runtime artifact ${artifactId} has no decoded audio bytes.`);
+  }
+  return {
+    artifactId,
+    mimeType,
+    fileExtension: audioMimeToExtension(mimeType),
+    byteLength: normalizeByteLength(artifact.sizeBytes, buffer.byteLength),
+    durationSeconds: normalizeDurationSeconds(artifact.durationMs),
+    buffer,
+  };
+}
+
+function audioMimeToExtension(mimeType: string): string {
+  switch (mimeType.split(';', 1)[0]) {
+    case 'audio/mpeg':
+    case 'audio/mp3':
+      return 'mp3';
+    case 'audio/wav':
+    case 'audio/x-wav':
+      return 'wav';
+    case 'audio/aac':
+      return 'aac';
+    case 'audio/flac':
+      return 'flac';
+    case 'audio/ogg':
+      return 'ogg';
+    case 'audio/mp4':
+    case 'audio/m4a':
+      return 'm4a';
+    default:
+      return 'audio';
+  }
+}
+
+function normalizeByteLength(value: string | number | null | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeDurationSeconds(value: string | number | null | undefined): number | undefined {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return parsed / 1000;
+}
+
 // OVT-FLOW-06 / OVT-RT-05: app-owned music iteration extension builder.
 // The renderer MUST construct iteration payloads through this helper. The
 // only admitted namespace is `nimi.scenario.music_generate.request`.
@@ -174,28 +223,36 @@ export interface MusicIterationExtensionInput {
 
 export function buildMusicIterationExtensions(
   input: MusicIterationExtensionInput,
-): readonly ScenarioExtension[] {
-  const payload: NimiJsonObject = {
+): readonly MusicScenarioExtension[] {
+  const sourceMimeType = input.sourceMimeType;
+  if (input.sourceAudioBase64 && !sourceMimeType) {
+    throw new Error('Music iteration source audio requires a MIME type.');
+  }
+  const payload: Record<string, NimiJsonObject[string]> = {
     mode: input.mode,
-    ...(input.sourceTakeId ? { source_take_id: input.sourceTakeId } : {}),
-    ...(input.sourceAudioBase64
-      ? {
-          source_audio: {
-            mime_type: input.sourceMimeType || 'audio/mpeg',
-            data_base64: input.sourceAudioBase64,
-          },
-        }
-      : {}),
-    ...(typeof input.trimStartSec === 'number' ? { trim_start_sec: input.trimStartSec } : {}),
-    ...(typeof input.trimEndSec === 'number' ? { trim_end_sec: input.trimEndSec } : {}),
   };
+  if (input.sourceTakeId) {
+    payload.source_take_id = input.sourceTakeId;
+  }
+  if (input.sourceAudioBase64 && sourceMimeType) {
+    payload.source_audio = {
+      mime_type: sourceMimeType,
+      data_base64: input.sourceAudioBase64,
+    };
+  }
+  if (typeof input.trimStartSec === 'number') {
+    payload.trim_start_sec = input.trimStartSec;
+  }
+  if (typeof input.trimEndSec === 'number') {
+    payload.trim_end_sec = input.trimEndSec;
+  }
   return [{
     namespace: 'nimi.scenario.music_generate.request',
     payload: toNimiRuntimeProtoStruct(payload),
   }];
 }
 
-function buildMusicGenerateScenarioRequest(input: MusicSubmitOptions): SubmitScenarioJobRequest {
+export function buildMusicGenerateScenarioRequest(input: MusicSubmitOptions): SubmitScenarioJobRequest {
   const requestId = createScenarioId('overtone-music');
   return {
     head: {
@@ -234,7 +291,7 @@ function buildMusicGenerateScenarioRequest(input: MusicSubmitOptions): SubmitSce
 }
 
 function createScenarioId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return createNimiClientId(prefix);
 }
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {

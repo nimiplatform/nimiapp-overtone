@@ -1,7 +1,7 @@
 // Renderer-local store. Pure React context + useReducer; no external state library.
 // Authority: .nimi/spec/overtone/kernel/data-model-contract.md (OVT-DATA-*).
 
-import { createContext, useCallback, useContext, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
 import {
   ORIGIN_TO_SOURCE_MODE,
   makeId,
@@ -74,6 +74,8 @@ const INITIAL_STATE: OvertoneState = {
   publishError: null,
   publishedPostId: null,
 };
+
+const LOCAL_DRAFT_STORAGE_KEY = 'nimi.overtone:workspace.v1';
 
 function ensureProject(state: OvertoneState): SongProject | null {
   return state.project;
@@ -238,7 +240,11 @@ interface OvertoneContextValue {
 const OvertoneContext = createContext<OvertoneContextValue | null>(null);
 
 export function OvertoneProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE, loadInitialState);
+
+  useEffect(() => {
+    persistLocalDraft(state.project);
+  }, [state.project]);
 
   const setReadiness = useCallback((readiness: ReadinessSnapshot) => dispatch({ type: 'readiness/set', readiness }), []);
   const startProject = useCallback(() => dispatch({ type: 'project/start' }), []);
@@ -339,6 +345,45 @@ export function OvertoneProvider({ children }: { children: ReactNode }) {
   ]);
 
   return <OvertoneContext.Provider value={value}>{children}</OvertoneContext.Provider>;
+}
+
+function loadInitialState(initialState: OvertoneState): OvertoneState {
+  if (typeof window === 'undefined') return initialState;
+  try {
+    const raw = window.localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY);
+    if (!raw) return initialState;
+    const parsed = JSON.parse(raw) as { project?: SongProject | null };
+    if (!isPersistedProject(parsed.project)) return initialState;
+    return {
+      ...initialState,
+      project: parsed.project,
+    };
+  } catch {
+    return initialState;
+  }
+}
+
+function persistLocalDraft(project: SongProject | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!project) {
+      window.localStorage.removeItem(LOCAL_DRAFT_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(LOCAL_DRAFT_STORAGE_KEY, JSON.stringify({ project }));
+  } catch {
+    // Local draft persistence is best-effort and must not block creation.
+  }
+}
+
+function isPersistedProject(value: unknown): value is SongProject {
+  if (!value || typeof value !== 'object') return false;
+  const project = value as Partial<SongProject>;
+  return typeof project.projectId === 'string' &&
+    typeof project.createdAt === 'number' &&
+    Array.isArray(project.takes) &&
+    (project.selectedTakeId === null || typeof project.selectedTakeId === 'string') &&
+    Array.isArray(project.comparedTakeIds);
 }
 
 export function useOvertone(): OvertoneContextValue {

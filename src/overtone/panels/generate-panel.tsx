@@ -1,14 +1,15 @@
-import { useCallback, useState } from 'react';
-import { ScenarioJobStatus } from '@nimiplatform/sdk/runtime/generated';
-import { Button, InlineAlert, Surface, Toggle } from '@nimiplatform/kit/ui';
+import { useMemo, useState } from 'react';
+import { RuntimeGenerationPanel } from '@nimiplatform/kit/features/generation/ui';
+import { useRuntimeGenerationPanel } from '@nimiplatform/kit/features/generation/runtime';
+import { NumberStepper, TextField, Toggle } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
+import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
 import {
-  copyArtifactBytesToArrayBuffer,
+  buildMusicGenerateScenarioRequest,
+  requireCompletedMusicArtifact,
   scenarioJobProgressLabel,
-  scenarioJobStatusLabel,
   scenarioJobStatusToGenerationStatus,
-  submitMusicGenerate,
+  type MusicSubmitOptions,
 } from '../runtime-workflow.js';
 import { makeId, type SongTake } from '../types.js';
 
@@ -23,10 +24,32 @@ export function GeneratePanel() {
   const [durationSeconds, setDurationSeconds] = useState(120);
   const [instrumental, setInstrumental] = useState(false);
   const [styleTags, setStyleTags] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const hasActiveJob = Object.keys(state.activeJobs).length > 0;
+  const resolvedStyle = styleTags.trim() ||
+    [brief?.genre, brief?.mood].filter(Boolean).join(', ');
+  const runtime = useMemo(() => getRuntimeNimiClient().runtime, []);
+
+  const generationInput = useMemo<MusicSubmitOptions>(() => ({
+    model: readiness.selectedMusicModelId || '',
+    connectorId: readiness.selectedMusicConnectorId || '',
+    prompt: brief?.description || '',
+    lyrics: lyrics?.text || undefined,
+    style: resolvedStyle || undefined,
+    title: brief?.title || 'Untitled',
+    durationSeconds,
+    instrumental,
+  }), [
+    readiness.selectedMusicModelId,
+    readiness.selectedMusicConnectorId,
+    brief?.description,
+    brief?.title,
+    lyrics?.text,
+    resolvedStyle,
+    durationSeconds,
+    instrumental,
+  ]);
+
   const canSubmit = Boolean(
     brief?.description &&
     readiness.musicConnectorAvailable &&
@@ -35,136 +58,99 @@ export function GeneratePanel() {
     !hasActiveJob,
   );
 
-  const resolvedStyle = styleTags.trim() ||
-    [brief?.genre, brief?.mood].filter(Boolean).join(', ');
-
-  const handleSubmit = useCallback(async () => {
-    if (!canSubmit || !brief) return;
-    setSubmitting(true);
-    setError(null);
-    const localJobId = makeId('job-pending');
-    setJob({ jobId: localJobId, status: 'pending', progressLabel: 'Submitting...' });
-    try {
-      const runtime = getOvertoneNimiClient().runtime;
-      const result = await submitMusicGenerate(runtime, {
-        model: readiness.selectedMusicModelId!,
-        connectorId: readiness.selectedMusicConnectorId!,
-        prompt: brief.description,
-        lyrics: lyrics?.text || undefined,
-        style: resolvedStyle || undefined,
-        title: brief.title || 'Untitled',
-        durationSeconds,
-        instrumental,
-      }, (job) => {
-        removeJob(localJobId);
-        setJob({
-          jobId: job.jobId,
-          status: scenarioJobStatusToGenerationStatus(job.status),
-          progressLabel: scenarioJobProgressLabel(job),
-          errorMessage: job.reasonDetail || undefined,
-        });
+  const runtimeState = useRuntimeGenerationPanel<MusicSubmitOptions>({
+    runtime,
+    input: generationInput,
+    resolveRequest: ({ input }) => buildMusicGenerateScenarioRequest(input),
+    disabled: !canSubmit,
+    getStatusLabel: ({ job }) => scenarioJobProgressLabel(job),
+    onJobUpdate: ({ job }) => {
+      setJob({
+        jobId: job.jobId,
+        status: scenarioJobStatusToGenerationStatus(job.status),
+        progressLabel: scenarioJobProgressLabel(job),
+        errorMessage: job.reasonDetail || undefined,
       });
-
-      removeJob(localJobId);
+    },
+    onCompleted: (result) => {
       removeJob(result.job.jobId);
-
-      if (result.job.status !== ScenarioJobStatus.COMPLETED) {
-        throw new Error(result.job.reasonDetail || scenarioJobStatusLabel(result.job.status));
+      if (!brief || !project) {
+        throw new Error('Song project is not ready.');
       }
-
-      const artifact = result.artifacts[0];
+      const artifact = requireCompletedMusicArtifact(result);
       const take: SongTake = {
         takeId: makeId('take'),
         origin: 'prompt',
-        title: `${brief.title || 'Untitled'} · Take ${project!.takes.length + 1}`,
+        title: `${brief.title || 'Untitled'} - Take ${project.takes.length + 1}`,
         jobId: result.job.jobId,
-        artifactId: artifact?.artifactId,
+        artifactId: artifact.artifactId,
+        artifactMimeType: artifact.mimeType,
+        artifactByteLength: artifact.byteLength,
+        artifactFileExtension: artifact.fileExtension,
         promptSnapshot: brief.description,
         lyricsSnapshot: lyrics?.text || undefined,
         styleSnapshot: resolvedStyle || undefined,
-        durationSeconds,
+        durationSeconds: artifact.durationSeconds ?? durationSeconds,
         instrumental,
         favorite: false,
         discarded: false,
         createdAt: Date.now(),
       };
-      const buffer = copyArtifactBytesToArrayBuffer(artifact?.bytes);
-      addTake(take, buffer ?? undefined);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
-      removeJob(localJobId);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [
-    canSubmit,
-    brief,
-    lyrics,
-    durationSeconds,
-    instrumental,
-    resolvedStyle,
-    readiness.selectedMusicConnectorId,
-    readiness.selectedMusicModelId,
-    addTake,
-    setJob,
-    removeJob,
-    project,
-  ]);
+      addTake(take, artifact.buffer);
+    },
+    onError: (_error, context) => {
+      if (context.job?.jobId) {
+        removeJob(context.job.jobId);
+      }
+    },
+  });
 
-  return (
-    <Surface tone="panel" padding="md" className="overtone-section">
-      <div className="overtone-section__heading">
-        <h2>Generation</h2>
-      </div>
-
+  const controls = (
+    <>
       <div className="overtone-field">
         <label htmlFor="overtone-style-tags">Style tags</label>
-        <input
+        <TextField
           id="overtone-style-tags"
-          className="nimi-input"
-          type="text"
           value={styleTags}
           onChange={(event) => setStyleTags(event.target.value)}
-          placeholder={brief ? [brief.genre, brief.mood].filter(Boolean).join(', ') : 'e.g. indie, dreamy, acoustic'}
+          placeholder={brief ? [brief.genre, brief.mood].filter(Boolean).join(', ') : 'indie, dreamy, acoustic'}
         />
       </div>
 
       <div className="overtone-row">
         <div className="overtone-field" style={{ flex: 1 }}>
-          <label htmlFor="overtone-duration">Duration (sec)</label>
-          <input
-            id="overtone-duration"
-            className="nimi-input"
-            type="number"
+          <label htmlFor="overtone-duration">Duration</label>
+          <NumberStepper
             min={10}
             max={600}
             value={durationSeconds}
-            onChange={(event) => setDurationSeconds(Number(event.target.value) || 0)}
+            onValueChange={setDurationSeconds}
+            ariaLabel="Duration seconds"
           />
         </div>
-        <div className="overtone-row" style={{ alignItems: 'center', gap: 8 }}>
+        <div className="overtone-row overtone-toggle-row">
           <Toggle checked={instrumental} onChange={setInstrumental} />
-          <span style={{ fontSize: 13, color: 'var(--nimi-text-secondary)' }}>Instrumental</span>
+          <span>Instrumental</span>
         </div>
       </div>
+    </>
+  );
 
-      {!readiness.musicConnectorAvailable ? (
-        <InlineAlert tone="warning">
-          No music connector/model pair is ready. Configure runtime music access before generating.
-        </InlineAlert>
-      ) : null}
-
-      {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
-
-      <Button
-        type="button"
-        tone="primary"
-        size="md"
-        onClick={handleSubmit}
-        disabled={!canSubmit || submitting}
-      >
-        {submitting || hasActiveJob ? 'Generating...' : 'Generate Song'}
-      </Button>
-    </Surface>
+  return (
+    <RuntimeGenerationPanel
+      runtimeState={runtimeState}
+      title="Generation"
+      className="overtone-section overtone-generation-panel"
+      runtimeLabel="Music route"
+      runtimeValue={readiness.selectedMusicConnectorId && readiness.selectedMusicModelId
+        ? `${readiness.selectedMusicConnectorId} / ${readiness.selectedMusicModelId}`
+        : 'not configured'}
+      warning={!readiness.musicConnectorAvailable
+        ? 'No music connector/model pair is ready. Configure runtime music access before generating.'
+        : null}
+      controls={controls}
+      submitLabel="Generate Song"
+      submittingLabel="Generating..."
+    />
   );
 }

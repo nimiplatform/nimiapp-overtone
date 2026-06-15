@@ -15,6 +15,8 @@ export function TakesPanel({ onPublish }: TakesPanelProps) {
 
   const visibleTakes = project.takes.filter((take) => !take.discarded).sort((a, b) => b.createdAt - a.createdAt);
   const hasCompare = project.comparedTakeIds[0] || project.comparedTakeIds[1];
+  const compareA = visibleTakes.find((take) => take.takeId === project.comparedTakeIds[0]) ?? null;
+  const compareB = visibleTakes.find((take) => take.takeId === project.comparedTakeIds[1]) ?? null;
 
   if (visibleTakes.length === 0 && Object.keys(state.activeJobs).length === 0) {
     return (
@@ -34,6 +36,23 @@ export function TakesPanel({ onPublish }: TakesPanelProps) {
           <Button type="button" tone="secondary" size="sm" onClick={clearCompare}>Exit Compare</Button>
         ) : null}
       </div>
+
+      {compareA && compareB ? (
+        <Surface tone="panel" padding="md" className="overtone-compare">
+          <div className="overtone-section__heading">
+            <h3>A/B Compare</h3>
+            <StatusBadge tone="info">2 takes</StatusBadge>
+          </div>
+          <div className="overtone-compare__grid">
+            <CompareTakePanel slot="A" take={compareA} buffer={state.audioBuffers[compareA.takeId] ?? null} />
+            <CompareTakePanel slot="B" take={compareB} buffer={state.audioBuffers[compareB.takeId] ?? null} />
+          </div>
+        </Surface>
+      ) : hasCompare ? (
+        <Surface tone="card" padding="sm" className="overtone-compare overtone-compare--partial">
+          <span>Select both A and B slots to compare takes.</span>
+        </Surface>
+      ) : null}
 
       {Object.values(state.activeJobs).length > 0 ? (
         <div className="overtone-take-grid">
@@ -159,5 +178,21 @@ function TakeWaveformPreview({ buffer }: { buffer: ArrayBuffer | null }) {
       onSeek={() => {}}
       variant="mini"
     />
+  );
+}
+
+function CompareTakePanel({ slot, take, buffer }: { slot: 'A' | 'B'; take: { title: string; origin: string; durationSeconds?: number; artifactMimeType: string; createdAt: number }; buffer: ArrayBuffer | null }) {
+  return (
+    <div className="overtone-compare__item">
+      <div className="overtone-row" style={{ justifyContent: 'space-between' }}>
+        <strong>{slot}</strong>
+        <StatusBadge tone="info">{take.origin}</StatusBadge>
+      </div>
+      <TakeWaveformPreview buffer={buffer} />
+      <p className="overtone-take-card__title">{take.title}</p>
+      <p className="overtone-take-card__meta">
+        {take.durationSeconds ? `${Math.round(take.durationSeconds)}s · ` : ''}{take.artifactMimeType} · {new Date(take.createdAt).toLocaleTimeString()}
+      </p>
+    </div>
   );
 }

@@ -38,8 +38,10 @@ violation.
 
 `createNimiRealmPost(realm, onProgress, { caption, attachments, tags? })`
 MUST be the publish entry point. `attachments` MUST reference the
-finalized audio `resourceId` with type `AUDIO`. Cover art (P1) is an
-additional attachment with type `IMAGE`.
+finalized audio `resourceId` with target type `RESOURCE`, because the
+current Realm post DTO admits resource references rather than media-kind
+attachment types. Cover art (P1) is an additional finalized resource
+attachment unless Realm introduces a dedicated asset target.
 
 ## OVT-REALM-05 — Provenance confirmation
 

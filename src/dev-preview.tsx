@@ -17,7 +17,7 @@ function DevPreview() {
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <NimiThemeProvider accentPack="overtone-accent">
+    <NimiThemeProvider accentPack="nimi-accent">
       <TooltipProvider>
         <DevPreview />
       </TooltipProvider>

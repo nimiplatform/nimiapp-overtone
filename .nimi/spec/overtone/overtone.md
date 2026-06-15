@@ -125,4 +125,4 @@ There is exactly one workspace per app instance. Multiple parallel
 | Primary UX | Chat / agent / platform shell | Project workspace centered on takes |
 | Runtime usage | Broad platform coverage | Narrow, opinionated multimodal composition |
 | Rust surface | Full runtime bridge + local AI + mods | Minimal scaffold-managed Tauri bridge |
-| Auth | Platform shell auth | `@nimiplatform/kit/auth` desktop browser flow scoped to `app.nimi.overtone` |
+| Auth | Platform shell auth | `@nimiplatform/kit/auth` desktop browser flow scoped to `nimi.overtone` |

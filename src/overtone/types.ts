@@ -1,3 +1,5 @@
+import { createNimiClientId } from '@nimiplatform/sdk/types';
+
 // Renderer-side typed entities for Overtone. Authority: .nimi/spec/overtone/kernel/data-model-contract.md
 
 export type TakeOrigin = 'prompt' | 'extend' | 'remix' | 'reference';
@@ -22,7 +24,13 @@ export interface SongTake {
   origin: TakeOrigin;
   title: string;
   jobId: string;
-  artifactId?: string;
+  artifactId: string;
+  artifactMimeType: string;
+  artifactByteLength: number;
+  artifactFileExtension: string;
+  sourceMimeType?: string;
+  trimStartSec?: number;
+  trimEndSec?: number;
   promptSnapshot: string;
   lyricsSnapshot?: string;
   styleSnapshot?: string;
@@ -74,5 +82,5 @@ export const ORIGIN_TO_SOURCE_MODE: Record<TakeOrigin, PublishSourceMode> = {
 };
 
 export function makeId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return createNimiClientId(prefix);
 }

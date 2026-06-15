@@ -7,8 +7,8 @@
   },
   "scripts": {
     "dev": "pnpm run dev:renderer",
-    "dev:renderer": "vite --host 127.0.0.1 --port 1468 --strictPort",
-    "dev:shell": "node scripts/dev-shell.mjs",
+    "dev:renderer": "vite --host 127.0.0.1 --port 1507 --strictPort",
+    "dev:shell": "tauri dev",
     "init": "nimi-app init",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
@@ -22,8 +22,8 @@
     "update": "nimi-app update"
   },
   "dependencies": {
+    "@nimiplatform/sdk": "^0.6.0",
     "@nimiplatform/kit": "^0.2.0",
-    "@nimiplatform/sdk": "file:../../nimi-realm/nimi/sdks/typescript",
     "@tauri-apps/api": "^2.9.1",
     "i18next": "^25.8.18",
     "lucide-react": "^0.577.0",
@@ -43,6 +43,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "yaml": "^2.9.0"
   }
 }

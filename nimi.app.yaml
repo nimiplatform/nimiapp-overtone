@@ -4,15 +4,15 @@ profile: standalone
 manifest_role: submitted-input
 permissions:
   declared_nimi_api_scopes:
-    - scope: app.local.drafts
+    - scope: ai.spend.meter
+      purpose: Meter Runtime AI execution for text assistance and music generation.
+    - scope: ai_profile.selection.consume
+      purpose: Consume Runtime route and model profile selections for Overtone generation.
+    - scope: data.scope.write
+      purpose: Publish finalized Overtone takes and metadata through Realm.
+    - scope: file.read.scoped
       qualifier: app-local-drafts
-      purpose: Store song-brief drafts, lyrics, and take metadata owned by this app between sessions.
-    - scope: runtime.ai.submitScenarioJob.music.generate
-      qualifier: music-generation
-      purpose: Submit music-generation Scenario jobs and stream take artifacts back into the workspace.
-    - scope: runtime.ai.text.generate
-      qualifier: text-generate
-      purpose: Generate brief and lyric assistance text from runtime-bound text models.
-    - scope: realm.resources.publish
-      qualifier: realm-publish
-      purpose: Upload finalized take audio and publish posts to Nimi Realm when the author opts in.
+      purpose: Read drafts owned by this app during author testing.
+    - scope: file.write.scoped
+      qualifier: app-local-drafts
+      purpose: Store drafts owned by this app during author testing.

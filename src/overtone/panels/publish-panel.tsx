@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { createNimiRealmPost, uploadNimiRealmResourceFile } from '@nimiplatform/sdk/realm';
 import { Button, InlineAlert, OverlayShell, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
 import type { PublishDraft } from '../types.js';
 
 interface PublishModalProps {
@@ -13,12 +11,12 @@ interface PublishModalProps {
 
 export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
   const state = useOvertoneState();
-  const { setDraft, setProvenance, setPublishStatus, setPublishedPostId } = useOvertoneActions();
+  const { setDraft, setProvenance, setPublishStatus } = useOvertoneActions();
   const project = state.project;
   const take = project && takeId ? project.takes.find((entry) => entry.takeId === takeId) : null;
   const draft = project?.draftPost ?? null;
   const audioBuffer = take ? state.audioBuffers[take.takeId] : undefined;
-  const realmReady = state.readiness.realmConfigured && state.readiness.realmAuthenticated;
+  const realmPublishProxyAvailable = false;
 
   useEffect(() => {
     if (!open) return;
@@ -30,46 +28,19 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
   }, [open, onClose]);
 
   const canPublish = useMemo(() => {
-    if (!realmReady) return false;
+    if (!realmPublishProxyAvailable) return false;
     if (!audioBuffer) return false;
     if (!draft || !draft.provenanceConfirmed) return false;
     return state.publishStatus === 'idle' || state.publishStatus === 'error';
-  }, [realmReady, audioBuffer, draft, state.publishStatus]);
+  }, [realmPublishProxyAvailable, audioBuffer, draft, state.publishStatus]);
 
   const handlePublish = useCallback(async () => {
     if (!canPublish || !audioBuffer || !draft || !take) return;
-    setPublishStatus('uploading');
-    try {
-      const realm = getOvertoneNimiClient().requireRealm();
-      const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
-      const upload = await uploadNimiRealmResourceFile(realm, {
-        kind: 'audio',
-        file: audioBlob,
-        contentType: 'audio/mpeg',
-        fileName: `${take.takeId}.mp3`,
-        finalizePayload: {
-          mimeType: 'audio/mpeg',
-          title: draft.title || undefined,
-          tags: draft.tags.length > 0 ? draft.tags : undefined,
-          sourceArtifactId: take.artifactId,
-          sourceJobId: take.jobId,
-          style: take.styleSnapshot,
-          durationSec: take.durationSeconds,
-          instrumental: take.instrumental,
-        },
-      });
-      setPublishStatus('creating');
-      const post = await createNimiRealmPost(realm, () => {}, {
-        caption: draft.description || draft.title,
-        attachments: [{ targetId: upload.resourceId, targetType: 'RESOURCE' }],
-        tags: draft.tags.length > 0 ? draft.tags : undefined,
-      });
-      setPublishedPostId(post.id);
-      setPublishStatus('done');
-    } catch (error) {
-      setPublishStatus('error', error instanceof Error ? error.message : String(error));
-    }
-  }, [canPublish, audioBuffer, draft, take, setPublishStatus, setPublishedPostId]);
+    setPublishStatus(
+      'error',
+      'Realm publishing for developer-registered local apps requires a Runtime/Realm publish proxy. Overtone cannot publish through raw Realm access tokens.',
+    );
+  }, [canPublish, audioBuffer, draft, take, setPublishStatus]);
 
   if (!take || !draft) return null;
 
@@ -101,11 +72,9 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
         </div>
       </Surface>
 
-      {!realmReady ? (
+      {!realmPublishProxyAvailable ? (
         <InlineAlert tone="warning">
-          {!state.readiness.realmConfigured
-            ? 'Realm is not configured. Set VITE_NIMI_REALM_BASE_URL.'
-            : 'Realm is configured but you are not signed in. Use the login flow to continue.'}
+          Realm publishing is unavailable for developer-registered local apps until a platform publish proxy is admitted.
         </InlineAlert>
       ) : null}
 

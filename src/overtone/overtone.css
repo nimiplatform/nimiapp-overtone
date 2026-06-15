@@ -1,0 +1,316 @@
+:root {
+  --overtone-accent-primary: #8b5cf6;
+  --overtone-accent-primary-hover: #a78bfa;
+  --overtone-accent-active: rgba(139,92,246,0.18);
+  --overtone-accent-hover-strong: rgba(139,92,246,0.16);
+  --overtone-accent-hover: rgba(139,92,246,0.12);
+  --overtone-accent-ring: rgba(139,92,246,0.34);
+  --nimi-surface-active: var(--overtone-accent-active);
+  --nimi-action-primary-bg: var(--overtone-accent-primary);
+  --nimi-action-primary-bg-hover: var(--overtone-accent-primary-hover);
+  --nimi-action-primary-text: #ffffff;
+  --nimi-action-ghost-hover: var(--overtone-accent-hover-strong);
+  --nimi-sidebar-item-active: var(--overtone-accent-active);
+  --nimi-sidebar-item-hover: var(--overtone-accent-hover);
+  --nimi-field-focus: var(--overtone-accent-primary);
+  --nimi-focus-ring-color: var(--overtone-accent-ring);
+}
+
+.overtone-workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 22px;
+  overflow: hidden;
+}
+
+.overtone-compose {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--nimi-surface-panel) 78%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--nimi-elevation-base);
+  overflow: auto;
+}
+
+.overtone-output {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+}
+
+.overtone-takes {
+  min-width: 0;
+  min-height: 0;
+  padding: 18px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--nimi-surface-panel) 78%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--nimi-elevation-base);
+  overflow: auto;
+}
+
+.overtone-transport {
+  min-height: 84px;
+  padding: 14px 18px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--nimi-surface-panel) 88%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: var(--nimi-elevation-base);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.overtone-transport__meta {
+  min-width: 148px;
+  display: grid;
+  gap: 6px;
+  color: var(--nimi-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.overtone-trim-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(54px, 1fr));
+  gap: 6px;
+}
+
+.overtone-trim-controls input {
+  min-width: 0;
+  height: 30px;
+  font-size: 12px;
+}
+
+.overtone-trim-error {
+  color: var(--nimi-status-danger);
+}
+
+.overtone-section {
+  display: grid;
+  gap: 10px;
+}
+
+.overtone-section__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.overtone-section h2 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nimi-text-secondary);
+}
+
+.overtone-field {
+  display: grid;
+  gap: 6px;
+}
+
+.overtone-field label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-field__hint {
+  margin: 0;
+  color: var(--nimi-text-muted);
+  font-size: 12px;
+}
+
+.overtone-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.overtone-toggle-row {
+  gap: 8px;
+  color: var(--nimi-text-secondary);
+  font-size: 13px;
+}
+
+.overtone-take-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--nimi-surface-card) 78%, transparent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.overtone-take-card[data-selected="true"] {
+  border-color: var(--nimi-action-primary-bg);
+  box-shadow: 0 0 0 1px var(--nimi-action-primary-bg);
+}
+
+.overtone-take-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nimi-text-primary);
+}
+
+.overtone-take-card__meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-take-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.overtone-compare {
+  display: grid;
+  gap: 10px;
+}
+
+.overtone-compare--partial {
+  color: var(--nimi-text-secondary);
+  font-size: 13px;
+}
+
+.overtone-compare h3 {
+  margin: 0;
+  color: var(--nimi-text-secondary);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.overtone-compare__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overtone-compare__item {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--nimi-border-subtle);
+  border-radius: var(--nimi-radius-sm);
+  background: var(--nimi-surface-card);
+}
+
+.overtone-waveform {
+  width: 100%;
+  height: 56px;
+  display: block;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--nimi-surface-canvas) 80%, transparent);
+}
+
+.overtone-waveform--mini {
+  height: 36px;
+}
+
+.overtone-empty {
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  width: 100%;
+  padding: 48px;
+  text-align: center;
+  color: var(--nimi-text-secondary);
+}
+
+.overtone-empty h2 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--nimi-text-primary);
+}
+
+.overtone-empty p {
+  margin: 0 0 18px;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-readiness {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--nimi-text-muted);
+}
+
+.overtone-readiness__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nimi-text-muted);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.overtone-readiness__dot[data-state="ready"] {
+  background: var(--nimi-status-success);
+}
+
+.overtone-readiness__dot[data-state="error"] {
+  background: var(--nimi-status-danger);
+}
+
+@media (max-width: 980px) {
+  .overtone-workspace {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .overtone-workspace {
+    padding: 12px;
+  }
+
+  .overtone-take-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overtone-transport {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .overtone-transport__meta {
+    text-align: left;
+  }
+
+  .overtone-compare__grid {
+    grid-template-columns: 1fr;
+  }
+}

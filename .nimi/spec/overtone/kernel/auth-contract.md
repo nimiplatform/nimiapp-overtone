@@ -5,7 +5,8 @@ and token-custody prohibitions for Overtone.
 
 ## OVT-AUTH-01 — Runtime account caller
 
-Overtone is admitted as a `local-first-party` runtime-account caller.
+Overtone is a non-first-party `developer-registered-local-app`
+runtime-account caller.
 The caller identity is fixed and authoritative; concrete values live in
 [`tables/runtime-account-caller.yaml`](tables/runtime-account-caller.yaml).
 
@@ -15,28 +16,40 @@ The renderer MUST pass the caller exactly as declared on every
 
 ## OVT-AUTH-02 — Platform client construction
 
-The renderer MUST construct the platform client via
-`createNimiAppRuntimePlatformClient(...)` (or the equivalent SDK helper).
+The renderer MUST construct the platform client through the SDK runtime
+account/app-session helpers:
+
+- `createNimiDeveloperRegisteredRuntimeAccountCaller(...)`
+- `createNimiRuntimeFullAppRegistration(...)`
+- `createNimiRuntimeAppSessionMetadataProvider(...)`
+
+Realm bearer-token transport is forbidden for Overtone. Runtime shared auth
+means Runtime account custody, login broker, app-session metadata, and scoped
+protected access metadata; it does not expose raw Realm access tokens to
+developer-registered local apps.
+
 Direct construction via `createPlatformClient(...)` from the Overtone
 bootstrap is forbidden. The scaffold-managed
-`src/shell/auth/runtime-platform.ts` is the only file allowed to call
-the helper.
+`src/shell/auth/runtime-platform.ts` is the only file allowed to wire
+these helpers together.
 
 ## OVT-AUTH-03 — App-owned token custody forbidden
 
-App-owned access-token, refresh-token, subject-user-id, and
+App-owned access-token, refresh-token, subject-user-id provider, and
 session-store custody are forbidden in the Overtone renderer and Tauri
-shell. Runtime is the sole owner of token material. This rule is
+shell. Runtime is the sole owner of token material; the renderer may
+project the authenticated runtime account id only as non-secret session
+state. This rule is
 enforced at four layers:
 
-1. **SDK type level.** `createNimiAppRuntimePlatformClient(...)` rejects
-   `accessToken`, `accessTokenProvider`, `refreshTokenProvider`,
-   `subjectUserIdProvider`, and `sessionStore` inputs at compile time.
+1. **SDK helper level.** Runtime app-session and protected access metadata
+   are minted by SDK/runtime helpers, never by app-owned token inputs.
 2. **Auth adapter.** The `AuthPlatformAdapter` exposed to
    `<DesktopShellAuthPage>` MUST fail-close on `applyToken`,
    `persistSession`, and any oauth/password embedded login path.
 3. **Renderer state.** No `authToken`, `authRefreshToken`,
-   `subjectUserId`, or `sessionCookie` fields in any renderer store.
+   `subjectUserIdProvider`, `sessionCookie`, access-token, or refresh-token
+   fields in any renderer store.
 4. **Dev shortcut env.** Reading `VITE_NIMI_REALM_ACCESS_TOKEN` (or any
    other bearer-token env shortcut) from the renderer is forbidden.
 
@@ -74,22 +87,25 @@ treat:
 A renderer that infers an authenticated session from cached state, env
 overrides, or an absent error response is a contract violation.
 
-## OVT-AUTH-06 — Logout
+## OVT-AUTH-06 — Account control
 
-Logout MUST go through `runtime.account.logout({ caller, reason })`.
-Overtone MUST NOT call any kit shared desktop auth-session bridge
+Overtone MUST NOT call `runtime.account.logout`, `runtime.account.switchAccount`,
+or `runtime.account.getAccessToken`. Those account-control and raw-token
+surfaces are reserved for true first-party callers. Overtone MUST NOT call any
+kit shared desktop auth-session bridge
 (`auth_session_load/save/clear`, `persistSharedDesktopAuthSession`,
 `resolveDesktopBootstrapAuthSession`); none is admitted on the Overtone
 surface, and the scaffold-managed Tauri shell MUST NOT register the
 `auth_session_*` Tauri IPC handlers.
 
-## OVT-AUTH-07 — Dev-standalone bypass
+## OVT-AUTH-07 — No dev-standalone bypass
 
-Dev-standalone mode (`VITE_NIMI_APP_AUTH_MODE=dev-standalone`) is
-permitted only as a developer-session shortcut that supplies an
-externally minted developer session id + token. The renderer MUST NOT
-synthesize developer session credentials. The dev-standalone path
-MUST NOT enable real realm publish without explicit dev-time backing.
+Dev-standalone mode (`VITE_NIMI_APP_AUTH_MODE=dev-standalone`) is not
+admitted. Local development MUST use the developer-registered Runtime
+account path, with Desktop Developer Mode enabling Runtime
+developer-registration for not-yet-reviewed local builds. The renderer MUST
+ignore developer-session env credentials and MUST NOT synthesize developer
+session credentials or self-open the Runtime developer-registration gate.
 
 ## OVT-AUTH-08 — Auth UI consumption
 

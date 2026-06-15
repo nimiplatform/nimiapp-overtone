@@ -36,11 +36,12 @@ export function Waveform({ buffer, currentTime, duration, trimStart, trimEnd, on
     const trimStartRatio = trimStart !== null && duration > 0 ? trimStart / duration : null;
     const trimEndRatio = trimEnd !== null && duration > 0 ? trimEnd / duration : null;
     const centerY = rect.height / 2;
+    const colors = waveformColors();
 
     if (!isMini && (trimStartRatio !== null || trimEndRatio !== null)) {
       const startX = (trimStartRatio ?? 0) * rect.width;
       const endX = (trimEndRatio ?? 1) * rect.width;
-      ctx.fillStyle = 'rgba(167, 133, 255, 0.10)';
+      ctx.fillStyle = colors.trim;
       ctx.fillRect(startX, 0, endX - startX, rect.height);
     }
 
@@ -49,13 +50,13 @@ export function Waveform({ buffer, currentTime, duration, trimStart, trimEnd, on
       const peak = peaks[i] ?? 0;
       const halfH = Math.max(isMini ? 1 : 2, peak * rect.height * (isMini ? 0.5 : 0.42));
       const isPlayed = i / barCount <= playRatio;
-      ctx.fillStyle = isPlayed ? '#a785ff' : 'rgba(232, 234, 240, 0.18)';
+      ctx.fillStyle = isPlayed ? colors.played : colors.resting;
       ctx.fillRect(x + 1, centerY - halfH, Math.max(0, barWidth - 2), halfH * 2);
     }
 
     if (!isMini && duration > 0) {
       const playX = playRatio * rect.width;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = colors.playhead;
       ctx.fillRect(playX - 1, 0, 2, rect.height);
     }
   }, [buffer, currentTime, duration, trimStart, trimEnd, isMini]);
@@ -77,6 +78,28 @@ export function Waveform({ buffer, currentTime, duration, trimStart, trimEnd, on
       data-testid={isMini ? 'overtone-waveform-mini' : 'overtone-waveform'}
     />
   );
+}
+
+function waveformColors() {
+  if (typeof document === 'undefined') {
+    return {
+      played: '#8b5cf6',
+      resting: 'rgba(148, 163, 184, 0.28)',
+      playhead: '#ffffff',
+      trim: 'rgba(139, 92, 246, 0.12)',
+    };
+  }
+  const style = getComputedStyle(document.documentElement);
+  return {
+    played: readCssVar(style, '--nimi-action-primary-bg', '#8b5cf6'),
+    resting: readCssVar(style, '--nimi-border-subtle', 'rgba(148, 163, 184, 0.28)'),
+    playhead: readCssVar(style, '--nimi-text-primary', '#ffffff'),
+    trim: readCssVar(style, '--nimi-surface-active', 'rgba(139, 92, 246, 0.12)'),
+  };
+}
+
+function readCssVar(style: CSSStyleDeclaration, name: string, fallback: string): string {
+  return style.getPropertyValue(name).trim() || fallback;
 }
 
 function computePeaks(buffer: AudioBuffer | null, barCount: number): number[] {

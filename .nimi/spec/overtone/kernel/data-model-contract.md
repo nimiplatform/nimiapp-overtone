@@ -8,7 +8,7 @@ persisted server-side schema.
 
 ```ts
 type SongProject = {
-  projectId: string;          // ULID, unique per active session
+  projectId: string;          // SDK client id, unique per active session
   createdAt: number;          // ms epoch
   brief: SongBrief | null;
   lyrics: LyricsDocument | null;
@@ -55,12 +55,18 @@ Switching from `assistant` to manual editing transitions `source` to
 
 ```ts
 type SongTake = {
-  takeId: string;                  // ULID
+  takeId: string;                  // SDK client id
   parentTakeId?: string;           // populated for extend / remix / reference
   origin: TakeOrigin;              // see tables/take-origin-catalog.yaml
   title: string;                   // <= 80 chars
   jobId: string;                   // runtime scenario job id
-  artifactId?: string;             // first artifact id, if returned
+  artifactId: string;              // completed runtime audio artifact id
+  artifactMimeType: string;        // verified audio/* MIME type
+  artifactByteLength: number;      // decoded artifact byte length
+  artifactFileExtension: string;   // derived from artifactMimeType
+  sourceMimeType?: string;         // source audio MIME for derived/reference takes
+  trimStartSec?: number;           // optional source trim start
+  trimEndSec?: number;             // optional source trim end
   promptSnapshot: string;          // brief.description at submission time
   lyricsSnapshot?: string;         // lyrics text at submission time
   styleSnapshot?: string;          // joined style tags / genre+mood
@@ -93,14 +99,17 @@ type TakeArtifact = {
 
 Decoded audio buffers MUST NOT be persisted outside the renderer
 session. They are cleared on take discard, project reset, and app close.
+The renderer MUST fail close before creating a `SongTake` if a completed
+runtime job lacks `artifactId`, an `audio/*` MIME type, or decoded bytes.
 
 ## OVT-DATA-06 — Append-only takes
 
 Within a single session, takes are append-only. The user can
 `favorite`, `rename`, `discard` (sets `discarded = true`), but cannot
-mutate `jobId`, `artifactId`, `promptSnapshot`, `lyricsSnapshot`, or
-`createdAt` on an existing take. A renderer that mutates these fields is
-a contract violation.
+mutate `jobId`, artifact identity / MIME / byte metadata,
+`promptSnapshot`, `lyricsSnapshot`, source trim metadata, or `createdAt`
+on an existing take. A renderer that mutates these fields is a contract
+violation.
 
 ## OVT-DATA-07 — `GenerationJob`
 
@@ -124,14 +133,16 @@ Tauri shell. Permitted stores:
 
 - In-memory React state (default).
 - `localStorage` keyed under `nimi.overtone:*`, used only for non-secret
-  user preferences (e.g. last accent override).
+  user preferences and recoverable draft project metadata.
 
 Forbidden:
 
 - Any token, refresh token, subject user id, oauth code, or session
   cookie in `localStorage`, `sessionStorage`, or IndexedDB (see
   `OVT-AUTH-03`).
-- Mirroring runtime / realm responses across app restarts.
+- Mirroring runtime / realm responses, artifact bytes, decoded audio
+  buffers, uploaded reference audio, or active job projections across app
+  restarts.
 
 ## OVT-DATA-09 — `PublishDraft`
 

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { getOvertoneNimiClient } from '../../shell/auth/runtime-platform.js';
+import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
 import { generateRuntimeText } from '../runtime-workflow.js';
 import type { SongBrief } from '../types.js';
 
@@ -36,7 +36,7 @@ export function BriefPanel() {
     setError(null);
     try {
       const text = await generateRuntimeText({
-        runtime: getOvertoneNimiClient().runtime,
+        runtime: getRuntimeNimiClient().runtime,
         model: readiness.selectedTextModelId!,
         connectorId: readiness.selectedTextConnectorId!,
         input: idea.trim(),

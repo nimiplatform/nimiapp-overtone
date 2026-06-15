@@ -10,6 +10,7 @@ import { TakesPanel } from './panels/takes-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
 import { PublishModal } from './panels/publish-panel.js';
 import { probeReadiness } from './readiness.js';
+import './overtone.css';
 
 export function WorkspacePage() {
   return (
@@ -129,7 +130,7 @@ function WorkspaceInner() {
         <BriefPanel />
         <LyricsPanel />
         <GeneratePanel />
-        {hasTakes ? <IterationPanel /> : null}
+        <IterationPanel />
       </section>
       <section className="overtone-output" aria-label="Takes">
         <div className="overtone-takes">
@@ -150,13 +151,10 @@ function WorkspaceInner() {
 
 function ReadinessBanner() {
   const { readiness } = useOvertoneState();
-  if (readiness.runtimeStatus === 'ready' && readiness.realmConfigured) return null;
+  if (readiness.runtimeStatus === 'ready' && readiness.musicConnectorAvailable && readiness.textConnectorAvailable) return null;
   const messages: string[] = [];
   if (readiness.runtimeStatus === 'degraded') {
     messages.push(readiness.runtimeErrorMessage || 'Runtime is degraded; some connectors may be unavailable.');
-  }
-  if (!readiness.realmConfigured) {
-    messages.push('Realm is not configured. Set VITE_NIMI_REALM_BASE_URL.');
   }
   if (!readiness.musicConnectorAvailable) {
     messages.push('No music connector/model pair is ready.');

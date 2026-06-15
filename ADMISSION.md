@@ -17,7 +17,6 @@ pnpm run pack
 - `nimi.app.yaml` declares app identity and requested API scopes.
 - `.nimi/admission/submission.yaml` records publish-readiness commands and review inputs.
 - `.nimi/admission/build-profile.yaml` records install, init, build, and lockfile policy.
-- `.nimi/spec/**` records the active product authority surface that admission review can inspect.
 - `dist/nimi-app-submission.json` is produced by `pnpm run pack` after a successful renderer build.
 
 ## Reviewer Boundary
