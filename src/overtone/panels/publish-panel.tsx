@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { Button, InlineAlert, OverlayShell, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import type { PublishDraft } from '../types.js';
 
@@ -10,6 +11,7 @@ interface PublishModalProps {
 }
 
 export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
+  const { t } = useTranslation();
   const state = useOvertoneState();
   const { setDraft, setProvenance, setPublishStatus } = useOvertoneActions();
   const project = state.project;
@@ -38,9 +40,9 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
     if (!canPublish || !audioBuffer || !draft || !take) return;
     setPublishStatus(
       'error',
-      'Realm publishing for developer-registered local apps requires a Runtime/Realm publish proxy. Overtone cannot publish through raw Realm access tokens.',
+      t('Overtone.publish.proxyRequiredError'),
     );
-  }, [canPublish, audioBuffer, draft, take, setPublishStatus]);
+  }, [canPublish, audioBuffer, draft, take, setPublishStatus, t]);
 
   if (!take || !draft) return null;
 
@@ -53,14 +55,14 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
       kind="dialog"
       panelClassName="overtone-publish-modal"
       contentClassName="overtone-section"
-      title={<h2>Publish to Realm</h2>}
+      title={<h2>{t('Overtone.publish.title')}</h2>}
       footer={(
         <div className="overtone-row" style={{ justifyContent: 'space-between', width: '100%' }}>
-          <Button type="button" tone="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="button" tone="secondary" onClick={onClose}>{t('Overtone.publish.cancel')}</Button>
           <Button type="button" tone="primary" onClick={handlePublish} disabled={!canPublish || isPublishing}>
             {isPublishing
-              ? state.publishStatus === 'uploading' ? 'Uploading...' : 'Creating post...'
-              : state.publishStatus === 'done' ? 'Published' : 'Publish Now'}
+              ? state.publishStatus === 'uploading' ? t('Overtone.publish.uploading') : t('Overtone.publish.creatingPost')
+              : state.publishStatus === 'done' ? t('Overtone.publish.publishedButton') : t('Overtone.publish.publishNow')}
           </Button>
         </div>
       )}
@@ -68,13 +70,13 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
       <Surface tone="card" padding="md" className="overtone-section">
         <div className="overtone-row" style={{ justifyContent: 'space-between' }}>
           <strong>{take.title}</strong>
-          <StatusBadge tone="info">{take.origin}</StatusBadge>
+          <StatusBadge tone="info">{t(`Overtone.common.takeOrigins.${take.origin}`)}</StatusBadge>
         </div>
       </Surface>
 
       {!realmPublishProxyAvailable ? (
         <InlineAlert tone="warning">
-          Realm publishing is unavailable for developer-registered local apps until a platform publish proxy is admitted.
+          {t('Overtone.publish.proxyUnavailable')}
         </InlineAlert>
       ) : null}
 
@@ -84,21 +86,22 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
 
       {state.publishStatus === 'done' && state.publishedPostId ? (
         <InlineAlert tone="success">
-          Published. Post id: <code>{state.publishedPostId}</code>
+          {t('Overtone.publish.publishedPostId')} <code>{state.publishedPostId}</code>
         </InlineAlert>
       ) : null}
 
-      <DraftField label="Title" value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
-      <DraftTextarea label="Description" value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} />
+      <DraftField id="title" label={t('Overtone.publish.fields.title')} value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
+      <DraftTextarea id="description" label={t('Overtone.publish.fields.description')} value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} />
       <DraftField
-        label="Tags (comma separated)"
+        id="tags"
+        label={t('Overtone.publish.fields.tags')}
         value={draft.tags.join(', ')}
         onChange={(value) => setDraft({ ...draft, tags: parseTags(value) })}
       />
 
       <Surface tone="card" padding="md" className="overtone-section">
         <p className="overtone-take-card__meta">
-          Source mode: <strong>{draft.sourceMode}</strong>
+          {t('Overtone.publish.sourceMode')} <strong>{t(`Overtone.common.sourceModes.${draft.sourceMode}`)}</strong>
         </p>
         <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <input
@@ -107,7 +110,7 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
             onChange={(event) => setProvenance(event.target.checked)}
           />
           <span style={{ fontSize: 13, color: 'var(--nimi-text-secondary)' }}>
-            I confirm the source material is original or I have the right to publish it.
+            {t('Overtone.publish.provenanceConfirm')}
           </span>
         </label>
       </Surface>
@@ -122,22 +125,22 @@ function parseTags(value: string): string[] {
     .filter((tag) => tag.length > 0);
 }
 
-function DraftField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  const id = `overtone-publish-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+function DraftField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
+  const fieldId = `overtone-publish-${id}`;
   return (
     <div className="overtone-field">
-      <label htmlFor={id}>{label}</label>
-      <input id={id} className="nimi-input" type="text" value={value} onChange={(event) => onChange(event.target.value)} />
+      <label htmlFor={fieldId}>{label}</label>
+      <input id={fieldId} className="nimi-input" type="text" value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
 
-function DraftTextarea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  const id = `overtone-publish-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+function DraftTextarea({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
+  const fieldId = `overtone-publish-${id}`;
   return (
     <div className="overtone-field">
-      <label htmlFor={id}>{label}</label>
-      <textarea id={id} className="nimi-input" rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
+      <label htmlFor={fieldId}>{label}</label>
+      <textarea id={fieldId} className="nimi-input" rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

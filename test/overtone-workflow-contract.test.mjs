@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const productAreaSource = readFileSync(new URL('../src/shell/routes/product-area.tsx', import.meta.url), 'utf8');
 const workspaceSource = readFileSync(new URL('../src/overtone/workspace-page.tsx', import.meta.url), 'utf8');
+const i18nSource = readFileSync(new URL('../src/overtone/i18n.ts', import.meta.url), 'utf8');
 const storeSource = readFileSync(new URL('../src/overtone/store.tsx', import.meta.url), 'utf8');
 const typesSource = readFileSync(new URL('../src/overtone/types.ts', import.meta.url), 'utf8');
 const runtimeWorkflowSource = readFileSync(new URL('../src/overtone/runtime-workflow.ts', import.meta.url), 'utf8');
@@ -25,6 +26,7 @@ const overviewContract = readFileSync(new URL('../.nimi/spec/overtone/overtone.m
 const allSource = [
   productAreaSource,
   workspaceSource,
+  i18nSource,
   storeSource,
   typesSource,
   runtimeWorkflowSource,
@@ -69,6 +71,17 @@ test('renderer uses Kit base accent with app-owned Overtone variables', () => {
   assert.match(workspaceSource, /import '\.\/overtone\.css'/);
   assert.match(overtoneCssSource, /--overtone-accent-primary:\s*#8b5cf6/);
   assert.match(overtoneCssSource, /--nimi-action-primary-bg:\s*var\(--overtone-accent-primary\)/);
+});
+
+test('overtone i18n supports English and Chinese through Kit language switcher', () => {
+  assert.match(workspaceSource, /SegmentedControl/);
+  assert.match(workspaceSource, /onValueChange=\{handleLocaleChange\}/);
+  assert.match(workspaceSource, /persistOvertoneLocale/);
+  assert.match(i18nSource, /OVERTONE_LOCALES = \['en', 'zh'\]/);
+  assert.match(i18nSource, /nimi\.overtone:locale\.v1/);
+  assert.match(i18nSource, /App-owned UI preference only/);
+  assert.match(i18nSource, /Overtone/);
+  assert.match(i18nSource, /中文/);
 });
 
 test('workspace and panels source has no app-owned token custody', () => {
@@ -143,7 +156,8 @@ test('readiness does not silently choose the first route candidate', () => {
 test('iteration panel creates child takes through app-owned extension builder', () => {
   assert.match(workspaceSource, /IterationPanel/);
   assert.match(iterationSource, /buildMusicIterationExtensions/);
-  assert.match(iterationSource, /Reference audio/);
+  assert.match(iterationSource, /overtone-reference-audio/);
+  assert.match(i18nSource, /referenceAudio/);
   assert.match(iterationSource, /type="file"/);
   assert.match(iterationSource, /origin: mode/);
 });
@@ -152,7 +166,9 @@ test('publish flow fails closed without raw Realm token transport', () => {
   assert.doesNotMatch(publishSource, /uploadNimiRealmResourceFile/);
   assert.doesNotMatch(publishSource, /createNimiRealmPost/);
   assert.doesNotMatch(publishSource, /requireRealm\(/);
-  assert.match(publishSource, /Realm publishing is unavailable for developer-registered local apps/);
+  assert.match(publishSource, /realmPublishProxyAvailable = false/);
+  assert.match(publishSource, /proxyUnavailable/);
+  assert.match(i18nSource, /Realm publishing is unavailable for developer-registered local apps/);
   assert.match(publishSource, /provenanceConfirmed/);
   assert.doesNotMatch(publishSource, /type: 'audio\/mpeg'/);
 });
@@ -208,6 +224,6 @@ test('escape key exits compare mode when publish modal is not open', () => {
 test('player and takes expose trim preview plus A/B compare surfaces', () => {
   assert.match(playerSource, /trimStartSec/);
   assert.match(playerSource, /overtone-trim-controls/);
-  assert.match(takesSource, /A\/B Compare/);
+  assert.match(takesSource, /compareTitle/);
   assert.match(takesSource, /overtone-compare__grid/);
 });

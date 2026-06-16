@@ -22,6 +22,26 @@ import {
 import { appId } from '../shell/auth/runtime-platform.js';
 import type { GenerationJob, TakeOrigin } from './types.js';
 
+export interface ScenarioJobStatusLabels {
+  submitted: string;
+  queued: string;
+  running: string;
+  completed: string;
+  timeout: string;
+  canceled: string;
+  failed: string;
+}
+
+const DEFAULT_SCENARIO_JOB_STATUS_LABELS: ScenarioJobStatusLabels = {
+  submitted: 'Submitted to runtime',
+  queued: 'Queued by runtime',
+  running: 'Generating audio',
+  completed: 'Completed',
+  timeout: 'Timed out',
+  canceled: 'Canceled',
+  failed: 'Failed',
+};
+
 export function scenarioJobStatusToGenerationStatus(status: ScenarioJobStatus): GenerationJob['status'] {
   switch (status) {
     case ScenarioJobStatus.SUBMITTED:
@@ -41,21 +61,27 @@ export function scenarioJobStatusToGenerationStatus(status: ScenarioJobStatus): 
   }
 }
 
-export function scenarioJobStatusLabel(status: ScenarioJobStatus): string {
+export function scenarioJobStatusLabel(
+  status: ScenarioJobStatus,
+  labels: ScenarioJobStatusLabels = DEFAULT_SCENARIO_JOB_STATUS_LABELS,
+): string {
   switch (status) {
-    case ScenarioJobStatus.SUBMITTED: return 'Submitted to runtime';
-    case ScenarioJobStatus.QUEUED:    return 'Queued by runtime';
-    case ScenarioJobStatus.RUNNING:   return 'Generating audio';
-    case ScenarioJobStatus.COMPLETED: return 'Completed';
-    case ScenarioJobStatus.TIMEOUT:   return 'Timed out';
-    case ScenarioJobStatus.CANCELED:  return 'Canceled';
+    case ScenarioJobStatus.SUBMITTED: return labels.submitted;
+    case ScenarioJobStatus.QUEUED:    return labels.queued;
+    case ScenarioJobStatus.RUNNING:   return labels.running;
+    case ScenarioJobStatus.COMPLETED: return labels.completed;
+    case ScenarioJobStatus.TIMEOUT:   return labels.timeout;
+    case ScenarioJobStatus.CANCELED:  return labels.canceled;
     case ScenarioJobStatus.FAILED:
-    default:                          return 'Failed';
+    default:                          return labels.failed;
   }
 }
 
-export function scenarioJobProgressLabel(job: NimiRuntimeScenarioJob): string {
-  const base = scenarioJobStatusLabel(job.status);
+export function scenarioJobProgressLabel(
+  job: NimiRuntimeScenarioJob,
+  labels: ScenarioJobStatusLabels = DEFAULT_SCENARIO_JOB_STATUS_LABELS,
+): string {
+  const base = scenarioJobStatusLabel(job.status, labels);
   if (job.reasonDetail) return job.reasonDetail;
   if (job.progressPercent > 0) return `${base} (${job.progressPercent}%)`;
   if (job.progressTotalSteps > 0) return `${base} (${job.progressCurrentStep}/${job.progressTotalSteps})`;

@@ -110,6 +110,7 @@
       "nimi.app.yaml",
       "package.json",
       "README.md",
+      "scripts/check-kit-first-style.mjs",
       "scripts/ensure-dev-renderer-port.mjs",
       "scripts/local-audit.mjs",
       "scripts/pack.mjs",
@@ -142,7 +143,13 @@
       "vite.config.ts"
     ],
     "appOwnedProductCode": [
-      "src/shell/routes/product-area.tsx"
+      "src/shell/routes/product-area.tsx",
+      "test/dev-runner-contract.test.mjs",
+      "test/tester-contract/ai-config.mjs",
+      "test/tester-contract/boundary.mjs",
+      "test/tester-contract/helpers.mjs",
+      "test/tester-contract/history-ui.mjs",
+      "test/tester-contract/runtime-invokers.mjs"
     ]
   },
   "managedFileHashes": {
@@ -186,6 +193,10 @@
       "class": "scaffold-managed glue",
       "sha256": "88131096cc21e04d40fc5760a67621f754d8d1c4b56d9e47236b25c9bde63b82"
     },
+    "scripts/check-kit-first-style.mjs": {
+      "class": "scaffold-managed glue",
+      "sha256": "0226b5a6d18b394c0072459e1299feedc1ee1aba07cc3ab111785b5c55f535f6"
+    },
     "scripts/ensure-dev-renderer-port.mjs": {
       "class": "scaffold-managed glue",
       "sha256": "9be00240f2ead060ace916923b767f4ad22cc658237c0f7adf6713aa3fa53394"
@@ -200,11 +211,11 @@
     },
     "scripts/run-tauri-dev.mjs": {
       "class": "scaffold-managed glue",
-      "sha256": "ccea831f3c395a1cee8c6a4cfd2bbc96c16400c2e771d680b7a419a25ac2662f"
+      "sha256": "502cf1310269b276384b6fa932811df60a631f63cbcebb9a18955212a70601e3"
     },
     "scripts/tauri-dev-runner.cmd": {
       "class": "scaffold-managed glue",
-      "sha256": "3d44c33ac94db76a1023dfdf0f64d63ae54b74891bca9e5f76909ba33caebbe4"
+      "sha256": "46b0b35dd720846e619d2f47e8a4f65299e0b13183e026dd5f0bb74497555b0a"
     },
     "scripts/tauri-dev-runner.mjs": {
       "class": "scaffold-managed glue",
@@ -212,7 +223,7 @@
     },
     "scripts/validate.mjs": {
       "class": "scaffold-managed glue",
-      "sha256": "54cbdb168ba926b7e19f1b38c8a309acdeb1af6fbb8237e50d1940bf7a79fcb9"
+      "sha256": "8adcba3fb27a96176d65583ad598d8e56db494ec8db800109b23cd9aa60491be"
     },
     "SECURITY.md": {
       "class": "scaffold-managed glue",
@@ -284,11 +295,11 @@
     },
     "src/shell/routes/demo-surfaces.tsx": {
       "class": "scaffold-managed glue",
-      "sha256": "0b7630de369ef192a9ac0e324f71091fa4fd459956b700f3b5b4419c06a7f259"
+      "sha256": "8f4087406cab34030d29b5ec091501b142c19ce586e85915f8cbd444682745a9"
     },
     "src/styles.css": {
       "class": "scaffold-managed glue",
-      "sha256": "7e679b42650e52795bfa0d098ec4c627c2637fb33ac69bf005ab2f5197e6f468"
+      "sha256": "da6504ed12b7d3b45052bde5118f7d7e279752501f752282e08f9e53eabe2ad5"
     },
     "test/scaffold-boundary.test.mjs": {
       "class": "scaffold-managed glue",
@@ -319,6 +330,30 @@
     "src/shell/routes/product-area.tsx": {
       "class": "app-owned product code",
       "sha256": "9381b8f714089d43ef852ae8fd4211a423b1ec1232afab0ef8b9e070f8ca28ba"
+    },
+    "test/dev-runner-contract.test.mjs": {
+      "class": "app-owned product code",
+      "sha256": "6ea618af34cb5248dc8d9338150051cc529dc41c7931b53aab258c379056bce6"
+    },
+    "test/tester-contract/ai-config.mjs": {
+      "class": "app-owned product code",
+      "sha256": "c26862f3a05833b93a7be31d9fd49f119df71b7acc314397c7b073914552571f"
+    },
+    "test/tester-contract/boundary.mjs": {
+      "class": "app-owned product code",
+      "sha256": "9ceabd1152ae434b9acdc4c2b336d1d3da2bd3fc9455d9375f6fa6cdab07bfd3"
+    },
+    "test/tester-contract/helpers.mjs": {
+      "class": "app-owned product code",
+      "sha256": "302f1b69e300cb87851b4435cafad8c36fca704d3f2655c80f3213342e542bef"
+    },
+    "test/tester-contract/history-ui.mjs": {
+      "class": "app-owned product code",
+      "sha256": "2333fcfe736f04f8d4e76484c624aa49ed0eb6f2825a2523ac160e558a2b61b7"
+    },
+    "test/tester-contract/runtime-invokers.mjs": {
+      "class": "app-owned product code",
+      "sha256": "854a9c5fc8c4e8436ec6fe17be1e5e9ed7fdf3167ba6efd7909926584a6819b5"
     }
   },
   "dependencyMatrix": {

@@ -16,6 +16,21 @@
   --nimi-focus-ring-color: var(--overtone-accent-ring);
 }
 
+.overtone-screen {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.overtone-language-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 22px 0;
+}
+
 .overtone-workspace {
   flex: 1 1 auto;
   min-width: 0;
@@ -293,6 +308,10 @@
 }
 
 @media (max-width: 640px) {
+  .overtone-language-bar {
+    padding: 12px 12px 0;
+  }
+
   .overtone-workspace {
     padding: 12px;
   }

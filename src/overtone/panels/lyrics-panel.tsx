@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
 import { generateRuntimeText } from '../runtime-workflow.js';
@@ -10,6 +11,7 @@ Write singable lyrics that follow the provided brief.
 Return plain lyrics only, with section labels (Verse, Chorus, Bridge) when useful.`;
 
 export function LyricsPanel() {
+  const { t } = useTranslation();
   const state = useOvertoneState();
   const { setLyrics } = useOvertoneActions();
   const project = state.project;
@@ -57,8 +59,8 @@ export function LyricsPanel() {
   return (
     <Surface tone="panel" padding="md" className="overtone-section">
       <div className="overtone-section__heading">
-        <h2>Lyrics</h2>
-        {lyrics ? <StatusBadge tone="info">{lyrics.source}</StatusBadge> : null}
+        <h2>{t('Overtone.lyrics.title')}</h2>
+        {lyrics ? <StatusBadge tone="info">{t(`Overtone.lyrics.sources.${lyrics.source}`)}</StatusBadge> : null}
       </div>
 
       <div className="overtone-row">
@@ -69,12 +71,14 @@ export function LyricsPanel() {
           onClick={handleGenerate}
           disabled={generating || !canCallAi || !brief?.description}
         >
-          {generating ? 'Writing...' : lyrics ? 'Regenerate Lyrics' : 'Generate Lyrics'}
+          {generating
+            ? t('Overtone.lyrics.writing')
+            : lyrics ? t('Overtone.lyrics.regenerate') : t('Overtone.lyrics.generate')}
         </Button>
       </div>
 
       {!brief?.description ? (
-        <InlineAlert tone="info">Write a brief description first; the assistant uses it to shape lyrics.</InlineAlert>
+        <InlineAlert tone="info">{t('Overtone.lyrics.briefRequired')}</InlineAlert>
       ) : null}
 
       {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
@@ -85,7 +89,7 @@ export function LyricsPanel() {
         style={{ fontFamily: 'monospace', lineHeight: 1.65 }}
         value={lyrics?.text ?? ''}
         onChange={handleChange}
-        placeholder="Write or paste lyrics here. Manual edits always win over regenerated text."
+        placeholder={t('Overtone.lyrics.placeholder')}
       />
     </Surface>
   );

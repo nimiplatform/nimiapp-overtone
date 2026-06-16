@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
 import { generateRuntimeText } from '../runtime-workflow.js';
@@ -14,6 +15,7 @@ const BRIEF_SYSTEM = `You are a music production assistant. Given a song idea, o
 Output ONLY valid JSON. No markdown fences. No extra text.`;
 
 export function BriefPanel() {
+  const { t } = useTranslation();
   const state = useOvertoneState();
   const { setBrief } = useOvertoneActions();
   const project = state.project;
@@ -45,14 +47,14 @@ export function BriefPanel() {
         maxTokens: 1024,
       });
       const parsed = parseBriefJson(text);
-      if (!parsed) throw new Error('Assistant returned non-JSON brief content.');
+      if (!parsed) throw new Error(t('Overtone.brief.errors.nonJson'));
       setBrief(parsed);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
       setGenerating(false);
     }
-  }, [idea, canCallAi, readiness.selectedTextModelId, readiness.selectedTextConnectorId, setBrief]);
+  }, [idea, canCallAi, readiness.selectedTextModelId, readiness.selectedTextConnectorId, setBrief, t]);
 
   const handleManualBrief = useCallback(() => {
     setBrief({
@@ -68,19 +70,19 @@ export function BriefPanel() {
   return (
     <Surface tone="panel" padding="md" className="overtone-section">
       <div className="overtone-section__heading">
-        <h2>Song Brief</h2>
-        {brief ? <StatusBadge tone="success" shape="dot">ready</StatusBadge> : null}
+        <h2>{t('Overtone.brief.title')}</h2>
+        {brief ? <StatusBadge tone="success" shape="dot">{t('Overtone.common.status.ready')}</StatusBadge> : null}
       </div>
 
       <div className="overtone-field">
-        <label htmlFor="overtone-idea">Idea</label>
+        <label htmlFor="overtone-idea">{t('Overtone.brief.ideaLabel')}</label>
         <textarea
           id="overtone-idea"
           className="nimi-input"
           rows={3}
           value={idea}
           onChange={(event) => setIdea(event.target.value)}
-          placeholder="Describe your song idea..."
+          placeholder={t('Overtone.brief.ideaPlaceholder')}
         />
       </div>
 
@@ -92,7 +94,7 @@ export function BriefPanel() {
           onClick={handleGenerate}
           disabled={!idea.trim() || generating || !canCallAi}
         >
-          {generating ? 'Generating...' : 'AI Generate Brief'}
+          {generating ? t('Overtone.brief.generating') : t('Overtone.brief.generate')}
         </Button>
         <Button
           type="button"
@@ -101,13 +103,13 @@ export function BriefPanel() {
           onClick={handleManualBrief}
           disabled={!idea.trim()}
         >
-          Manual Brief
+          {t('Overtone.brief.manual')}
         </Button>
       </div>
 
       {!canCallAi ? (
         <InlineAlert tone="warning">
-          No text connector/model pair is ready. Use Manual Brief or configure runtime text access.
+          {t('Overtone.brief.noTextRoute')}
         </InlineAlert>
       ) : null}
 
@@ -115,12 +117,12 @@ export function BriefPanel() {
 
       {brief ? (
         <div className="overtone-field" style={{ marginTop: 8 }}>
-          <BriefField label="Title" value={brief.title} onChange={(value) => setBrief({ ...brief, title: value })} />
-          <BriefField label="Genre" value={brief.genre} onChange={(value) => setBrief({ ...brief, genre: value })} />
-          <BriefField label="Mood" value={brief.mood} onChange={(value) => setBrief({ ...brief, mood: value })} />
-          <BriefField label="Tempo" value={brief.tempo} onChange={(value) => setBrief({ ...brief, tempo: value })} />
+          <BriefField id="title" label={t('Overtone.brief.fields.title')} value={brief.title} onChange={(value) => setBrief({ ...brief, title: value })} />
+          <BriefField id="genre" label={t('Overtone.brief.fields.genre')} value={brief.genre} onChange={(value) => setBrief({ ...brief, genre: value })} />
+          <BriefField id="mood" label={t('Overtone.brief.fields.mood')} value={brief.mood} onChange={(value) => setBrief({ ...brief, mood: value })} />
+          <BriefField id="tempo" label={t('Overtone.brief.fields.tempo')} value={brief.tempo} onChange={(value) => setBrief({ ...brief, tempo: value })} />
           <div className="overtone-field">
-            <label htmlFor="overtone-brief-description">Description</label>
+            <label htmlFor="overtone-brief-description">{t('Overtone.brief.fields.description')}</label>
             <textarea
               id="overtone-brief-description"
               className="nimi-input"
@@ -135,8 +137,8 @@ export function BriefPanel() {
   );
 }
 
-function BriefField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  const fieldId = `overtone-brief-${label.toLowerCase()}`;
+function BriefField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
+  const fieldId = `overtone-brief-${id}`;
   return (
     <div className="overtone-field">
       <label htmlFor={fieldId}>{label}</label>

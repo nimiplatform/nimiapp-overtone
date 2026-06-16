@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, TextField } from '@nimiplatform/kit/ui';
+import { useTranslation } from 'react-i18next';
 import { useOvertoneState } from '../store.js';
 import { Waveform } from './waveform.js';
 
 export function PlayerPanel() {
+  const { t } = useTranslation();
   const state = useOvertoneState();
   const project = state.project;
   const selectedTake = project?.takes.find((take) => take.takeId === project.selectedTakeId && !take.discarded) ?? null;
@@ -147,7 +149,7 @@ export function PlayerPanel() {
   return (
     <div className="overtone-transport" data-testid="overtone-transport">
       <Button type="button" tone="primary" size="md" onClick={handlePlayPause} disabled={!decodedBufferRef.current}>
-        {isPlaying ? 'Pause' : 'Play'}
+        {isPlaying ? t('Overtone.player.pause') : t('Overtone.player.play')}
       </Button>
       <Waveform
         buffer={decodedBufferRef.current}
@@ -161,21 +163,21 @@ export function PlayerPanel() {
         <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
         <div className="overtone-trim-controls">
           <TextField
-            aria-label="Trim start"
+            aria-label={t('Overtone.player.trimStartAria')}
             type="number"
             min={0}
             value={trimStartSec ?? ''}
             onChange={(event) => setTrimStartSec(parseOptionalSecond(event.target.value))}
           />
           <TextField
-            aria-label="Trim end"
+            aria-label={t('Overtone.player.trimEndAria')}
             type="number"
             min={0}
             value={trimEndSec ?? ''}
             onChange={(event) => setTrimEndSec(parseOptionalSecond(event.target.value))}
           />
         </div>
-        {trimInvalid ? <span className="overtone-trim-error">Invalid trim</span> : null}
+        {trimInvalid ? <span className="overtone-trim-error">{t('Overtone.player.invalidTrim')}</span> : null}
       </div>
     </div>
   );

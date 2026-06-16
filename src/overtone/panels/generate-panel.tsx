@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { RuntimeGenerationPanel } from '@nimiplatform/kit/features/generation/ui';
 import { useRuntimeGenerationPanel } from '@nimiplatform/kit/features/generation/runtime';
 import { NumberStepper, TextField, Toggle } from '@nimiplatform/kit/ui';
+import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
 import {
@@ -9,11 +10,13 @@ import {
   requireCompletedMusicArtifact,
   scenarioJobProgressLabel,
   scenarioJobStatusToGenerationStatus,
+  type ScenarioJobStatusLabels,
   type MusicSubmitOptions,
 } from '../runtime-workflow.js';
 import { makeId, type SongTake } from '../types.js';
 
 export function GeneratePanel() {
+  const { t } = useTranslation();
   const state = useOvertoneState();
   const { addTake, setJob, removeJob } = useOvertoneActions();
   const project = state.project;
@@ -29,6 +32,15 @@ export function GeneratePanel() {
   const resolvedStyle = styleTags.trim() ||
     [brief?.genre, brief?.mood].filter(Boolean).join(', ');
   const runtime = useMemo(() => getRuntimeNimiClient().runtime, []);
+  const scenarioStatusLabels = useMemo<ScenarioJobStatusLabels>(() => ({
+    submitted: t('Overtone.runtime.status.submitted'),
+    queued: t('Overtone.runtime.status.queued'),
+    running: t('Overtone.runtime.status.running'),
+    completed: t('Overtone.runtime.status.completed'),
+    timeout: t('Overtone.runtime.status.timeout'),
+    canceled: t('Overtone.runtime.status.canceled'),
+    failed: t('Overtone.runtime.status.failed'),
+  }), [t]);
 
   const generationInput = useMemo<MusicSubmitOptions>(() => ({
     model: readiness.selectedMusicModelId || '',
@@ -36,7 +48,7 @@ export function GeneratePanel() {
     prompt: brief?.description || '',
     lyrics: lyrics?.text || undefined,
     style: resolvedStyle || undefined,
-    title: brief?.title || 'Untitled',
+    title: brief?.title || t('Overtone.generate.untitled'),
     durationSeconds,
     instrumental,
   }), [
@@ -48,6 +60,7 @@ export function GeneratePanel() {
     resolvedStyle,
     durationSeconds,
     instrumental,
+    t,
   ]);
 
   const canSubmit = Boolean(
@@ -63,25 +76,26 @@ export function GeneratePanel() {
     input: generationInput,
     resolveRequest: ({ input }) => buildMusicGenerateScenarioRequest(input),
     disabled: !canSubmit,
-    getStatusLabel: ({ job }) => scenarioJobProgressLabel(job),
+    getStatusLabel: ({ job }) => scenarioJobProgressLabel(job, scenarioStatusLabels),
     onJobUpdate: ({ job }) => {
       setJob({
         jobId: job.jobId,
         status: scenarioJobStatusToGenerationStatus(job.status),
-        progressLabel: scenarioJobProgressLabel(job),
+        progressLabel: scenarioJobProgressLabel(job, scenarioStatusLabels),
         errorMessage: job.reasonDetail || undefined,
       });
     },
     onCompleted: (result) => {
       removeJob(result.job.jobId);
       if (!brief || !project) {
-        throw new Error('Song project is not ready.');
+        throw new Error(t('Overtone.generate.errors.projectNotReady'));
       }
       const artifact = requireCompletedMusicArtifact(result);
+      const fallbackTitle = brief.title || t('Overtone.generate.untitled');
       const take: SongTake = {
         takeId: makeId('take'),
         origin: 'prompt',
-        title: `${brief.title || 'Untitled'} - Take ${project.takes.length + 1}`,
+        title: t('Overtone.generate.takeTitle', { title: fallbackTitle, number: project.takes.length + 1 }),
         jobId: result.job.jobId,
         artifactId: artifact.artifactId,
         artifactMimeType: artifact.mimeType,
@@ -108,29 +122,29 @@ export function GeneratePanel() {
   const controls = (
     <>
       <div className="overtone-field">
-        <label htmlFor="overtone-style-tags">Style tags</label>
+        <label htmlFor="overtone-style-tags">{t('Overtone.generate.styleTags')}</label>
         <TextField
           id="overtone-style-tags"
           value={styleTags}
           onChange={(event) => setStyleTags(event.target.value)}
-          placeholder={brief ? [brief.genre, brief.mood].filter(Boolean).join(', ') : 'indie, dreamy, acoustic'}
+          placeholder={brief ? [brief.genre, brief.mood].filter(Boolean).join(', ') : t('Overtone.generate.stylePlaceholder')}
         />
       </div>
 
       <div className="overtone-row">
         <div className="overtone-field" style={{ flex: 1 }}>
-          <label htmlFor="overtone-duration">Duration</label>
+          <label htmlFor="overtone-duration">{t('Overtone.generate.duration')}</label>
           <NumberStepper
             min={10}
             max={600}
             value={durationSeconds}
             onValueChange={setDurationSeconds}
-            ariaLabel="Duration seconds"
+            ariaLabel={t('Overtone.generate.durationSecondsAria')}
           />
         </div>
         <div className="overtone-row overtone-toggle-row">
           <Toggle checked={instrumental} onChange={setInstrumental} />
-          <span>Instrumental</span>
+          <span>{t('Overtone.generate.instrumental')}</span>
         </div>
       </div>
     </>
@@ -139,18 +153,18 @@ export function GeneratePanel() {
   return (
     <RuntimeGenerationPanel
       runtimeState={runtimeState}
-      title="Generation"
+      title={t('Overtone.generate.title')}
       className="overtone-section overtone-generation-panel"
-      runtimeLabel="Music route"
+      runtimeLabel={t('Overtone.generate.runtimeLabel')}
       runtimeValue={readiness.selectedMusicConnectorId && readiness.selectedMusicModelId
         ? `${readiness.selectedMusicConnectorId} / ${readiness.selectedMusicModelId}`
-        : 'not configured'}
+        : t('Overtone.generate.runtimeNotConfigured')}
       warning={!readiness.musicConnectorAvailable
-        ? 'No music connector/model pair is ready. Configure runtime music access before generating.'
+        ? t('Overtone.generate.warningNoMusicRoute')
         : null}
       controls={controls}
-      submitLabel="Generate Song"
-      submittingLabel="Generating..."
+      submitLabel={t('Overtone.generate.submit')}
+      submittingLabel={t('Overtone.generate.submitting')}
     />
   );
 }
