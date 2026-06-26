@@ -7,6 +7,7 @@ import {
   type Runtime,
   type NimiRuntimeScenarioJob,
   type NimiRuntimeScenarioJobSubmitRequest,
+  type NimiRuntimeRouteCloudTargetRef,
 } from '@nimiplatform/sdk/runtime';
 import { createNimiRuntimeAIModel, runNimiTextGenerate } from '@nimiplatform/sdk/ai';
 import type { NimiJsonObject } from '@nimiplatform/sdk/contracts';
@@ -91,6 +92,7 @@ export function scenarioJobProgressLabel(
 export interface MusicSubmitOptions {
   model: string;
   connectorId: string;
+  readonly targetRef: NimiRuntimeRouteCloudTargetRef;
   prompt: string;
   lyrics?: string;
   style?: string;
@@ -106,6 +108,7 @@ export interface RuntimeTextGenerationInput {
   readonly runtime: Runtime;
   readonly model: string;
   readonly connectorId: string;
+  readonly targetRef: NimiRuntimeRouteCloudTargetRef;
   readonly input: string;
   readonly system: string;
   readonly temperature?: number;
@@ -122,6 +125,7 @@ export async function generateRuntimeText(input: RuntimeTextGenerationInput): Pr
       providerId: input.connectorId,
       modelId: input.model,
     },
+    targetRef: input.targetRef,
   });
   const result = await runNimiTextGenerate({
     runtime: { model },
@@ -289,6 +293,7 @@ export function buildMusicGenerateScenarioRequest(input: MusicSubmitOptions): Su
       fallback: FallbackPolicy.DENY,
       timeoutMs: 0,
       connectorId: input.connectorId,
+      targetRef: runtimeDurableCloudTargetRef(input.targetRef),
     },
     scenarioType: ScenarioType.MUSIC_GENERATE,
     executionMode: ExecutionMode.ASYNC_JOB,
@@ -318,6 +323,23 @@ export function buildMusicGenerateScenarioRequest(input: MusicSubmitOptions): Su
 
 function createScenarioId(prefix: string): string {
   return createNimiClientId(prefix);
+}
+
+function runtimeDurableCloudTargetRef(
+  targetRef: NimiRuntimeRouteCloudTargetRef,
+): NonNullable<NonNullable<SubmitScenarioJobRequest['head']>['targetRef']> {
+  return {
+    target: {
+      oneofKind: 'cloud',
+      cloud: {
+        version: 'v2',
+        connectorId: targetRef.connectorId,
+        remoteModelCatalogId: targetRef.remoteModelCatalogId,
+        providerModelId: targetRef.providerModelId,
+        provider: targetRef.provider || '',
+      },
+    },
+  };
 }
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {

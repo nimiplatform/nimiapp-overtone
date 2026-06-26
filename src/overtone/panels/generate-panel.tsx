@@ -45,6 +45,7 @@ export function GeneratePanel() {
   const generationInput = useMemo<MusicSubmitOptions>(() => ({
     model: readiness.selectedMusicModelId || '',
     connectorId: readiness.selectedMusicConnectorId || '',
+    targetRef: readiness.selectedMusicTargetRef!,
     prompt: brief?.description || '',
     lyrics: lyrics?.text || undefined,
     style: resolvedStyle || undefined,
@@ -54,6 +55,7 @@ export function GeneratePanel() {
   }), [
     readiness.selectedMusicModelId,
     readiness.selectedMusicConnectorId,
+    readiness.selectedMusicTargetRef,
     brief?.description,
     brief?.title,
     lyrics?.text,
@@ -66,6 +68,7 @@ export function GeneratePanel() {
   const canSubmit = Boolean(
     brief?.description &&
     readiness.musicConnectorAvailable &&
+    readiness.selectedMusicTargetRef &&
     readiness.selectedMusicConnectorId &&
     readiness.selectedMusicModelId &&
     !hasActiveJob,

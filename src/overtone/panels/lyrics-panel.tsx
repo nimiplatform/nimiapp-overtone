@@ -24,6 +24,7 @@ export function LyricsPanel() {
 
   const canCallAi = Boolean(
     readiness.textConnectorAvailable &&
+    readiness.selectedTextTargetRef &&
     readiness.selectedTextConnectorId &&
     readiness.selectedTextModelId,
   );
@@ -37,6 +38,7 @@ export function LyricsPanel() {
         runtime: getRuntimeNimiClient().runtime,
         model: readiness.selectedTextModelId!,
         connectorId: readiness.selectedTextConnectorId!,
+        targetRef: readiness.selectedTextTargetRef!,
         input: buildBriefContext(brief),
         system: LYRICS_SYSTEM,
         temperature: 0.85,
@@ -48,7 +50,7 @@ export function LyricsPanel() {
     } finally {
       setGenerating(false);
     }
-  }, [brief, canCallAi, readiness.selectedTextConnectorId, readiness.selectedTextModelId, setLyrics]);
+  }, [brief, canCallAi, readiness.selectedTextTargetRef, readiness.selectedTextConnectorId, readiness.selectedTextModelId, setLyrics]);
 
   const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = event.target.value;

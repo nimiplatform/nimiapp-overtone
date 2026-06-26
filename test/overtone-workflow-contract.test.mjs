@@ -140,6 +140,24 @@ test('readiness probes scenario profiles before route option matching', () => {
   assert.match(readinessSource, /listNimiRuntimeRouteOptionsWithHost/);
 });
 
+test('runtime route selection consumes v2 inventory target refs', () => {
+  assert.match(readinessSource, /snapshot\.inventory\.targets/);
+  assert.match(readinessSource, /selectedTargetRef/);
+  assert.doesNotMatch(readinessSource, /snapshot\.connectors/);
+  assert.doesNotMatch(readinessSource, /snapshot\.selected\?/);
+  assert.match(typesSource, /selectedTextTargetRef\?:/);
+  assert.match(typesSource, /selectedMusicTargetRef\?:/);
+});
+
+test('runtime execution requests carry durable target refs', () => {
+  assert.match(runtimeWorkflowSource, /readonly targetRef:/);
+  assert.match(runtimeWorkflowSource, /targetRef: input\.targetRef/);
+  assert.match(runtimeWorkflowSource, /targetRef: runtimeDurableCloudTargetRef\(input\.targetRef\)/);
+  assert.match(briefSource, /targetRef: readiness\.selectedTextTargetRef!/);
+  assert.match(generateSource, /targetRef: readiness\.selectedMusicTargetRef!/);
+  assert.match(iterationSource, /targetRef: state\.readiness\.selectedMusicTargetRef!/);
+});
+
 test('realm authentication readiness is unavailable without a platform publish proxy', () => {
   assert.match(readinessSource, /realmConfigured:\s*false/);
   assert.match(readinessSource, /realmAuthenticated:\s*false/);

@@ -5,9 +5,12 @@
 import type { NimiClient } from '@nimiplatform/sdk';
 import {
   createNimiRuntimeRouteOptionsHostDeps,
+  isNimiRuntimeTargetInventoryItemSelectable,
   listNimiRuntimeRouteOptionsWithHost,
   type NimiRuntimeCanonicalCapability,
+  type NimiRuntimeRouteCloudTargetRef,
   type NimiRuntimeRouteOptionsSnapshot,
+  type NimiRuntimeTargetInventoryItem,
 } from '@nimiplatform/sdk/runtime';
 import { getRuntimeNimiClient } from '../shell/auth/runtime-platform.js';
 import type { ReadinessSnapshot } from './types.js';
@@ -17,29 +20,55 @@ const READY_TIMEOUT_MS = 5_000;
 type ConnectorModelMatch = {
   connectorId: string;
   modelId: string;
+  targetRef: NimiRuntimeRouteCloudTargetRef;
 };
 
 function normalizeRouteText(value: unknown): string {
   return String(value || '').trim();
 }
 
-function pickCloudModel(snapshot: NimiRuntimeRouteOptionsSnapshot): ConnectorModelMatch | undefined {
-  const selectedModel = normalizeRouteText(snapshot.selected?.model || snapshot.selected?.modelId);
-  const selectedConnectorId = normalizeRouteText(snapshot.selected?.connectorId);
-  if (snapshot.selected?.source === 'cloud' && selectedConnectorId && selectedModel) {
-    return {
-      connectorId: selectedConnectorId,
-      modelId: selectedModel,
-    };
+function routeCloudTargetRefsEqual(
+  left: NimiRuntimeRouteCloudTargetRef,
+  right: NimiRuntimeRouteCloudTargetRef,
+): boolean {
+  return left.connectorId === right.connectorId &&
+    left.remoteModelCatalogId === right.remoteModelCatalogId &&
+    left.providerModelId === right.providerModelId &&
+    (left.provider || '') === (right.provider || '');
+}
+
+function cloudInventoryItemToMatch(item: NimiRuntimeTargetInventoryItem): ConnectorModelMatch | null {
+  if (item.targetRef.kind !== 'cloud-connector') {
+    return null;
   }
-  const candidates = snapshot.connectors.flatMap((connector) =>
-    connector.models
-      .map((model) => ({
-        connectorId: normalizeRouteText(connector.id),
-        modelId: normalizeRouteText(model),
-      }))
-      .filter((candidate) => candidate.connectorId && candidate.modelId),
-  );
+  const connectorId = normalizeRouteText(item.targetRef.connectorId);
+  const modelId = normalizeRouteText(item.targetRef.providerModelId);
+  const remoteModelCatalogId = normalizeRouteText(item.targetRef.remoteModelCatalogId);
+  if (!connectorId || !modelId || !remoteModelCatalogId || !isNimiRuntimeTargetInventoryItemSelectable(item)) {
+    return null;
+  }
+  return {
+    connectorId,
+    modelId,
+    targetRef: {
+      kind: 'cloud-connector',
+      version: 'v2',
+      connectorId,
+      remoteModelCatalogId,
+      providerModelId: modelId,
+      ...(item.targetRef.provider ? { provider: item.targetRef.provider } : {}),
+    },
+  };
+}
+
+function pickCloudModel(snapshot: NimiRuntimeRouteOptionsSnapshot): ConnectorModelMatch | undefined {
+  const candidates = snapshot.inventory.targets
+    .map(cloudInventoryItemToMatch)
+    .filter((candidate): candidate is ConnectorModelMatch => candidate !== null);
+  const selectedTargetRef = snapshot.selectedTargetRef;
+  if (selectedTargetRef?.kind === 'cloud-connector') {
+    return candidates.find((candidate) => routeCloudTargetRefsEqual(candidate.targetRef, selectedTargetRef));
+  }
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 
@@ -115,6 +144,8 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     runtimeErrorMessage: scenarioErrorMessage,
     textConnectorAvailable: Boolean(textMatch),
     musicConnectorAvailable: Boolean(musicMatch),
+    selectedTextTargetRef: textMatch?.targetRef,
+    selectedMusicTargetRef: musicMatch?.targetRef,
     selectedTextConnectorId: textMatch?.connectorId,
     selectedTextModelId: textMatch?.modelId,
     selectedMusicConnectorId: musicMatch?.connectorId,

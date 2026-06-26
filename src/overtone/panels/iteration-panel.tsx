@@ -78,6 +78,7 @@ export function IterationPanel() {
   const generationInput = useMemo<MusicSubmitOptions>(() => ({
     model: state.readiness.selectedMusicModelId || '',
     connectorId: state.readiness.selectedMusicConnectorId || '',
+    targetRef: state.readiness.selectedMusicTargetRef!,
     prompt: brief?.description || '',
     lyrics: lyrics?.text || sourceTake?.lyricsSnapshot || undefined,
     style: resolvedStyle || undefined,
@@ -97,6 +98,7 @@ export function IterationPanel() {
   }), [
     state.readiness.selectedMusicModelId,
     state.readiness.selectedMusicConnectorId,
+    state.readiness.selectedMusicTargetRef,
     brief?.description,
     brief?.title,
     lyrics?.text,
@@ -117,6 +119,7 @@ export function IterationPanel() {
     brief?.description &&
     hasSourceAudio &&
     state.readiness.musicConnectorAvailable &&
+    state.readiness.selectedMusicTargetRef &&
     state.readiness.selectedMusicConnectorId &&
     state.readiness.selectedMusicModelId &&
     !trimInvalid &&

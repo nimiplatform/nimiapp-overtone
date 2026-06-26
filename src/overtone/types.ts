@@ -1,4 +1,5 @@
 import { createNimiClientId } from '@nimiplatform/sdk/types';
+import type { NimiRuntimeRouteCloudTargetRef } from '@nimiplatform/sdk/runtime';
 
 // Renderer-side typed entities for Overtone. Authority: .nimi/spec/overtone/kernel/data-model-contract.md
 
@@ -66,6 +67,8 @@ export interface ReadinessSnapshot {
   runtimeErrorMessage?: string;
   textConnectorAvailable: boolean;
   musicConnectorAvailable: boolean;
+  selectedTextTargetRef?: NimiRuntimeRouteCloudTargetRef;
+  selectedMusicTargetRef?: NimiRuntimeRouteCloudTargetRef;
   selectedTextConnectorId?: string;
   selectedTextModelId?: string;
   selectedMusicConnectorId?: string;

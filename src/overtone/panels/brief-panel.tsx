@@ -28,6 +28,7 @@ export function BriefPanel() {
 
   const canCallAi = Boolean(
     readiness.textConnectorAvailable &&
+    readiness.selectedTextTargetRef &&
     readiness.selectedTextConnectorId &&
     readiness.selectedTextModelId,
   );
@@ -41,6 +42,7 @@ export function BriefPanel() {
         runtime: getRuntimeNimiClient().runtime,
         model: readiness.selectedTextModelId!,
         connectorId: readiness.selectedTextConnectorId!,
+        targetRef: readiness.selectedTextTargetRef!,
         input: idea.trim(),
         system: BRIEF_SYSTEM,
         temperature: 0.9,
@@ -54,7 +56,7 @@ export function BriefPanel() {
     } finally {
       setGenerating(false);
     }
-  }, [idea, canCallAi, readiness.selectedTextModelId, readiness.selectedTextConnectorId, setBrief, t]);
+  }, [idea, canCallAi, readiness.selectedTextTargetRef, readiness.selectedTextModelId, readiness.selectedTextConnectorId, setBrief, t]);
 
   const handleManualBrief = useCallback(() => {
     setBrief({
