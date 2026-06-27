@@ -70,12 +70,21 @@ test('renderer bootstrap installs Kit runtime bridge before render', () => {
   assert.doesNotMatch(mainSource, /Failed to fetch dynamically imported module|Importing a module script failed|function isRetryable/);
 });
 
-test('Tauri scaffold consumes Kit shared command registration and renderer probe', () => {
-  assert.match(tauriMainSource, /nimi_shell_tauri::nimi_shell_tauri_runtime_bridge_handler!\[/);
-  assert.match(tauriMainSource, /@with_runtime_defaults nimi_shell_tauri::runtime_defaults::runtime_defaults;/);
-  assert.match(tauriMainSource, /renderer_entry_probe::build_renderer_entry_probe_script/);
+test('Tauri scaffold consumes Kit standard capabilities and renderer probe', () => {
+  assert.match(tauriMainSource, /tauri::generate_handler!\[/);
+  assert.match(tauriMainSource, /runtime_defaults::runtime_defaults/);
+  assert.match(tauriMainSource, /runtime::runtime_bridge_unary/);
+  assert.match(tauriMainSource, /runtime::runtime_bridge_stream_open/);
+  assert.match(tauriMainSource, /runtime::runtime_bridge_stream_close/);
+  assert.match(tauriMainSource, /runtime::runtime_bridge_status/);
+  assert.match(tauriMainSource, /oauth::open_external_url/);
+  assert.match(tauriMainSource, /oauth::oauth_listen_for_code/);
+  assert.doesNotMatch(tauriMainSource, /oauth::oauth_token_exchange/);
+  assert.match(tauriMainSource, /confirm_dialog/);
+  assert.match(tauriMainSource, /start_window_drag/);
+  assert.match(tauriMainSource, /focus_main_window/);
+  assert.match(tauriMainSource, /capabilities::diagnostics::build_renderer_entry_probe_script/);
   assert.match(tauriMainSource, /RendererEntryProbeScriptConfig/);
-  assert.doesNotMatch(tauriMainSource, /tauri::generate_handler!\[/);
   assert.doesNotMatch(tauriMainSource, /desktop_macos_smoke_ping/);
   assert.doesNotMatch(tauriMainSource, /globalRecord\.__TAURI__\?\.core\?\.invoke/);
 });
