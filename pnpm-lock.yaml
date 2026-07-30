@@ -42,8 +42,8 @@ importers:
         specifier: link:../../nimi/app-tools
         version: link:../../nimi/app-tools
       '@nimiplatform/nimi-coding':
-        specifier: 0.2.5
-        version: 0.2.5
+        specifier: 0.4.0
+        version: 0.4.0
       '@tailwindcss/vite':
         specifier: ^4.3.0
         version: 4.3.0(vite@7.3.3(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -498,55 +498,10 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@nimiplatform/nimi-coding@0.2.5':
-    resolution: {integrity: sha512-ar1o/He282nnzuP9YJZAZSZX4XnqPyju/0LD6dmyC5IbZiAnGai2eodVMU86JEv6cHkIzc8iubVkMFP72Q0lMw==}
+  '@nimiplatform/nimi-coding@0.4.0':
+    resolution: {integrity: sha512-RcggO2CRWCvpqhxUe83rk5TKGOp9PDg0qeypIvgdlCPh8qhrDYZaxuZER4RUNa+2F02HkDlr4iXLCiDwZKPYJw==}
     engines: {node: '>=24.0.0', pnpm: '>=10.0.0'}
     hasBin: true
-
-  '@openai/codex-sdk@0.124.0':
-    resolution: {integrity: sha512-CfL0JRBbjXdR6BdmCtEEWA0Z+7O2+4ZP4rEf+TggyX2kQAWaDDAXPZbgH4iQuGR7hjV/oyr++d7vmheNc2U1Tg==}
-    engines: {node: '>=18'}
-
-  '@openai/codex@0.124.0':
-    resolution: {integrity: sha512-1EVAuPyAQZ8zIVMw3bPJ6a4R8ifLAZ7LGsOyknj5c2he9AFXVRCmWx12WrdZJ25wcBvOEKt1n1Zx+QAj0EVGbQ==}
-    engines: {node: '>=16'}
-    hasBin: true
-
-  '@openai/codex@0.124.0-darwin-arm64':
-    resolution: {integrity: sha512-lnuqeAdl+RjPWsqVZ8rrPskRIOZmzlyr8e5q/wFVEnMPsm9dWgjRW1PKa84UmDSQVOuz9GObF28DEHFyC4A8NA==}
-    engines: {node: '>=16'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@openai/codex@0.124.0-darwin-x64':
-    resolution: {integrity: sha512-Br+VlL83IOu96Urw+mkZ1PQXLsQXGAYEH6kXNt4ULuVt7qAdQY2FKYwIgLLVLl0vpMk8qWxdfdVMqhiu2uCHlg==}
-    engines: {node: '>=16'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@openai/codex@0.124.0-linux-arm64':
-    resolution: {integrity: sha512-QXafFVQJxPfU1LSCI5afuHsF5evKAcbQpFuKou0Kl241/HG/zYHdwoWj546zH844gJgegIPAxPf36+RSkUsbbA==}
-    engines: {node: '>=16'}
-    cpu: [arm64]
-    os: [linux]
-
-  '@openai/codex@0.124.0-linux-x64':
-    resolution: {integrity: sha512-cJ4QfQIrz2gkXVWephiGo9JDyD3qLKhvkTTLk7gI8rKd7MZpVXn9/1e7pZCQnJVA7Dk6ocA5G+sxnR78SoIejw==}
-    engines: {node: '>=16'}
-    cpu: [x64]
-    os: [linux]
-
-  '@openai/codex@0.124.0-win32-arm64':
-    resolution: {integrity: sha512-oDSI/CQh0kagBwWVPG9EiUBfHiY27ju3LPrjTVZg4VMpVJVNA31JTK8rHMZ6G/2gfNmOl6DMBA6+0ICxSkkshg==}
-    engines: {node: '>=16'}
-    cpu: [arm64]
-    os: [win32]
-
-  '@openai/codex@0.124.0-win32-x64':
-    resolution: {integrity: sha512-t+lAwmCWwIWQKk6dKaYetRhQsmA+uDmQy1NLka1xAAv3PlNOH8iNz9Lsisr3qYkBR8Tf7tbQlt+pl9tw/A5mfA==}
-    engines: {node: '>=16'}
-    cpu: [x64]
-    os: [win32]
 
   '@rolldown/pluginutils@1.0.0-rc.3':
     resolution: {integrity: sha512-eybk3TjzzzV97Dlj5c+XrBFW57eTNhzod66y9HrBlzJ6NsCrWCp/2kaPS3K9wJmurBC0Tdw4yPjXKZqlznim3Q==}
@@ -1547,41 +1502,9 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@nimiplatform/nimi-coding@0.2.5':
+  '@nimiplatform/nimi-coding@0.4.0':
     dependencies:
-      '@openai/codex-sdk': 0.124.0
       yaml: 2.9.0
-
-  '@openai/codex-sdk@0.124.0':
-    dependencies:
-      '@openai/codex': 0.124.0
-
-  '@openai/codex@0.124.0':
-    optionalDependencies:
-      '@openai/codex-darwin-arm64': '@openai/codex@0.124.0-darwin-arm64'
-      '@openai/codex-darwin-x64': '@openai/codex@0.124.0-darwin-x64'
-      '@openai/codex-linux-arm64': '@openai/codex@0.124.0-linux-arm64'
-      '@openai/codex-linux-x64': '@openai/codex@0.124.0-linux-x64'
-      '@openai/codex-win32-arm64': '@openai/codex@0.124.0-win32-arm64'
-      '@openai/codex-win32-x64': '@openai/codex@0.124.0-win32-x64'
-
-  '@openai/codex@0.124.0-darwin-arm64':
-    optional: true
-
-  '@openai/codex@0.124.0-darwin-x64':
-    optional: true
-
-  '@openai/codex@0.124.0-linux-arm64':
-    optional: true
-
-  '@openai/codex@0.124.0-linux-x64':
-    optional: true
-
-  '@openai/codex@0.124.0-win32-arm64':
-    optional: true
-
-  '@openai/codex@0.124.0-win32-x64':
-    optional: true
 
   '@rolldown/pluginutils@1.0.0-rc.3': {}
 

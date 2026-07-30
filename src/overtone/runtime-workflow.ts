@@ -1,6 +1,6 @@
 // Runtime workflow helpers: scenario job status translation, music-iteration
 // extension builder, and Runtime-backed text generation. Authority:
-// .nimi/spec/overtone/kernel/runtime-integration-contract.md (OVT-RT-*).
+// .nimi/spec/overtone/canonical/runtime.authority.yaml.
 
 import {
   toNimiRuntimeProtoStruct,

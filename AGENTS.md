@@ -1,6 +1,6 @@
 # AGENTS.md
 - Treat `.nimi/app-scaffold/intent.json` and `.nimi/app-scaffold/lock.json` as app-scaffold intent and lock state.
-- Treat `.nimi/{config,contracts,methodology}/**` as `@nimiplatform/nimi-coding` managed projections created by `pnpm run init`.
+- Treat `.nimi/methodology/authority-authoring.yaml` as the `@nimiplatform/nimi-coding` managed authoring guide.
 - Keep auth, Runtime, permission, manifest, and Tauri shell glue in scaffold-managed files.
 - The app-owned area is `src/shell/routes/product-area.tsx`, `src/tester/**`, app-owned tester Tauri modules under `src-tauri/src/{tester_storage.rs,world_tour.rs}`, and tester contract tests.
 - `.nimi/admission/**` and `ADMISSION.md` are developer-submitted review inputs, not platform admission truth.
@@ -96,3 +96,16 @@ Before adding any durable local store, new Tauri command, private endpoint call,
 - No provider/model hardcoding as product truth.
 - No compatibility dual-write or pseudo-success state.
 - No importing Runtime internals, generated private clients, or Desktop product source.
+
+<!-- nimicoding:managed:agents:start -->
+# Nimi Coding Managed Block
+
+- Product authority lives under `.nimi/spec/**`.
+- For canonical authority authoring, read only `.nimi/methodology/authority-authoring.yaml`, the affected authority files or bounded task context, and CLI diagnostics.
+- Use `nimicoding authority context <path> <id> --max-units <n> --max-bytes <n> --json` only for the complete declared outgoing interpretation closure; it is not complete task context, and failure never permits guessed or partial context.
+- Use `nimicoding authority diff` and `authority impact` with explicit `--max-bytes`; impact reports declared review obligations and does not prove implementation, consumers, or tests are synchronized.
+- Under `.nimi/spec/**`, author only closed multi-unit `*.authority.yaml` containers or single-unit `*.authority.md`; historical document formats are unsupported and never inferred.
+- Run `nimicoding authority fmt` on each changed file, then `nimicoding authority check` on the complete authority input set.
+- Never bypass a failure with inferred or fallback semantics; choose repair values only from product/task authority.
+- Keep derived and verification evidence under `.nimi/local/**`; it is never product authority.
+<!-- nimicoding:managed:agents:end -->

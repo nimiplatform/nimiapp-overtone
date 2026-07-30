@@ -1,0 +1,154 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+scope: overtone.product
+units:
+  - id: definition.overtone.product.overtone-app
+    kind: definition
+    title: Overtone app
+    meaning: A standalone-profile Tauri desktop Nimi App with app_id nimi.overtone, built as a single-purpose AI-native music creation workspace around the Brief, Lyrics, Generate, Compare, Iterate, and Publish take loop; it uses the Nimi Runtime for multimodal generation and Nimi Realm for publishing, and is neither a desktop platform shell, a mod, nor an embeddable surface.
+  - id: definition.overtone.product.feature-f001
+    kind: definition
+    title: Project workspace and readiness gate
+    meaning: Feature F-001 is the P0 project workspace and readiness gate; required SDK surfaces are runtime.ready, runtime.ai.listScenarioProfiles, sdk.runtime.listNimiRuntimeRouteOptionsWithHost(text.generate), and sdk.runtime.listNimiRuntimeRouteOptionsWithHost(music.generate); it blocks lower-tier features.
+  - id: definition.overtone.product.feature-f002
+    kind: definition
+    title: Song brief and lyrics canvas
+    meaning: Feature F-002 is the P0 song brief and lyrics canvas; required SDK surfaces are sdk.ai.createNimiRuntimeAIModel and sdk.ai.runNimiTextGenerate; no lower-tier blocking flag is declared.
+  - id: definition.overtone.product.feature-f003
+    kind: definition
+    title: Music generation
+    meaning: Feature F-003 is P0 music generation; required SDK surfaces are sdk.runtime.runNimiRuntimeScenarioJob, runtime.ai.submitScenarioJob, runtime.ai.subscribeScenarioJobEvents, runtime.ai.getScenarioJob, and runtime.ai.getScenarioArtifacts; no lower-tier blocking flag is declared.
+  - id: definition.overtone.product.feature-f004
+    kind: definition
+    title: Candidate stack and compare
+    meaning: Feature F-004 is the P0 candidate stack and A/B compare surface, with no required SDK surfaces and no lower-tier blocking flag declared.
+  - id: definition.overtone.product.feature-f005
+    kind: definition
+    title: Reference iteration
+    meaning: Feature F-005 is P0 reference-audio, extend, and remix iteration; required SDK surfaces are sdk.runtime.runNimiRuntimeScenarioJob and runtime.ai.subscribeScenarioJobEvents; the extension namespace is nimi.scenario.music_generate.request; no lower-tier blocking flag is declared.
+  - id: definition.overtone.product.feature-f006
+    kind: definition
+    title: Playback and trim
+    meaning: Feature F-006 is P0 playback, trim preview, and metadata editing, with no required SDK surfaces and no lower-tier blocking flag declared.
+  - id: definition.overtone.product.feature-f007
+    kind: definition
+    title: Realm publish
+    meaning: Feature F-007 is P0 Realm publish with provenance confirmation; required SDK surfaces are realm.resources.createAudioDirectUpload, realm.resources.finalizeResource, and realm.resources.createPost; no lower-tier blocking flag is declared.
+  - id: definition.overtone.product.feature-f008
+    kind: definition
+    title: Cover art generator
+    meaning: Feature F-008 is the P1 cover-art generator; its required SDK surface is runtime.ai.executeScenario(IMAGE_GENERATE); no lower-tier blocking flag is declared.
+  - id: definition.overtone.product.feature-f009
+    kind: definition
+    title: Guide vocals
+    meaning: Feature F-009 is P1 scratch or guide vocals; required SDK surfaces are runtime.ai.listPresetVoices and runtime.ai.executeScenario(SPEECH_SYNTHESIZE); no lower-tier blocking flag is declared.
+  - id: definition.overtone.product.feature-f010
+    kind: definition
+    title: Voice lab
+    meaning: Feature F-010 is P2 voice clone and voice design exploration; required SDK surfaces are runtime.ai.submitScenarioJob(VOICE_CLONE), runtime.ai.submitScenarioJob(VOICE_DESIGN), runtime.ai.listVoiceAssets, and runtime.ai.deleteVoiceAsset; no lower-tier blocking flag is declared.
+  - id: rule.overtone.product.r001
+    kind: rule
+    title: Single authority surface
+    modality: must
+    statement: .nimi/spec/** canonical authority is the only normative authority for Overtone; every rule, table, or invariant referenced by source must trace to that authority, and source modules and contract tests must remain synchronized with it.
+    condition: Always.
+    failure: Fail validation when source or contract tests diverge from canonical authority or reference an untraceable invariant.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.overtone-app
+  - id: rule.overtone.product.r002
+    kind: rule
+    title: Standalone app posture
+    modality: must_not
+    statement: Treat or register Overtone as anything other than the standalone-profile Nimi App with app_id nimi.overtone, including as a desktop platform shell, desktop sub-shell, mod or mod manifest, embeddable surface, or multi-app-container surface.
+    condition: Always.
+    failure: Reject the product registration and fail validation when the standalone app posture is violated.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.overtone-app
+  - id: rule.overtone.product.r003
+    kind: rule
+    title: No product backend
+    modality: must_not
+    statement: Introduce a parallel HTTP service, broker, websocket gateway, persistence service, or job orchestrator; route AI work outside @nimiplatform/sdk/runtime; route social publishing outside @nimiplatform/sdk/realm; or place admitted local-only persistence outside renderer memory and browser storage or the scaffold-managed Tauri shell.
+    condition: Always.
+    failure: Fail validation and block the backend, bypass, or out-of-bound persistence surface from shipping.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.overtone-app
+  - id: rule.overtone.product.r004
+    kind: rule
+    title: Single workspace
+    modality: must_not
+    statement: Expose anything other than exactly one active SongProject workspace per app instance, including multi-project navigation, a sidebar project switcher, parallel session windows, a project list, a project picker, or workspace tabs.
+    condition: Always.
+    failure: Fail validation and keep the extra workspace or navigation surface unavailable.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.feature-f001
+      - type: applies_to
+        target: definition.overtone.product.overtone-app
+  - id: rule.overtone.product.r005
+    kind: rule
+    title: Take-based iteration
+    modality: must
+    statement: Represent music-generation results as takes; append a SongTake for every completed MUSIC_GENERATE job that yields at least one artifact; select through selectedTakeId; and preserve prior results rather than replacing or overwriting them.
+    condition: When a MUSIC_GENERATE job completes with at least one artifact.
+    failure: Reject completion projection when no take is appended or an existing result would be replaced or overwritten.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.feature-f003
+      - type: applies_to
+        target: definition.overtone.product.feature-f004
+  - id: rule.overtone.product.r006
+    kind: rule
+    title: Typed contract failures
+    modality: must
+    statement: Surface a typed empty or error state to the user for missing typed runtime output, missing artifact MIME type, missing scenario discriminator, or a runtime or Realm response schema mismatch, without synthesizing placeholder audio, fabricating a takeId, or coercing a failed job to completed.
+    condition: When a typed runtime or Realm contract violation occurs.
+    failure: Stop projection before creating false output and display the typed empty or error state.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.feature-f003
+      - type: applies_to
+        target: definition.overtone.product.feature-f007
+  - id: rule.overtone.product.r007
+    kind: rule
+    title: No pseudo-success
+    modality: must_not
+    statement: Present brief generation, lyrics generation, music generation, take selection, or Realm publish as completed when the underlying runtime or Realm call returned an error, was canceled, was retried without reaching success, or returned a typed unavailable projection.
+    condition: When a stable product path has not reached underlying success.
+    failure: Keep the path in its typed error, canceled, retrying, or unavailable state and withhold completed status.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.overtone-app
+  - id: rule.overtone.product.r008
+    kind: rule
+    title: Runtime-owned model catalog
+    modality: must_not
+    statement: Embed connector IDs, provider IDs, model IDs, or connector vendor names as product constants or UI strings, or obtain the connector and model surface from anything other than SDK route-option discovery and runtime.ai.listScenarioProfiles.
+    condition: Always.
+    failure: Fail validation and render no fabricated connector or model choice.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.feature-f001
+  - id: rule.overtone.product.r009
+    kind: rule
+    title: No failure-hiding fallback
+    modality: must_not
+    statement: Use retry or authentication refresh to rescue decode, content-type, schema, or contract failures, or silently retry a failed MUSIC_GENERATE job on another connector; retry and authentication refresh are transport and authentication mechanisms only.
+    condition: When a decode, content-type, schema, contract, or music-generation job failure occurs.
+    failure: Surface the original failure and require the user to choose the recovery action.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.feature-f003
+  - id: rule.overtone.product.r010
+    kind: rule
+    title: Public SDK surfaces only
+    modality: must_not
+    statement: Consume SDK or kit surfaces from outside @nimiplatform/sdk/* and @nimiplatform/kit/*, including runtime/internal/** or any private upstream package path, in either the renderer or scaffold-managed shell.
+    condition: Always.
+    failure: Fail the scaffold-boundary or product validation check on the forbidden import.
+    relations:
+      - type: applies_to
+        target: definition.overtone.product.overtone-app

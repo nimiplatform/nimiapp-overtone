@@ -1,0 +1,166 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+scope: overtone.workflow
+units:
+  - id: definition.overtone.workflow.iteration-loop
+    kind: definition
+    title: Creation iteration loop
+    meaning: The fixed Overtone creation loop in which the author moves through Brief, Lyrics, Generate, Compare, Iterate, and Publish, using takes and references to refine a selected master for Realm publishing.
+  - id: rule.overtone.workflow.r001
+    kind: rule
+    title: Readiness gate
+    modality: must
+    statement: Before interaction, resolve a fresh ReadinessSnapshot covering runtime.ready liveness, runtime.ai.listScenarioProfiles scenario availability, listNimiRuntimeRouteOptionsWithHost routes for text.generate and music.generate, and SDK Realm configuration; when runtime is unavailable, render an explanatory unavailable state with retry; when runtime is ready but no usable music connector and model pair exists, render the workspace with music-generation entry points disabled and a typed warning.
+    condition: Before the workspace becomes interactive and on every readiness retry.
+    failure: Keep interaction or music generation disabled as applicable and display the typed unavailable or readiness warning state.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.readiness-snapshot
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r002
+    kind: rule
+    title: Fixed stage order
+    modality: must
+    statement: "Run the loop in this order: brief authors an idea with optional assistant fill, lyrics are assistant-generated or author-written, generate runs a runtime MUSIC_GENERATE job to produce a take, compare selects, plays, and A/B compares takes, iterate extends, remixes, or references to produce a child take, and publish selects a master and publishes to Realm; keep generate and later steps unavailable until SongBrief.description is non-empty; require an existing non-discarded source take for extend or remix, while permitting reference iteration from uploaded audio/* without an existing take."
+    condition: Always.
+    failure: Block the out-of-order stage or invalid iteration entry and keep the user at the first unmet prerequisite.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-brief
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r003
+    kind: rule
+    title: Manual edits win
+    modality: must
+    statement: Preserve manual edits to SongBrief fields and LyricsDocument.text over regenerated assistant output, require explicit user action to regenerate a field, and never auto-overwrite a manually edited field after regeneration from a sibling field.
+    condition: When assistant regeneration could affect manually edited content.
+    failure: Retain the manual value and require an explicit regeneration action before replacing it.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.lyrics-document
+      - type: applies_to
+        target: definition.overtone.data-model.song-brief
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r004
+    kind: rule
+    title: Generation submission
+    modality: must
+    statement: Use the Kit useRuntimeGenerationPanel and RuntimeGenerationPanel lifecycle to submit through the SDK runtime scenario-job path with ScenarioType.MUSIC_GENERATE and ExecutionMode.ASYNC_JOB; keep app ownership limited to the domain request and completed-artifact-to-SongTake projections; snapshot brief description, lyrics text, joined style tags, duration, and instrumental flag at completion from the immutable submission input.
+    condition: When music generation is submitted and completed.
+    failure: Reject nonconforming submission or completion projection and create no SongTake until the admitted lifecycle returns valid immutable input and output.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.generation-job
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r005
+    kind: rule
+    title: Kit-owned job lifecycle
+    modality: must_not
+    statement: Move submitted-job progress or artifact resolution outside the Kit generation lifecycle, duplicate subscription, polling, terminal lookup, or artifact-fetch orchestration, or create a SongTake before Kit returns a completed job with decoded artifact bytes.
+    condition: After a generation submission.
+    failure: Stop duplicate orchestration and withhold SongTake creation until Kit returns a completed decoded artifact.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.generation-job
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r006
+    kind: rule
+    title: Iteration payload namespace
+    modality: must
+    statement: Construct every extend, remix, or reference iteration payload through the app-owned buildMusicIterationExtensions helper and serialize it only to SubmitScenarioJobRequest.extensions[] under nimi.scenario.music_generate.request, without provider-specific raw JSON or unrelated top-level fields outside the stable music input shape.
+    condition: When submitting an iteration request.
+    failure: Reject the request before runtime dispatch and surface a typed invalid-iteration error.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r007
+    kind: rule
+    title: Take selection
+    modality: must
+    statement: Set selectedTakeId to the chosen takeId without mutating the SongTake, and derive playback, iteration-source selection, and publish target from selectedTakeId.
+    condition: When the author selects a take.
+    failure: Reject selection that mutates the take or cannot establish the selectedTakeId, and retain the prior selection.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r008
+    kind: rule
+    title: Transient compare state
+    modality: must
+    statement: Keep compare mode transient with two independent comparedTakeIds slots that may each be null, and clear both slots on exit without discarding or renaming any take.
+    condition: When entering, using, or exiting A/B compare mode.
+    failure: Restore a valid transient compare projection and preserve every take unchanged.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r009
+    kind: rule
+    title: Publish gating
+    modality: must
+    statement: Block publish at the call site unless selectedTakeId identifies a non-discarded take with a decoded audio buffer in memory, realmConfigured and realmAuthenticated are both true, and PublishDraft.provenanceConfirmed is true.
+    condition: Before any publish call.
+    failure: Do not invoke Realm upload or post creation, and surface the first unmet typed publish prerequisite.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.publish-draft
+      - type: applies_to
+        target: definition.overtone.data-model.readiness-snapshot
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r010
+    kind: rule
+    title: Publish artifact path
+    modality: must
+    statement: Upload take audio through uploadNimiRealmResourceFile, then call createNimiRealmPost with the returned resource reference and PublishDraft metadata, without embedding audio bytes inline in the post payload.
+    condition: When publishing a selected master take.
+    failure: Stop publish, surface a typed publish error, and create no post when upload or resource-reference construction fails.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.publish-draft
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r011
+    kind: rule
+    title: Project reset
+    modality: must
+    statement: Close Project clears SongProject, all decoded audio buffers, and every active job subscription, then returns the workspace to its empty-state entry point; reversal occurs only when the user starts a new session.
+    condition: When the user invokes Close Project.
+    failure: Keep the workspace non-interactive until all session state, buffers, and subscriptions are cleared, then display the empty state.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.generation-job
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop

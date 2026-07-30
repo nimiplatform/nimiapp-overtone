@@ -1,0 +1,136 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+scope: overtone.ia
+units:
+  - id: definition.overtone.ia.single-workspace
+    kind: definition
+    title: Single workspace
+    meaning: Exactly one active SongProject creation workspace per app instance, entered from a readiness-bearing empty state and reset through one in-workspace Close Project affordance rather than project navigation.
+  - id: definition.overtone.ia.three-zone-layout
+    kind: definition
+    title: Three-zone layout
+    meaning: The authenticated workspace layout has Compose on the left for brief, lyrics, generation, and iteration; Output on the right for takes, selection, and A/B comparison; Transport in the footer for selected-take playback and waveform; modal and dialog surfaces overlay these zones without parallel navigation primitives.
+  - id: rule.overtone.ia.r001
+    kind: rule
+    title: Exactly three zones
+    modality: must
+    statement: "Render exactly three authenticated primary zones: Compose in the left column for brief, lyrics, generation controls, and iteration controls; Output in the right column for the take list, selection, and A/B comparison; and Transport in the footer for selected-take playback and waveform; add no fourth primary zone such as sidebar projects, chat sidebar, dataset console, or agent panel."
+    condition: When the authenticated workspace is rendered.
+    failure: Fail layout validation and omit any fourth primary zone.
+    relations:
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r002
+    kind: rule
+    title: Readiness-bearing empty state
+    modality: must
+    statement: Before a project starts, render an empty state with Overtone app identity, one Start New Session primary CTA, and a visible typed readiness indicator for runtime, Realm, music, and text; never hide readiness behind settings.
+    condition: Before the user starts a project.
+    failure: Keep project start unavailable when required readiness is unresolved and render the visible typed indicator with the applicable state.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.readiness-snapshot
+      - type: applies_to
+        target: definition.overtone.ia.single-workspace
+  - id: rule.overtone.ia.r003
+    kind: rule
+    title: Ordered compose panels
+    modality: must
+    statement: "Present Compose panels in this order: Song Brief, Lyrics, Generation Controls, then Iteration only after at least one take exists; use accordion sections or vertical scroll if needed, and never horizontal tab navigation in Compose."
+    condition: When rendering the Compose zone.
+    failure: Fail layout validation and render the panels in admitted order without an invalid Iteration panel or horizontal tabs.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r004
+    kind: rule
+    title: Reverse-chronological take list
+    modality: must
+    statement: Render Output takes newest first, with each entry showing editable title, origin badge, mini waveform when decoded, selection bound to selectedTakeId, favorite and discard affordances, and A/B compare-slot affordances.
+    condition: When the Output zone contains takes.
+    failure: Do not present an incomplete or incorrectly ordered take entry; render a typed unavailable artifact affordance where decoded waveform data is absent.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r005
+    kind: rule
+    title: Non-destructive compare overlay
+    modality: must
+    statement: When both comparedTakeIds slots are populated, any rendered A/B overlay preserves and does not hide the underlying take list and remains dismissible without state loss.
+    condition: When both A/B comparison slots are populated and the overlay is rendered.
+    failure: Dismiss the invalid overlay and restore the unchanged take list and comparison state.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r006
+    kind: rule
+    title: Selected-take transport
+    modality: must
+    statement: Render Transport with play and pause bound to the selected take's decoded buffer, current time and duration in m:ss / m:ss form, and a clickable waveform that seeks within the selected take; admit adjacent P0 set-in, set-out, and clear trim controls, but no advanced multi-region trims.
+    condition: When the Transport zone is rendered for a selected take.
+    failure: Disable unavailable playback or seek controls with a typed artifact state and omit out-of-scope trim controls.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r007
+    kind: rule
+    title: Publish modal
+    modality: must
+    statement: Open Realm publish only as a modal through @nimiplatform/kit/ui#OverlayShell containing take preview with title and origin badge, editable title, description, and tags, provenance checkbox, typed upload, create, done, and error status, and Cancel plus Publish controls; never publish from an inline panel or navigation route.
+    condition: When the user opens Realm publish.
+    failure: Block publish and render the complete admitted modal rather than an inline or routed surface.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.publish-draft
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r008
+    kind: rule
+    title: No parallel navigation
+    modality: must_not
+    statement: Introduce tab bars, breadcrumb trails, multi-page navigation, project-picker dropdowns, or persistent left rails listing prior sessions, prior projects, or external dataset consoles; only one in-workspace Close Project affordance is admitted for reset.
+    condition: Always.
+    failure: Fail layout validation and keep the parallel navigation primitive unavailable.
+    relations:
+      - type: applies_to
+        target: definition.overtone.ia.single-workspace
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r009
+    kind: rule
+    title: Actionable readiness banner
+    modality: must
+    statement: Render a typed readiness banner above Output when runtime is degraded or Realm is unconfigured, and link it to connector setup or authentication retry as applicable or include a typed actionHint.
+    condition: When ReadinessSnapshot reports degraded runtime or unconfigured Realm.
+    failure: Keep the affected action disabled and display the actionable typed readiness banner.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.readiness-snapshot
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout
+  - id: rule.overtone.ia.r010
+    kind: rule
+    title: Keyboard affordances
+    modality: must
+    statement: Bind Space to selected-take playback toggle; Left and Right Arrow to five-second seek; Shift plus Left and Right Arrow to fifteen-second seek; Escape to close the publish modal or exit compare mode, whichever is active; and Command-N or Control-N to reset the project and start a new session; bind none of these keys to another action.
+    condition: When an admitted keyboard affordance is handled.
+    failure: Ignore conflicting bindings, preserve current state, and expose only the admitted action for the key.
+    relations:
+      - type: applies_to
+        target: definition.overtone.ia.single-workspace
+      - type: applies_to
+        target: definition.overtone.ia.three-zone-layout

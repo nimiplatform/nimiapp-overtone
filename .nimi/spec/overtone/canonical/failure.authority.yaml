@@ -1,0 +1,47 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+units:
+  - id: definition.overtone.failure.reason-code
+    kind: definition
+    title: User-facing reason code
+    meaning: A runtime or Realm reason code that the renderer surfaces in user-readable form with its admitted recovery hint, never swallowed, rewritten, or coerced into a generic message.
+  - id: definition.overtone.failure.reason-ai-provider-unavailable
+    kind: definition
+    title: Provider unavailable
+    meaning: AI_PROVIDER_UNAVAILABLE uses an inline_alert_warning to explain that the AI provider is unavailable and the user can retry or choose another connector and model pair; recovery_hint is pick_different_connector.
+  - id: definition.overtone.failure.reason-ai-provider-auth-failed
+    kind: definition
+    title: Provider authentication failed
+    meaning: AI_PROVIDER_AUTH_FAILED uses an inline_alert_danger to explain that the provider rejected connector credentials and the user must open Runtime connector setup and re-authenticate; recovery_hint is open_connector_setup.
+  - id: definition.overtone.failure.reason-ai-media-spec-invalid
+    kind: definition
+    title: Invalid media request
+    meaning: AI_MEDIA_SPEC_INVALID uses an inline_alert_warning to explain that generation fields are missing or invalid and the user should review brief, lyrics, and style controls; recovery_hint is review_inputs.
+  - id: definition.overtone.failure.reason-ai-media-option-unsupported
+    kind: definition
+    title: Unsupported media option
+    meaning: AI_MEDIA_OPTION_UNSUPPORTED uses an inline_alert_warning to explain that the selected model does not support a requested option and the user should adjust duration, instrumental, or style controls; recovery_hint is disable_unsupported_controls.
+  - id: definition.overtone.failure.reason-ai-rate-limited
+    kind: definition
+    title: Connector rate limited
+    meaning: AI_RATE_LIMITED uses an inline_alert_warning to explain that the connector is rate-limited and the user can wait and retry or switch connector and model pair; recovery_hint is wait_and_retry.
+  - id: definition.overtone.failure.reason-ai-content-filtered
+    kind: definition
+    title: Content filtered
+    meaning: AI_CONTENT_FILTERED uses an inline_alert_warning to explain that the provider filtered the content and the user should adjust prompt or lyrics before retrying; recovery_hint is edit_brief_or_lyrics.
+  - id: definition.overtone.failure.reason-ai-job-timeout
+    kind: definition
+    title: Generation timeout
+    meaning: AI_JOB_TIMEOUT uses an inline_alert_danger to explain that generation timed out before producing audio and the user can retry or choose a shorter duration; recovery_hint is retry_or_shorten.
+  - id: definition.overtone.failure.reason-proof-unsupported
+    kind: definition
+    title: Unsupported login proof
+    meaning: PROOF_UNSUPPORTED uses an inline_alert_danger to explain that Runtime rejected login completion proof as a developer-level regression and the user or developer should retry login or re-check scaffold-managed auth glue; recovery_hint is retry_login.
+  - id: definition.overtone.failure.reason-realm-upload-failed
+    kind: definition
+    title: Realm upload failed
+    meaning: REALM_UPLOAD_FAILED uses a publish_modal_error to explain that Realm could not accept the audio upload and the user should verify network connectivity and retry from the publish modal; recovery_hint is retry_publish.
+  - id: definition.overtone.failure.reason-realm-post-rejected
+    kind: definition
+    title: Realm post rejected
+    meaning: REALM_POST_REJECTED uses a publish_modal_error to explain that Realm rejected the post payload and the user should review title, description, and tags before retrying; recovery_hint is edit_post_metadata.

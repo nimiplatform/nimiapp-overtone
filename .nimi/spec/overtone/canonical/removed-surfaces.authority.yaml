@@ -1,0 +1,340 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+scope: overtone.removed-surfaces
+units:
+  - id: definition.overtone.removed-surfaces.tester-workbench
+    kind: definition
+    title: Tester workbench name
+    meaning: The guarded spellings TesterWorkbench and tester-workbench denote the scaffold-tester app-owned workbench shell, not Overtone product code.
+  - id: definition.overtone.removed-surfaces.kit-component-gallery
+    kind: definition
+    title: Kit component gallery name
+    meaning: The guarded name kit-component-gallery denotes a scaffold tester gallery surface that is not Overtone product code.
+  - id: definition.overtone.removed-surfaces.world-tour-viewer
+    kind: definition
+    title: World tour viewer name
+    meaning: The guarded name world-tour-viewer denotes a scaffold tester world-tour viewer route that is not Overtone product code.
+  - id: definition.overtone.removed-surfaces.world-tour-render-acceptance
+    kind: definition
+    title: World tour command name
+    meaning: The guarded name world_tour_render_acceptance denotes a scaffold tester world-tour Tauri command that is not Overtone product code.
+  - id: definition.overtone.removed-surfaces.tester-image-history-load
+    kind: definition
+    title: Tester image history load name
+    meaning: The guarded name tester_image_history_load denotes a scaffold tester image-history load command that is not Overtone product code.
+  - id: definition.overtone.removed-surfaces.tester-image-history-save
+    kind: definition
+    title: Tester image history save name
+    meaning: The guarded name tester_image_history_save denotes a scaffold tester image-history save command that is not Overtone product code.
+  - id: definition.overtone.removed-surfaces.tester-run-history-load
+    kind: definition
+    title: Tester run history load name
+    meaning: The guarded name tester_run_history_load denotes a scaffold tester run-history load command that is not Overtone product code.
+  - id: definition.overtone.removed-surfaces.tester-run-history-save
+    kind: definition
+    title: Tester run history save name
+    meaning: The guarded name tester_run_history_save denotes a scaffold tester run-history save command that is not Overtone product code.
+  - id: definition.overtone.removed-surfaces.overtone-backend
+    kind: definition
+    title: Overtone backend name
+    meaning: The guarded name OvertoneBackend denotes an Overtone-specific backend, which is not admitted.
+  - id: definition.overtone.removed-surfaces.overtone-api-client
+    kind: definition
+    title: Overtone API client name
+    meaning: The guarded name overtoneApiClient denotes a client for an Overtone-specific backend, which is not admitted.
+  - id: definition.overtone.removed-surfaces.apply-token
+    kind: definition
+    title: Apply token name
+    meaning: The guarded name applyToken denotes app-owned token application, which is forbidden because Runtime owns token custody.
+  - id: definition.overtone.removed-surfaces.persist-session
+    kind: definition
+    title: Persist session name
+    meaning: The guarded name persistSession denotes app-owned session persistence, which is forbidden because Runtime owns session and token custody.
+  - id: definition.overtone.removed-surfaces.persist-shared-desktop-auth-session
+    kind: definition
+    title: Shared auth persistence name
+    meaning: The guarded name persistSharedDesktopAuthSession denotes the unadmitted shared desktop authentication-session persistence bridge.
+  - id: definition.overtone.removed-surfaces.resolve-desktop-bootstrap-auth-session
+    kind: definition
+    title: Bootstrap auth resolution name
+    meaning: The guarded name resolveDesktopBootstrapAuthSession denotes the unadmitted shared desktop bootstrap authentication-session bridge.
+  - id: definition.overtone.removed-surfaces.auth-session-load
+    kind: definition
+    title: Auth session load name
+    meaning: The guarded name auth_session_load denotes an unadmitted Tauri IPC handler for loading a shared desktop authentication session.
+  - id: definition.overtone.removed-surfaces.auth-session-save
+    kind: definition
+    title: Auth session save name
+    meaning: The guarded name auth_session_save denotes an unadmitted Tauri IPC handler for saving a shared desktop authentication session.
+  - id: definition.overtone.removed-surfaces.auth-session-clear
+    kind: definition
+    title: Auth session clear name
+    meaning: The guarded name auth_session_clear denotes an unadmitted Tauri IPC handler for clearing a shared desktop authentication session.
+  - id: definition.overtone.removed-surfaces.project-picker
+    kind: definition
+    title: Project picker name
+    meaning: The guarded name ProjectPicker denotes multi-project selection, which conflicts with the single-workspace product.
+  - id: definition.overtone.removed-surfaces.project-list-sidebar
+    kind: definition
+    title: Project list sidebar name
+    meaning: The guarded name ProjectListSidebar denotes multi-project sidebar navigation, which conflicts with the single-workspace product.
+  - id: definition.overtone.removed-surfaces.workspace-tabs
+    kind: definition
+    title: Workspace tabs name
+    meaning: The guarded name WorkspaceTabs denotes parallel project workspace tabs, which conflict with the single-workspace product.
+  - id: definition.overtone.removed-surfaces.chat-panel
+    kind: definition
+    title: Chat panel name
+    meaning: The guarded name ChatPanel denotes a generic chat surface, while Overtone is a music-creation workspace rather than a chat product.
+  - id: definition.overtone.removed-surfaces.agent-supervisor-panel
+    kind: definition
+    title: Agent supervisor name
+    meaning: The guarded name AgentSupervisorPanel denotes an autonomous multi-agent supervisor surface that is not admitted.
+  - id: definition.overtone.removed-surfaces.autonomous-loop-runner
+    kind: definition
+    title: Autonomous loop name
+    meaning: The guarded name AutonomousLoopRunner denotes an autonomous background execution loop that is not admitted.
+  - id: definition.overtone.removed-surfaces.mod-runtime-console
+    kind: definition
+    title: Mod runtime console name
+    meaning: The guarded name ModRuntimeConsole denotes a mod-runtime console, while Overtone is a Nimi App rather than a mod host.
+  - id: definition.overtone.removed-surfaces.mod-registry
+    kind: definition
+    title: Mod registry name
+    meaning: The guarded name ModRegistry denotes a mod registry, while Overtone is a Nimi App rather than a mod host.
+  - id: definition.overtone.removed-surfaces.dataset-console
+    kind: definition
+    title: Dataset console name
+    meaning: The guarded name DatasetConsole denotes an out-of-scope dataset orchestration console.
+  - id: definition.overtone.removed-surfaces.batch-import-panel
+    kind: definition
+    title: Batch import name
+    meaning: The guarded name BatchImportPanel denotes an out-of-scope batch-import surface.
+  - id: definition.overtone.removed-surfaces.batch-export-panel
+    kind: definition
+    title: Batch export name
+    meaning: The guarded name BatchExportPanel denotes an out-of-scope batch-export surface.
+  - id: definition.overtone.removed-surfaces.model-evaluation-grid
+    kind: definition
+    title: Model evaluation name
+    meaning: The guarded name ModelEvaluationGrid denotes an out-of-scope model-evaluation grid.
+  - id: definition.overtone.removed-surfaces.hardcoded-provider-catalog
+    kind: definition
+    title: Hardcoded provider catalog
+    meaning: A removed app-owned catalog of hardcoded provider IDs, model IDs, connector vendor names, or provider-specific tier labels used as constants or display strings.
+  - id: definition.overtone.removed-surfaces.raw-provider-json-ui
+    kind: definition
+    title: Raw provider JSON UI
+    meaning: A removed user-facing surface that displays provider-specific raw JSON, raw vendor error envelopes, or provider terminology instead of using the app-owned extension translation layer.
+  - id: rule.overtone.removed-surfaces.r001
+    kind: rule
+    title: No Overtone backend
+    modality: must_not
+    statement: Introduce an Overtone-specific HTTP service, websocket gateway, broker, persistence service, ORM, queue worker, or job orchestrator; AI work uses @nimiplatform/sdk/runtime and social publishing uses @nimiplatform/sdk/realm.
+    condition: Always.
+    failure: Fail source validation and block the backend surface or client from shipping.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.overtone-api-client
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.overtone-backend
+  - id: rule.overtone.removed-surfaces.r002
+    kind: rule
+    title: No app token custody
+    modality: must_not
+    statement: Introduce app-owned access-token, refresh-token, subject-user-id, session-store, OAuth-code, or refresh-cookie custody in the renderer or Tauri shell.
+    condition: Always.
+    failure: Fail closed at the source or runtime boundary and expose no token or session material to the app.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.apply-token
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.auth-session-clear
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.auth-session-load
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.auth-session-save
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.persist-session
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.persist-shared-desktop-auth-session
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.resolve-desktop-bootstrap-auth-session
+  - id: rule.overtone.removed-surfaces.r003
+    kind: rule
+    title: No hardcoded provider catalog
+    modality: must_not
+    statement: Use a hardcoded provider ID, model ID, connector vendor name, or provider-specific tier label as an app constant or display string.
+    condition: Always.
+    failure: Fail source validation and display no hardcoded provider or model catalog value.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.hardcoded-provider-catalog
+  - id: rule.overtone.removed-surfaces.r004
+    kind: rule
+    title: No generic chat
+    modality: must_not
+    statement: Include a generic chat, conversation, or agent shell in the Overtone primary surface; any future admitted conversation surface requires separate authority.
+    condition: Always.
+    failure: Fail product validation and keep the generic chat surface unavailable.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.chat-panel
+  - id: rule.overtone.removed-surfaces.r005
+    kind: rule
+    title: No tester or world tour
+    modality: must_not
+    statement: Carry forward TesterWorkbench or tester-workbench, kit-component-gallery, a world-tour viewer route, world_tour_* Tauri commands, scaffold tester contract tests, or tester-* renderer modules as Overtone app-owned product code.
+    condition: Always.
+    failure: Fail source and contract-test validation and remove the tester or world-tour surface while retaining only scaffold-managed shell glue.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.kit-component-gallery
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-image-history-load
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-image-history-save
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-run-history-load
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-run-history-save
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-workbench
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.world-tour-render-acceptance
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.world-tour-viewer
+  - id: rule.overtone.removed-surfaces.r006
+    kind: rule
+    title: No orchestration consoles
+    modality: must_not
+    statement: Introduce a dataset console, batch-import surface, batch-export surface, workflow-orchestration shell, model-evaluation grid, agent-supervisor panel, or mod-runtime console.
+    condition: Always.
+    failure: Fail product validation and keep the dataset, batch, workflow, model-evaluation, agent, or mod console unavailable.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.agent-supervisor-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.batch-export-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.batch-import-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.dataset-console
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.mod-runtime-console
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.model-evaluation-grid
+  - id: rule.overtone.removed-surfaces.r007
+    kind: rule
+    title: No mod consumption
+    modality: must_not
+    statement: Import or consume mod-runtime, mod-host, nimi-hook, runtime mod manifests, or a mod registry; Overtone is a Nimi App rather than a mod host.
+    condition: Always.
+    failure: Fail import and product validation and expose no mod-host surface.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.mod-registry
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.mod-runtime-console
+  - id: rule.overtone.removed-surfaces.r008
+    kind: rule
+    title: No multi-project navigation
+    modality: must_not
+    statement: Introduce a project list, project picker, multi-project sidebar, workspace tabs, or parallel session windows; one active SongProject per app instance is the only admitted workspace.
+    condition: Always.
+    failure: Fail UI validation and keep all multi-project navigation unavailable.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.project-list-sidebar
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.project-picker
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.workspace-tabs
+  - id: rule.overtone.removed-surfaces.r009
+    kind: rule
+    title: No raw provider UI
+    modality: must_not
+    statement: Render provider-specific raw JSON, raw vendor error envelopes, or provider terminology directly in user-facing text; the app-owned extension builder is the only translation layer.
+    condition: Always.
+    failure: Withhold raw provider content and surface only the typed translated product error.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.raw-provider-json-ui
+  - id: rule.overtone.removed-surfaces.r010
+    kind: rule
+    title: No autonomous agents
+    modality: must_not
+    statement: Introduce an agent runner, autonomous-loop scheduler, background agent spawn, or multi-agent supervisor surface; Overtone execution occurs only in response to explicit user action.
+    condition: Always.
+    failure: Fail product validation, stop autonomous execution, and require explicit user action for every admitted operation.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.agent-supervisor-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.autonomous-loop-runner
+  - id: rule.overtone.removed-surfaces.r011
+    kind: rule
+    title: Guarded removed names
+    modality: must_not
+    statement: Reintroduce any registered removed-surface name in active source as an exported symbol, route identifier, or test ID.
+    condition: Always.
+    failure: Fail source validation through the removed-surface guard and block the reintroduced name.
+    relations:
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.agent-supervisor-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.apply-token
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.auth-session-clear
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.auth-session-load
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.auth-session-save
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.autonomous-loop-runner
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.batch-export-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.batch-import-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.chat-panel
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.dataset-console
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.kit-component-gallery
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.mod-registry
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.mod-runtime-console
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.model-evaluation-grid
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.overtone-api-client
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.overtone-backend
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.persist-session
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.persist-shared-desktop-auth-session
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.project-list-sidebar
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.project-picker
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.resolve-desktop-bootstrap-auth-session
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-image-history-load
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-image-history-save
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-run-history-load
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-run-history-save
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.tester-workbench
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.workspace-tabs
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.world-tour-render-acceptance
+      - type: applies_to
+        target: definition.overtone.removed-surfaces.world-tour-viewer

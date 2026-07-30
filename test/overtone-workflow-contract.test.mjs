@@ -20,8 +20,7 @@ const overtoneCssSource = readFileSync(new URL('../src/overtone/overtone.css', i
 const mainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 const devPreviewSource = readFileSync(new URL('../src/dev-preview.tsx', import.meta.url), 'utf8');
 const manifest = readFileSync(new URL('../nimi.app.yaml', import.meta.url), 'utf8');
-const runtimeAccountCallerContract = readFileSync(new URL('../.nimi/spec/overtone/kernel/tables/runtime-account-caller.yaml', import.meta.url), 'utf8');
-const overviewContract = readFileSync(new URL('../.nimi/spec/overtone/overtone.md', import.meta.url), 'utf8');
+const runtimeAuthority = readFileSync(new URL('../.nimi/spec/overtone/canonical/runtime.authority.yaml', import.meta.url), 'utf8');
 
 const allSource = [
   productAreaSource,
@@ -56,11 +55,10 @@ test('manifest declares overtone app identity and runtime scopes', () => {
 });
 
 test('overtone identity authority never uses legacy app-prefixed ids', () => {
-  assert.match(runtimeAccountCallerContract, /app_id: nimi\.overtone/);
-  assert.match(runtimeAccountCallerContract, /app_instance_id: nimi\.overtone\.local-developer/);
-  assert.match(runtimeAccountCallerContract, /ACCOUNT_CALLER_MODE_LOCAL_DEVELOPER_APP/);
-  assert.doesNotMatch(runtimeAccountCallerContract, /app\.nimi\.overtone/);
-  assert.doesNotMatch(overviewContract, /app\.nimi\.overtone/);
+  assert.match(runtimeAuthority, /app_id nimi\.overtone/);
+  assert.match(runtimeAuthority, /app_instance_id nimi\.overtone\.local-developer/);
+  assert.match(runtimeAuthority, /ACCOUNT_CALLER_MODE_LOCAL_DEVELOPER_APP/);
+  assert.doesNotMatch(runtimeAuthority, /app\.nimi\.overtone/);
 });
 
 test('renderer uses Kit base accent with app-owned Overtone variables', () => {

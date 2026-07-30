@@ -1,7 +1,8 @@
 import { createNimiClientId } from '@nimiplatform/sdk/types';
 import type { NimiRuntimeRouteCloudTargetRef } from '@nimiplatform/sdk/runtime';
 
-// Renderer-side typed entities for Overtone. Authority: .nimi/spec/overtone/kernel/data-model-contract.md
+// Renderer-side typed entities for Overtone. Authority:
+// .nimi/spec/overtone/canonical/data-model.authority.yaml
 
 export type TakeOrigin = 'prompt' | 'extend' | 'remix' | 'reference';
 

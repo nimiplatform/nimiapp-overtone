@@ -1,5 +1,5 @@
-// Readiness probes. Authority: .nimi/spec/overtone/kernel/workflow-contract.md
-// (OVT-FLOW-01) and .nimi/spec/overtone/kernel/runtime-integration-contract.md
+// Readiness probes. Authority: .nimi/spec/overtone/canonical/workflow.authority.yaml
+// and .nimi/spec/overtone/canonical/runtime.authority.yaml.
 // (OVT-RT-06).
 
 import type { NimiClient } from '@nimiplatform/sdk';

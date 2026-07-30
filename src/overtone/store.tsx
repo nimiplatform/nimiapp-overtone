@@ -1,5 +1,5 @@
 // Renderer-local store. Pure React context + useReducer; no external state library.
-// Authority: .nimi/spec/overtone/kernel/data-model-contract.md (OVT-DATA-*).
+// Authority: .nimi/spec/overtone/canonical/data-model.authority.yaml.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
 import {
