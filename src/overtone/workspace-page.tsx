@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, InlineAlert, SegmentedControl } from '@nimiplatform/kit/ui';
+import { Button, InlineAlert, NimiToaster, SegmentedControl } from '@nimiplatform/kit/ui';
 import { OvertoneProvider, useOvertoneActions, useOvertoneState } from './store.js';
 import { OvertoneEmptyState } from './panels/empty-state.js';
 import { BriefPanel } from './panels/brief-panel.js';
@@ -25,6 +25,7 @@ export function WorkspacePage() {
   return (
     <OvertoneProvider>
       <WorkspaceInner />
+      <NimiToaster />
     </OvertoneProvider>
   );
 }

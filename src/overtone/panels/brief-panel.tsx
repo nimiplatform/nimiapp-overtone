@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { Button, InlineAlert, nimiToast, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
@@ -24,7 +24,6 @@ export function BriefPanel() {
 
   const [idea, setIdea] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const canCallAi = Boolean(
     readiness.textConnectorAvailable &&
@@ -36,7 +35,6 @@ export function BriefPanel() {
   const handleGenerate = useCallback(async () => {
     if (!idea.trim() || !canCallAi) return;
     setGenerating(true);
-    setError(null);
     try {
       const text = await generateRuntimeText({
         runtime: getRuntimeNimiClient().runtime,
@@ -52,7 +50,7 @@ export function BriefPanel() {
       if (!parsed) throw new Error(t('Overtone.brief.errors.nonJson'));
       setBrief(parsed);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      nimiToast.danger(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
       setGenerating(false);
     }
@@ -66,7 +64,6 @@ export function BriefPanel() {
       tempo: '',
       description: idea.trim(),
     });
-    setError(null);
   }, [idea, setBrief]);
 
   return (
@@ -114,8 +111,6 @@ export function BriefPanel() {
           {t('Overtone.brief.noTextRoute')}
         </InlineAlert>
       ) : null}
-
-      {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
 
       {brief ? (
         <div className="overtone-field" style={{ marginTop: 8 }}>

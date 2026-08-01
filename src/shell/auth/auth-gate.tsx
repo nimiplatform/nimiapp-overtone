@@ -39,14 +39,14 @@ function toMessage(error: unknown): string {
 async function resolveGateState(): Promise<GateState> {
   const projection = await getRuntimePlatformProjection();
   if (projection.status === 'login-required') {
-    runtimeGateOfflineCoordinator.markRuntimeReachable(true);
+    runtimeGateOfflineCoordinator.markRuntimeReachability('reachable');
     return { kind: 'login-required', projection, message: projection.message };
   }
   if (projection.status !== 'ready') {
-    runtimeGateOfflineCoordinator.markRuntimeReachable(false);
+    runtimeGateOfflineCoordinator.markRuntimeReachability('unreachable');
     return { kind: 'blocked', projection, offlineTier: runtimeGateOfflineCoordinator.getTier() };
   }
-  runtimeGateOfflineCoordinator.markRuntimeReachable(true);
+  runtimeGateOfflineCoordinator.markRuntimeReachability('reachable');
 
   if (!runtimeAccountLoginEnabled) {
     return { kind: 'ready', projection };
@@ -78,7 +78,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     void resolveGateState().then((nextState) => {
       if (active) setState(nextState);
     }).catch((error) => {
-      runtimeGateOfflineCoordinator.markRuntimeReachable(false);
+      runtimeGateOfflineCoordinator.markRuntimeReachability('unreachable');
       if (active) {
         setState({
           kind: 'blocked',

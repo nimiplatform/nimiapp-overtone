@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { RuntimeGenerationPanel } from '@nimiplatform/kit/features/generation/ui';
 import { useRuntimeGenerationPanel } from '@nimiplatform/kit/features/generation/runtime';
-import { InlineAlert, SelectField, TextField } from '@nimiplatform/kit/ui';
+import { InlineAlert, nimiToast, SelectField, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
@@ -18,7 +18,6 @@ import {
 import { makeId, type SongTake, type TakeOrigin } from '../types.js';
 
 type IterationMode = Exclude<TakeOrigin, 'prompt'>;
-type ReferenceErrorKey = 'referenceMustBeAudio' | 'referenceEmpty';
 type ReferenceAudio = {
   name: string;
   mimeType: string;
@@ -41,7 +40,6 @@ export function IterationPanel() {
   const [trimStartSec, setTrimStartSec] = useState<number | null>(null);
   const [trimEndSec, setTrimEndSec] = useState<number | null>(null);
   const [referenceAudio, setReferenceAudio] = useState<ReferenceAudio | null>(null);
-  const [referenceErrorKey, setReferenceErrorKey] = useState<ReferenceErrorKey | null>(null);
 
   const sourceTake = visibleTakes.find((take) => take.takeId === (sourceTakeId ?? selectedTake?.takeId)) ??
     selectedTake ??
@@ -185,17 +183,16 @@ export function IterationPanel() {
   });
 
   async function handleReferenceFile(file: File | undefined) {
-    setReferenceErrorKey(null);
     setReferenceAudio(null);
     if (!file) return;
     const mimeType = String(file.type || '').trim().toLowerCase();
     if (!mimeType.startsWith('audio/')) {
-      setReferenceErrorKey('referenceMustBeAudio');
+      nimiToast.danger(t('Overtone.iteration.errors.referenceMustBeAudio'));
       return;
     }
     const buffer = await file.arrayBuffer();
     if (buffer.byteLength === 0) {
-      setReferenceErrorKey('referenceEmpty');
+      nimiToast.danger(t('Overtone.iteration.errors.referenceEmpty'));
       return;
     }
     setReferenceAudio({ name: file.name, mimeType, buffer });
@@ -286,10 +283,6 @@ export function IterationPanel() {
         <InlineAlert tone="warning">
           {t('Overtone.iteration.referenceRequired')}
         </InlineAlert>
-      ) : null}
-
-      {referenceErrorKey ? (
-        <InlineAlert tone="danger">{t(`Overtone.iteration.errors.${referenceErrorKey}`)}</InlineAlert>
       ) : null}
 
       {trimInvalid ? (

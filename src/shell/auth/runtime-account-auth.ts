@@ -1,6 +1,7 @@
 import type { NimiClient } from '@nimiplatform/sdk';
 import {
   AccountSessionState,
+  type GetAccountSessionStatusResponse,
 } from '@nimiplatform/sdk/runtime/generated';
 import {
   createRuntimeAccountBrowserBroker,
@@ -8,7 +9,7 @@ import {
   type RuntimeAccountBrowserBrokerClient,
   type ShellAuthDesktopBrowserAuth,
 } from '@nimiplatform/kit/auth';
-import { createTauriOAuthBridge } from '@nimiplatform/kit/shell/renderer/bridge';
+import { createStandardShellOAuthBridge } from '@nimiplatform/kit/shell/renderer/bridge';
 import type { NimiRuntimeAccountCaller } from '@nimiplatform/sdk/runtime';
 import {
   getRuntimeAccountCaller,
@@ -17,18 +18,12 @@ import {
 
 export { getRuntimeAccountCaller };
 
-export const nimiAppTauriOAuthBridge = createTauriOAuthBridge();
+export const nimiAppTauriOAuthBridge = createStandardShellOAuthBridge();
 
 type RuntimeAccountClient = RuntimeAccountBrowserBrokerClient & Pick<NimiClient, 'runtime'> & {
   runtime: RuntimeAccountBrowserBrokerClient['runtime'] & NimiClient['runtime'] & {
     account: RuntimeAccountBrowserBrokerClient['runtime']['account'] & NimiClient['runtime']['account'] & {
-      getAccountSessionStatus(input: { caller: NimiRuntimeAccountCaller }): Promise<{
-        state: AccountSessionState;
-        accountProjection?: {
-          accountId?: string | null;
-          displayName?: string | null;
-        } | null;
-      }>;
+      getAccountSessionStatus(input: { caller: NimiRuntimeAccountCaller }): Promise<GetAccountSessionStatusResponse>;
       logout(input: { caller: NimiRuntimeAccountCaller; reason: string }): Promise<unknown>;
     };
   };
@@ -50,12 +45,13 @@ export async function loadRuntimeAccountUser(client: RuntimeAccountClient | Nimi
   }
   const caller = getRuntimeAccountCaller();
   const response = await client.runtime.account.getAccountSessionStatus({ caller });
-  if (response.state !== AccountSessionState.AUTHENTICATED || !response.accountProjection?.accountId) {
+  const snapshot = response.snapshot;
+  if (snapshot?.state !== AccountSessionState.AUTHENTICATED || !snapshot.accountProjection?.accountId) {
     return null;
   }
   return {
-    id: response.accountProjection.accountId,
-    displayName: response.accountProjection.displayName || 'Runtime account',
+    id: snapshot.accountProjection.accountId,
+    displayName: snapshot.accountProjection.displayName || 'Runtime account',
   };
 }
 

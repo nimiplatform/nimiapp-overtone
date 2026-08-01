@@ -1,20 +1,15 @@
 import { createNimiClient, createNimiClientId, createNimiError, type NimiClient } from '@nimiplatform/sdk';
 import {
   Runtime,
-  createNimiDeveloperRegisteredRuntimeAccountCaller,
+  createNimiLocalFirstPartyRuntimeAccountCaller,
   createNimiRuntimeAppSessionMetadataProvider,
   createNimiRuntimeFullAppRegistration,
-  toNimiRuntimeTimestamp,
   withNimiRuntimeIdempotencyMetadata,
   type NimiRuntimeAccountCaller,
   type RuntimeOptions,
 } from '@nimiplatform/sdk/runtime';
 import {
   AccountSessionState,
-  AuthorizationPreset,
-  ExternalPrincipalType,
-  PolicyMode,
-  type AuthorizeExternalPrincipalResponse,
   type RuntimeTypedCallOptions,
 } from '@nimiplatform/sdk/runtime/generated';
 import type { CoreMetadata } from '@nimiplatform/sdk/types';
@@ -24,7 +19,6 @@ import { appId, appTitle } from './app-identity.js';
 
 export const runtimeAccountLoginEnabled = true;
 
-const runtimeDeveloperRegistrationRequested = true;
 const runtimeClientIdPrefix = normalizeClientIdPrefix(appId);
 const runtimeAccountAppInstanceId = `${appId}.local-developer`;
 const runtimeAccountDeviceId = `${runtimeClientIdPrefix}-local-developer-device`;
@@ -33,9 +27,6 @@ const runtimeAppSessionDeviceId = 'platform-runtime-session';
 const runtimeAppSessionTtlSeconds = 3600;
 const runtimeAppSessionRefreshSkewMs = 30_000;
 const runtimeProtectedScopes = ['ai.spend.meter'] as const;
-const runtimeProtectedScopeCatalogVersion = 'sdk-v2';
-const runtimeProtectedTokenTtlSeconds = 3600;
-const runtimeProtectedTokenRefreshSkewMs = 60_000;
 const runtimeAccountRefreshSurfaceId = 'runtime-account.refresh';
 
 export type RuntimeAuthMode = 'developer-registered-local-app' | 'third-party-nimi-app';
@@ -88,8 +79,6 @@ function resolveRuntimeAuthMode(): RuntimeAuthMode {
 export function clearRuntimePlatformProjection() {
   runtimeProjection = null;
   runtimeReadyProjection = null;
-  protectedAccessCache = null;
-  protectedAccessInflight = null;
 }
 
 export function getRuntimePlatformProjection() {
@@ -121,7 +110,7 @@ export function getRuntimeNimiClient(): NimiClient {
 }
 
 export function getRuntimeAccountCaller(): NimiRuntimeAccountCaller {
-  runtimeAccountCaller ??= createNimiDeveloperRegisteredRuntimeAccountCaller({
+  runtimeAccountCaller ??= createNimiLocalFirstPartyRuntimeAccountCaller({
     appId,
     appInstanceId: runtimeAccountAppInstanceId,
     deviceId: runtimeAccountDeviceId,
@@ -218,7 +207,6 @@ async function registerDeveloperRegisteredRuntimeAccountCaller(accountRuntime: R
       appInstanceId: caller.appInstanceId,
       deviceId: caller.deviceId,
       capabilities: [...runtimeProtectedScopes],
-      developerRegistration: runtimeDeveloperRegistrationRequested,
       rejectionLabel: `${appTitle} Runtime account caller registration rejected`,
     },
   )();
@@ -236,19 +224,13 @@ function createRuntimeAppSessionMetadataProvider(
     ttlSeconds: runtimeAppSessionTtlSeconds,
     refreshSkewMs: runtimeAppSessionRefreshSkewMs,
     auth: accountRuntime.auth,
-    developerRegistration: runtimeDeveloperRegistrationRequested,
   });
   return async () => {
     const subjectUserId = await readRuntimeSubjectUserId(accountRuntime, accountCaller);
     if (!subjectUserId) {
       return {};
     }
-    const appSessionMetadata = await requiredRuntimeSessionMetadata();
-    const protectedAccessMetadata = await getRuntimeProtectedAccessMetadata(accountRuntime, subjectUserId);
-    return {
-      ...appSessionMetadata,
-      ...protectedAccessMetadata,
-    };
+    return requiredRuntimeSessionMetadata();
   };
 }
 
@@ -257,97 +239,11 @@ async function readRuntimeSubjectUserId(
   accountCaller: NimiRuntimeAccountCaller,
 ): Promise<string> {
   const session = await accountRuntime.account.getAccountSessionStatus({ caller: accountCaller });
-  if (session.state === AccountSessionState.AUTHENTICATED && session.accountProjection?.accountId) {
-    return normalizeText(session.accountProjection.accountId);
+  const snapshot = session.snapshot;
+  if (snapshot?.state === AccountSessionState.AUTHENTICATED && snapshot.accountProjection?.accountId) {
+    return normalizeText(snapshot.accountProjection.accountId);
   }
   return '';
-}
-
-let protectedAccessCache: {
-  readonly subjectUserId: string;
-  readonly metadata: CoreMetadata;
-  readonly expiresAtMs: number;
-} | null = null;
-let protectedAccessInflight: Promise<{
-  readonly subjectUserId: string;
-  readonly metadata: CoreMetadata;
-  readonly expiresAtMs: number;
-}> | null = null;
-
-async function getRuntimeProtectedAccessMetadata(
-  accountRuntime: Runtime,
-  subjectUserId: string,
-): Promise<CoreMetadata> {
-  if (
-    protectedAccessCache &&
-    protectedAccessCache.subjectUserId === subjectUserId &&
-    protectedAccessCache.expiresAtMs - Date.now() > runtimeProtectedTokenRefreshSkewMs
-  ) {
-    return protectedAccessCache.metadata;
-  }
-  protectedAccessInflight ??= issueRuntimeProtectedAccessMetadata(accountRuntime, subjectUserId);
-  try {
-    protectedAccessCache = await protectedAccessInflight;
-    return protectedAccessCache.metadata;
-  } finally {
-    protectedAccessInflight = null;
-  }
-}
-
-async function issueRuntimeProtectedAccessMetadata(
-  accountRuntime: Runtime,
-  subjectUserId: string,
-): Promise<{
-  readonly subjectUserId: string;
-  readonly metadata: CoreMetadata;
-  readonly expiresAtMs: number;
-}> {
-  const normalizedSubject = subjectUserId.replace(/[^a-zA-Z0-9._:-]/g, '_').slice(0, 80) || 'unknown';
-  const token = await accountRuntime.grants.authorizeExternalPrincipal({
-    domain: 'app-auth',
-    appId,
-    externalPrincipalId: appId,
-    externalPrincipalType: ExternalPrincipalType.APP,
-    subjectUserId,
-    consentId: `${runtimeClientIdPrefix}-runtime-account`,
-    consentVersion: 'v1',
-    decisionAt: toNimiRuntimeTimestamp(new Date()),
-    policyVersion: `${runtimeClientIdPrefix}-runtime-account-v1`,
-    policyMode: PolicyMode.CUSTOM,
-    preset: AuthorizationPreset.UNSPECIFIED,
-    scopes: [...runtimeProtectedScopes],
-    resourceSelectors: {
-      conversationIds: [],
-      messageIds: [],
-      documentIds: [],
-      labels: {},
-    },
-    canDelegate: false,
-    maxDelegationDepth: 0,
-    ttlSeconds: runtimeProtectedTokenTtlSeconds,
-    scopeCatalogVersion: runtimeProtectedScopeCatalogVersion,
-    policyOverride: false,
-  }, withNimiRuntimeIdempotencyMetadata({
-    metadata: { domain: 'app-auth' },
-  }, createScopedClientId(`runtime-protected-${normalizedSubject}`)));
-  const tokenId = normalizeText(token.tokenId);
-  const secret = normalizeText(token.secret);
-  if (!tokenId || !secret) {
-    throw createNimiError({
-      message: 'Runtime protected access token response is missing credentials.',
-      reasonCode: 'PRINCIPAL_UNAUTHORIZED',
-      actionHint: 'authorize_runtime_protected_access',
-      source: 'runtime',
-    });
-  }
-  return {
-    subjectUserId,
-    metadata: {
-      'x-nimi-access-token-id': tokenId,
-      'x-nimi-access-token-secret': secret,
-    },
-    expiresAtMs: runtimeAuthorizeResponseExpiresAtMs(token) || Date.now() + (runtimeProtectedTokenTtlSeconds * 1000),
-  };
 }
 
 function unavailableFromError(mode: RuntimeAuthMode, error: unknown): RuntimePlatformUnavailableProjection {
@@ -363,15 +259,6 @@ function unavailableFromError(mode: RuntimeAuthMode, error: unknown): RuntimePla
     actionHint: 'enable_desktop_developer_mode_and_complete_runtime_account_setup',
     message: error instanceof Error ? error.message : 'developer-registered Runtime account setup is required',
   };
-}
-
-function runtimeAuthorizeResponseExpiresAtMs(token: AuthorizeExternalPrincipalResponse): number {
-  const expiresAt = token.expiresAt;
-  if (!expiresAt) return 0;
-  const seconds = Number(expiresAt.seconds || 0);
-  const nanos = Number(expiresAt.nanos || 0);
-  const millis = (seconds * 1000) + Math.floor(nanos / 1_000_000);
-  return Number.isFinite(millis) && millis > 0 ? millis : 0;
 }
 
 function runtimeOptions(): RuntimeOptions {

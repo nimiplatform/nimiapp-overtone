@@ -16,7 +16,7 @@ const admission = readFileSync(new URL('../ADMISSION.md', import.meta.url), 'utf
 
 test('auth glue uses app-scoped SDK Runtime developer projections', () => {
   assert.match(authSource, /createNimiClient/);
-  assert.match(authSource, /createNimiDeveloperRegisteredRuntimeAccountCaller/);
+  assert.match(authSource, /createNimiLocalFirstPartyRuntimeAccountCaller/);
   assert.match(authSource, /createNimiRuntimeFullAppRegistration/);
   assert.match(authSource, /createNimiRuntimeAppSessionMetadataProvider/);
   assert.doesNotMatch(authSource, /createRealmFetchTransport|getRuntimeDefaults|getAccessToken/);
@@ -33,11 +33,9 @@ test('single login model uses Runtime account login without developer-session by
   assert.doesNotMatch(authSource, /VITE_NIMI_RUNTIME_DEVELOPER_SESSION/);
   assert.doesNotMatch(authGateSource, /dev-standalone/);
   assert.doesNotMatch(authGateSource, /runtime-developer-session/);
-  assert.match(authSource, /const runtimeDeveloperRegistrationRequested = true/);
-  assert.match(authSource, /developerRegistration:\s*runtimeDeveloperRegistrationRequested/);
   assert.match(authSource, /registerDeveloperRegisteredRuntimeAccountCaller/);
   assert.match(authSource, /runtimeProtectedScopes = \['ai\.spend\.meter'\]/);
-  assert.match(authSource, /accountRuntime\.grants\.authorizeExternalPrincipal/);
+  assert.doesNotMatch(authSource, /accountRuntime\.grants|developerRegistration/);
   assert.match(authGateSource, /loadRuntimeAccountUser/);
   assert.match(authGateSource, /clearRuntimePlatformProjection/);
   assert.match(authGateSource, /clearRuntimePlatformProjection\(\);\s*setReloadKey/s);

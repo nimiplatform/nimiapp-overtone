@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { Button, InlineAlert, nimiToast, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
@@ -20,7 +20,6 @@ export function LyricsPanel() {
   const { readiness } = state;
 
   const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const canCallAi = Boolean(
     readiness.textConnectorAvailable &&
@@ -32,7 +31,6 @@ export function LyricsPanel() {
   const handleGenerate = useCallback(async () => {
     if (!canCallAi || !brief?.description) return;
     setGenerating(true);
-    setError(null);
     try {
       const text = await generateRuntimeText({
         runtime: getRuntimeNimiClient().runtime,
@@ -46,7 +44,7 @@ export function LyricsPanel() {
       });
       setLyrics(text.trim(), 'assistant');
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      nimiToast.danger(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
       setGenerating(false);
     }
@@ -82,8 +80,6 @@ export function LyricsPanel() {
       {!brief?.description ? (
         <InlineAlert tone="info">{t('Overtone.lyrics.briefRequired')}</InlineAlert>
       ) : null}
-
-      {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
 
       <textarea
         className="nimi-input"

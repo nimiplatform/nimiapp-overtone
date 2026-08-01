@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { Button, InlineAlert, OverlayShell, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { Button, InlineAlert, nimiToast, OverlayShell, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import type { PublishDraft } from '../types.js';
@@ -29,6 +29,12 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (state.publishStatus === 'done' && state.publishedPostId) {
+      nimiToast.success(`${t('Overtone.publish.publishedPostId')} ${state.publishedPostId}`);
+    }
+  }, [state.publishStatus, state.publishedPostId, t]);
+
   const canPublish = useMemo(() => {
     if (!realmPublishProxyAvailable) return false;
     if (!audioBuffer) return false;
@@ -38,10 +44,9 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
 
   const handlePublish = useCallback(async () => {
     if (!canPublish || !audioBuffer || !draft || !take) return;
-    setPublishStatus(
-      'error',
-      t('Overtone.publish.proxyRequiredError'),
-    );
+    const message = t('Overtone.publish.proxyRequiredError');
+    setPublishStatus('error', message);
+    nimiToast.danger(message);
   }, [canPublish, audioBuffer, draft, take, setPublishStatus, t]);
 
   if (!take || !draft) return null;
@@ -77,16 +82,6 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
       {!realmPublishProxyAvailable ? (
         <InlineAlert tone="warning">
           {t('Overtone.publish.proxyUnavailable')}
-        </InlineAlert>
-      ) : null}
-
-      {state.publishStatus === 'error' && state.publishError ? (
-        <InlineAlert tone="danger">{state.publishError}</InlineAlert>
-      ) : null}
-
-      {state.publishStatus === 'done' && state.publishedPostId ? (
-        <InlineAlert tone="success">
-          {t('Overtone.publish.publishedPostId')} <code>{state.publishedPostId}</code>
         </InlineAlert>
       ) : null}
 
