@@ -26,7 +26,7 @@ units:
     modality: must
     statement: Before a project starts, render an empty state with Overtone app identity, one Start New Session primary CTA, and a visible typed readiness indicator for runtime, Realm, music, and text; never hide readiness behind settings.
     condition: Before the user starts a project.
-    failure: Keep project start unavailable when required readiness is unresolved and render the visible typed indicator with the applicable state.
+    failure: Render the visible typed indicator with the applicable state and keep only unavailable capability actions disabled; manual brief and local editing may still start.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.readiness-snapshot
@@ -114,7 +114,7 @@ units:
     kind: rule
     title: Actionable readiness banner
     modality: must
-    statement: Render a typed readiness banner above Output when runtime is degraded or Realm is unconfigured, and link it to connector setup or authentication retry as applicable or include a typed actionHint.
+    statement: Render a typed readiness banner above Output when runtime is degraded, text capability is unconfigured, music App Access is unavailable, or Realm publish is unavailable; preserve a host-provided actionHint when the protected session posture supplies one and never link to app-owned connector or login custody.
     condition: When ReadinessSnapshot reports degraded runtime or unconfigured Realm.
     failure: Keep the affected action disabled and display the actionable typed readiness banner.
     relations:

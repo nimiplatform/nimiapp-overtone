@@ -59,8 +59,8 @@ type Action =
 
 const INITIAL_READINESS: ReadinessSnapshot = {
   runtimeStatus: 'checking',
-  textConnectorAvailable: false,
-  musicConnectorAvailable: false,
+  textCapabilityAvailable: false,
+  musicCapabilityAvailable: false,
   realmConfigured: false,
   realmAuthenticated: false,
 };

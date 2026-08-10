@@ -1,8 +1,7 @@
 # AGENTS.md
-- Treat `.nimi/app-scaffold/intent.json` and `.nimi/app-scaffold/lock.json` as app-scaffold intent and lock state.
 - Treat `.nimi/methodology/authority-authoring.yaml` as the `@nimiplatform/nimi-coding` managed authoring guide.
-- Keep auth, Runtime, permission, manifest, and Tauri shell glue in scaffold-managed files.
-- The app-owned area is `src/shell/routes/product-area.tsx`, `src/tester/**`, app-owned tester Tauri modules under `src-tauri/src/{tester_storage.rs,world_tour.rs}`, and tester contract tests.
+- Keep auth, App Access declarations, manifest, and Electron shell glue aligned with the current `@nimiplatform/app-tools` Local App contract.
+- Product code lives under `src/overtone/**` and `src/shell/routes/product-area.tsx`; it may consume only the protected `NimiLocalAppClient` surface.
 - `.nimi/admission/**` and `ADMISSION.md` are developer-submitted review inputs, not platform admission truth.
 - Local checks are pre-submission self-checks only.
 
@@ -55,14 +54,15 @@ Use Kit for reusable UI and headless product primitives:
 
 Do not fork Kit behavior into app-local copies unless the app has a genuinely product-specific interaction that Kit does not cover.
 
-### `nimi-shell-tauri`
+### Electron Local App shell
 
-Use `nimi-shell-tauri` / scaffold-managed Tauri glue only for shell and OS integration:
+Use the Desktop-supervised Electron carrier for local development:
 
-- Window lifecycle, file picker/reveal, clipboard, drag/drop, native dialogs, shell-safe local handles, and app-owned OS helpers.
-- Tauri commands must be bounded, app-specific, and unable to become platform truth.
+- `pnpm dev` must enter through `nimi-app dev --shell electron`.
+- CDP is requested through the official launcher and remains loopback-only.
+- The preload exposes only the Kit standard bridge; the main process registers the protected Local App bridge and asset media platform.
 
-Do not implement Runtime/Realm authority, permission grants, app admission, model routing, token custody, or canonical transcript/history truth in Tauri.
+Do not launch Electron directly or implement Runtime/Realm authority, grants, admission, model routing, token custody, or generic Runtime transport in the app shell.
 
 ### Kit UI Glass Style
 
@@ -77,7 +77,7 @@ Do not recreate one-off glass cards, shadows, gradients, or control styling when
 
 The app owns product-specific screens, user intent wiring, view-model projection, ephemeral UI state, and product-specific data that is not Runtime-owned or Realm-owned.
 
-Before adding any durable local store, new Tauri command, private endpoint call, or platform-like registry, decide and document why the data is app-owned rather than Runtime/Realm-owned.
+Before adding durable local storage, an app-owned Electron command, a private endpoint call, or a platform-like registry, decide and document why the data is app-owned rather than Runtime/Realm-owned.
 
 ## Boundary Checklist
 
@@ -85,7 +85,7 @@ Before adding any durable local store, new Tauri command, private endpoint call,
 - Execution/capability/readiness/model/memory truth? Use Runtime through SDK.
 - Backend business object or relationship/account truth? Use Realm through SDK.
 - Shared UI, layout, chat shell, controls, or glass styling? Use Kit.
-- OS helper or native shell action? Use scaffold-managed Tauri / `nimi-shell-tauri`.
+- OS helper or native shell action? Use an admitted standard Local App operation or a bounded app-owned Electron command.
 - Unsure who owns it? Stop and write an authority note before implementing.
 
 ## Forbidden Shortcuts

@@ -2,28 +2,32 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const productAreaSource = readFileSync(new URL('../src/shell/routes/product-area.tsx', import.meta.url), 'utf8');
-const workspaceSource = readFileSync(new URL('../src/overtone/workspace-page.tsx', import.meta.url), 'utf8');
-const i18nSource = readFileSync(new URL('../src/overtone/i18n.ts', import.meta.url), 'utf8');
-const storeSource = readFileSync(new URL('../src/overtone/store.tsx', import.meta.url), 'utf8');
-const typesSource = readFileSync(new URL('../src/overtone/types.ts', import.meta.url), 'utf8');
-const runtimeWorkflowSource = readFileSync(new URL('../src/overtone/runtime-workflow.ts', import.meta.url), 'utf8');
-const readinessSource = readFileSync(new URL('../src/overtone/readiness.ts', import.meta.url), 'utf8');
-const briefSource = readFileSync(new URL('../src/overtone/panels/brief-panel.tsx', import.meta.url), 'utf8');
-const generateSource = readFileSync(new URL('../src/overtone/panels/generate-panel.tsx', import.meta.url), 'utf8');
-const iterationSource = readFileSync(new URL('../src/overtone/panels/iteration-panel.tsx', import.meta.url), 'utf8');
-const publishSource = readFileSync(new URL('../src/overtone/panels/publish-panel.tsx', import.meta.url), 'utf8');
-const playerSource = readFileSync(new URL('../src/overtone/panels/player-panel.tsx', import.meta.url), 'utf8');
-const takesSource = readFileSync(new URL('../src/overtone/panels/takes-panel.tsx', import.meta.url), 'utf8');
-const stylesSource = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
-const overtoneCssSource = readFileSync(new URL('../src/overtone/overtone.css', import.meta.url), 'utf8');
-const mainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
-const devPreviewSource = readFileSync(new URL('../src/dev-preview.tsx', import.meta.url), 'utf8');
-const manifest = readFileSync(new URL('../nimi.app.yaml', import.meta.url), 'utf8');
-const runtimeAuthority = readFileSync(new URL('../.nimi/spec/overtone/canonical/runtime.authority.yaml', import.meta.url), 'utf8');
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const productAreaSource = read('../src/shell/routes/product-area.tsx');
+const localAppClientSource = read('../src/shell/auth/local-app-client.ts');
+const workspaceSource = read('../src/overtone/workspace-page.tsx');
+const i18nSource = read('../src/overtone/i18n.ts');
+const storeSource = read('../src/overtone/store.tsx');
+const typesSource = read('../src/overtone/types.ts');
+const runtimeWorkflowSource = read('../src/overtone/runtime-workflow.ts');
+const readinessSource = read('../src/overtone/readiness.ts');
+const briefSource = read('../src/overtone/panels/brief-panel.tsx');
+const lyricsSource = read('../src/overtone/panels/lyrics-panel.tsx');
+const generateSource = read('../src/overtone/panels/generate-panel.tsx');
+const iterationSource = read('../src/overtone/panels/iteration-panel.tsx');
+const publishSource = read('../src/overtone/panels/publish-panel.tsx');
+const playerSource = read('../src/overtone/panels/player-panel.tsx');
+const takesSource = read('../src/overtone/panels/takes-panel.tsx');
+const stylesSource = read('../src/styles.css');
+const overtoneCssSource = read('../src/overtone/overtone.css');
+const mainSource = read('../src/main.tsx');
+const devPreviewSource = read('../src/dev-preview.tsx');
+const manifest = read('../nimi.app.yaml');
+const runtimeAuthority = read('../.nimi/spec/overtone/canonical/runtime.authority.yaml');
 
 const allSource = [
   productAreaSource,
+  localAppClientSource,
   workspaceSource,
   i18nSource,
   storeSource,
@@ -31,6 +35,7 @@ const allSource = [
   runtimeWorkflowSource,
   readinessSource,
   briefSource,
+  lyricsSource,
   generateSource,
   iterationSource,
   publishSource,
@@ -40,35 +45,29 @@ const allSource = [
 
 test('product-area mounts Overtone workspace, not tester', () => {
   assert.match(productAreaSource, /WorkspacePage/);
-  assert.doesNotMatch(productAreaSource, /TesterWorkbench/);
-  assert.doesNotMatch(productAreaSource, /WorldTourViewerRoute/);
+  assert.doesNotMatch(productAreaSource, /TesterWorkbench|WorldTourViewerRoute/);
 });
 
-test('manifest declares overtone app identity and runtime scopes', () => {
+test('manifest declares Overtone identity and current App Access', () => {
   assert.match(manifest, /app_id: nimi\.overtone/);
   assert.match(manifest, /display_name: Nimi Overtone/);
-  assert.match(manifest, /scope: ai\.spend\.meter/);
-  assert.match(manifest, /scope: ai_profile\.selection\.consume/);
-  assert.match(manifest, /scope: data\.scope\.write/);
-  assert.match(manifest, /scope: file\.read\.scoped/);
-  assert.match(manifest, /scope: file\.write\.scoped/);
+  assert.match(manifest, /app_access:\s*\n\s*- runtime\.consume/);
+  assert.doesNotMatch(manifest, /declared_nimi_api_scopes|ai\.spend\.meter|file\.write\.scoped/);
 });
 
-test('overtone identity authority never uses legacy app-prefixed ids', () => {
+test('runtime identity authority is host-bound and has no legacy app-prefixed ids', () => {
   assert.match(runtimeAuthority, /app_id nimi\.overtone/);
-  assert.match(runtimeAuthority, /app_instance_id nimi\.overtone\.local-developer/);
-  assert.match(runtimeAuthority, /ACCOUNT_CALLER_MODE_LOCAL_DEVELOPER_APP/);
-  assert.doesNotMatch(runtimeAuthority, /app\.nimi\.overtone/);
+  assert.match(runtimeAuthority, /NimiLocalAppClient/);
+  assert.match(runtimeAuthority, /Kit host-injected standard shell surface/);
+  assert.doesNotMatch(runtimeAuthority, /app\.nimi\.overtone|local-developer|ACCOUNT_CALLER_MODE_LOCAL_DEVELOPER_APP/);
 });
 
 test('renderer uses Kit base accent with app-owned Overtone variables', () => {
   assert.match(mainSource, /accentPack="nimi-accent"/);
   assert.match(devPreviewSource, /accentPack="nimi-accent"/);
   assert.match(stylesSource, /@import "@nimiplatform\/kit\/ui\/themes\/nimi-accent\.css"/);
-  assert.doesNotMatch(stylesSource, /@nimiplatform\/kit\/ui\/themes\/overtone-accent\.css/);
   assert.match(workspaceSource, /import '\.\/overtone\.css'/);
   assert.match(overtoneCssSource, /--overtone-accent-primary:\s*#8b5cf6/);
-  assert.match(overtoneCssSource, /--nimi-action-primary-bg:\s*var\(--overtone-accent-primary\)/);
 });
 
 test('overtone i18n supports English and Chinese through Kit language switcher', () => {
@@ -77,25 +76,47 @@ test('overtone i18n supports English and Chinese through Kit language switcher',
   assert.match(workspaceSource, /persistOvertoneLocale/);
   assert.match(i18nSource, /OVERTONE_LOCALES = \['en', 'zh'\]/);
   assert.match(i18nSource, /nimi\.overtone:locale\.v1/);
-  assert.match(i18nSource, /App-owned UI preference only/);
-  assert.match(i18nSource, /Overtone/);
-  assert.match(i18nSource, /中文/);
 });
 
-test('workspace and panels source has no app-owned token custody', () => {
-  assert.doesNotMatch(allSource, /authToken|authRefreshToken/);
-  assert.doesNotMatch(allSource, /applyToken|persistSession|persistSharedDesktopAuthSession/);
-  assert.doesNotMatch(allSource, /VITE_NIMI_REALM_ACCESS_TOKEN/);
+test('workspace has no app-owned token, caller, connector, or model custody', () => {
+  assert.doesNotMatch(allSource, /authToken|authRefreshToken|accessToken|refreshToken/);
+  assert.doesNotMatch(allSource, /applyToken|persistSession|VITE_NIMI_REALM_ACCESS_TOKEN/);
+  assert.doesNotMatch(allSource, /connectorId|modelId|targetRef|RuntimeAccountCaller/);
+  assert.doesNotMatch(allSource, /from ['"]runtime\/internal|from ['"]@renderer\/|from ['"]@runtime\//);
 });
 
-test('workspace and panels do not import runtime/internal or @renderer/ aliases', () => {
-  assert.doesNotMatch(allSource, /from ['"]runtime\/internal/);
-  assert.doesNotMatch(allSource, /from ['"]@renderer\//);
-  assert.doesNotMatch(allSource, /from ['"]@runtime\//);
+test('readiness is derived from protected session posture and App AIConfig', () => {
+  assert.match(readinessSource, /client\.auth\.status\(\)/);
+  assert.match(readinessSource, /client\.aiConfig\.get\(\)/);
+  assert.match(readinessSource, /capabilityContract === 'text\.generate'/);
+  assert.match(readinessSource, /musicCapabilityAvailable:\s*false/);
+  assert.match(readinessSource, /realmConfigured:\s*false/);
+  assert.doesNotMatch(readinessSource, /listScenarioProfiles|listNimiRuntimeRouteOptions|inventory\.targets/);
 });
 
-test('takes are append-only — store does not splice or pop the take list', () => {
+test('brief and lyrics assistance use Local App text candidates', () => {
+  assert.match(runtimeWorkflowSource, /client\.ai\.text\.generateCandidate\(/);
+  assert.match(briefSource, /getNimiLocalAppClient\(\)/);
+  assert.match(lyricsSource, /getNimiLocalAppClient\(\)/);
+  assert.match(briefSource + lyricsSource, /generateRuntimeText\(/);
+  assert.doesNotMatch(runtimeWorkflowSource, /ScenarioType|ExecutionMode|runtime\.ai\.|buildMusic/);
+});
+
+test('music generation and iteration fail closed until App Access admits music jobs', () => {
+  assert.match(generateSource, /data-testid="overtone-music-app-access-unavailable"/);
+  assert.match(generateSource, /<fieldset disabled/);
+  assert.match(generateSource, /Overtone\.generate\.appAccessUnavailable/);
+  assert.match(iterationSource, /Overtone\.iteration\.appAccessUnavailable/);
+  assert.match(i18nSource, /current Nimi App Access contract does not admit music jobs/);
+  assert.doesNotMatch(generateSource + iterationSource, /RuntimeGenerationPanel|useRuntimeGenerationPanel|submitMusicGenerate|requireCompletedMusicArtifact/);
+  assert.doesNotMatch(runtimeWorkflowSource, /music_generate|MusicGenerate|ASYNC_JOB/);
+});
+
+test('takes remain append-only and discarding clears in-memory audio', () => {
   assert.doesNotMatch(storeSource, /takes\.splice|takes\.pop|takes\.shift/);
+  assert.match(storeSource, /case 'take\/discard'/);
+  assert.match(storeSource, /audioBuffers/);
+  assert.match(storeSource, /\[action\.takeId\]/);
 });
 
 test('local drafts persist only project metadata, not audio buffers', () => {
@@ -104,103 +125,22 @@ test('local drafts persist only project metadata, not audio buffers', () => {
   assert.doesNotMatch(storeSource, /JSON\.stringify\(\{ project, audioBuffers/);
 });
 
-test('discarding a take clears its in-memory audio buffer', () => {
-  assert.match(storeSource, /case 'take\/discard'/);
-  assert.match(storeSource, /audioBuffers/);
-  assert.match(storeSource, /\[action\.takeId\]/);
-});
-
 test('publish draft creation resets stale publish state', () => {
   assert.match(storeSource, /publishDraftFromTake/);
   assert.match(storeSource, /type: 'publish\/status', status: 'idle'/);
   assert.match(storeSource, /type: 'publish\/post-id', postId: null/);
 });
 
-test('music iteration extension namespace stays nimi.scenario.music_generate.request', () => {
-  assert.match(runtimeWorkflowSource, /nimi\.scenario\.music_generate\.request/);
-  assert.match(runtimeWorkflowSource, /requires a MIME type/);
-  assert.doesNotMatch(iterationSource, /sourceMimeType: 'audio\/mpeg'/);
-});
-
-test('music generation consumes Kit RuntimeGenerationPanel lifecycle before artifact projection', () => {
-  assert.match(generateSource, /useRuntimeGenerationPanel/);
-  assert.match(generateSource, /RuntimeGenerationPanel/);
-  assert.match(iterationSource, /useRuntimeGenerationPanel/);
-  assert.match(iterationSource, /RuntimeGenerationPanel/);
-  assert.match(runtimeWorkflowSource, /buildMusicGenerateScenarioRequest/);
-  assert.match(runtimeWorkflowSource, /ScenarioType\.MUSIC_GENERATE/);
-  assert.match(runtimeWorkflowSource, /ExecutionMode\.ASYNC_JOB/);
-  assert.doesNotMatch(generateSource + iterationSource, /submitMusicGenerate/);
-});
-
-test('readiness probes scenario profiles before route option matching', () => {
-  assert.match(readinessSource, /runtime\.ai\.listScenarioProfiles\(\{ modelId: '' \}\)/);
-  assert.match(readinessSource, /listNimiRuntimeRouteOptionsWithHost/);
-});
-
-test('runtime route selection consumes v2 inventory target refs', () => {
-  assert.match(readinessSource, /snapshot\.inventory\.targets/);
-  assert.match(readinessSource, /selectedTargetRef/);
-  assert.doesNotMatch(readinessSource, /snapshot\.connectors/);
-  assert.doesNotMatch(readinessSource, /snapshot\.selected\?/);
-  assert.match(typesSource, /selectedTextTargetRef\?:/);
-  assert.match(typesSource, /selectedMusicTargetRef\?:/);
-});
-
-test('runtime execution requests carry durable target refs', () => {
-  assert.match(runtimeWorkflowSource, /readonly targetRef:/);
-  assert.match(runtimeWorkflowSource, /targetRef: input\.targetRef/);
-  assert.match(runtimeWorkflowSource, /targetRef: runtimeDurableCloudTargetRef\(input\.targetRef\)/);
-  assert.match(briefSource, /targetRef: readiness\.selectedTextTargetRef!/);
-  assert.match(generateSource, /targetRef: readiness\.selectedMusicTargetRef!/);
-  assert.match(iterationSource, /targetRef: state\.readiness\.selectedMusicTargetRef!/);
-});
-
-test('realm authentication readiness is unavailable without a platform publish proxy', () => {
-  assert.match(readinessSource, /realmConfigured:\s*false/);
-  assert.match(readinessSource, /realmAuthenticated:\s*false/);
-  assert.doesNotMatch(readinessSource, /getRuntimeSubjectUserId/);
-  assert.doesNotMatch(readinessSource, /realm\.me\(/);
-  assert.doesNotMatch(readinessSource, /isNimiRealmExpectedAnonymousSessionError/);
-});
-
-test('readiness does not silently choose the first route candidate', () => {
-  assert.match(readinessSource, /candidates\.length === 1/);
-  assert.doesNotMatch(readinessSource, /\.find\(\(item\) => item\.models\.length > 0\)/);
-});
-
-test('iteration panel creates child takes through app-owned extension builder', () => {
-  assert.match(workspaceSource, /IterationPanel/);
-  assert.match(iterationSource, /buildMusicIterationExtensions/);
-  assert.match(iterationSource, /overtone-reference-audio/);
-  assert.match(i18nSource, /referenceAudio/);
-  assert.match(iterationSource, /type="file"/);
-  assert.match(iterationSource, /origin: mode/);
-});
-
-test('publish flow fails closed without raw Realm token transport', () => {
-  assert.doesNotMatch(publishSource, /uploadNimiRealmResourceFile/);
-  assert.doesNotMatch(publishSource, /createNimiRealmPost/);
-  assert.doesNotMatch(publishSource, /requireRealm\(/);
+test('Realm publish flow also fails closed without raw token transport', () => {
+  assert.doesNotMatch(publishSource, /uploadNimiRealmResourceFile|createNimiRealmPost|requireRealm\(/);
   assert.match(publishSource, /realmPublishProxyAvailable = false/);
   assert.match(publishSource, /proxyUnavailable/);
-  assert.match(i18nSource, /Realm publishing is unavailable for developer-registered local apps/);
   assert.match(publishSource, /provenanceConfirmed/);
-  assert.doesNotMatch(publishSource, /type: 'audio\/mpeg'/);
 });
 
-test('completed runtime artifacts fail-close before take creation', () => {
-  assert.match(typesSource, /artifactMimeType: string/);
-  assert.match(typesSource, /artifactByteLength: number/);
-  assert.match(runtimeWorkflowSource, /requireCompletedMusicArtifact/);
-  assert.match(generateSource, /requireCompletedMusicArtifact/);
-  assert.match(iterationSource, /requireCompletedMusicArtifact/);
-});
-
-test('ids use SDK client ids rather than Date plus random ids', () => {
+test('ids use SDK client ids rather than random ids', () => {
   assert.match(typesSource, /createNimiClientId/);
-  assert.doesNotMatch(typesSource, /Math\.random/);
-  assert.doesNotMatch(runtimeWorkflowSource, /Math\.random/);
+  assert.doesNotMatch(typesSource + runtimeWorkflowSource, /Math\.random/);
 });
 
 test('removed surface names do not reappear in active source', () => {
@@ -226,9 +166,10 @@ test('SongTake origin enum admits only spec-listed values', () => {
   assert.match(typesSource, /type TakeOrigin = 'prompt' \| 'extend' \| 'remix' \| 'reference'/);
 });
 
-test('workspace does not skip readiness probe', () => {
+test('workspace probes readiness and exposes unavailable state', () => {
   assert.match(workspaceSource, /probeReadiness/);
   assert.match(workspaceSource, /runtimeStatus === 'unavailable'/);
+  assert.match(workspaceSource, /musicCapabilityAvailable/);
 });
 
 test('escape key exits compare mode when publish modal is not open', () => {

@@ -1,47 +1,54 @@
 format: nimicoding.authority/v2
 owner: team.overtone
+scope: overtone.failure
 units:
   - id: definition.overtone.failure.reason-code
     kind: definition
     title: User-facing reason code
-    meaning: A runtime or Realm reason code that the renderer surfaces in user-readable form with its admitted recovery hint, never swallowed, rewritten, or coerced into a generic message.
-  - id: definition.overtone.failure.reason-ai-provider-unavailable
+    meaning: A protected Local App or App Access reason code that the renderer preserves with its typed action hint and user-readable context rather than swallowing it or coercing it into success.
+  - id: definition.overtone.failure.reason-local-registration-required
     kind: definition
-    title: Provider unavailable
-    meaning: AI_PROVIDER_UNAVAILABLE uses an inline_alert_warning to explain that the AI provider is unavailable and the user can retry or choose another connector and model pair; recovery_hint is pick_different_connector.
-  - id: definition.overtone.failure.reason-ai-provider-auth-failed
+    title: Local development registration required
+    meaning: local-development-registration-required explains that the official pnpm dev flow must register this project through Nimi Desktop; actionHint is restart_official_nimi_app_dev_command.
+  - id: definition.overtone.failure.reason-local-session-revoked
     kind: definition
-    title: Provider authentication failed
-    meaning: AI_PROVIDER_AUTH_FAILED uses an inline_alert_danger to explain that the provider rejected connector credentials and the user must open Runtime connector setup and re-authenticate; recovery_hint is open_connector_setup.
-  - id: definition.overtone.failure.reason-ai-media-spec-invalid
+    title: Local App session revoked
+    meaning: local-development-session-revoked explains that Nimi access for the running app is unavailable; actionHint is retry_when_nimi_access_is_available.
+  - id: definition.overtone.failure.reason-local-project-changed
     kind: definition
-    title: Invalid media request
-    meaning: AI_MEDIA_SPEC_INVALID uses an inline_alert_warning to explain that generation fields are missing or invalid and the user should review brief, lyrics, and style controls; recovery_hint is review_inputs.
-  - id: definition.overtone.failure.reason-ai-media-option-unsupported
+    title: Local project identity changed
+    meaning: local-development-project-changed explains that project identity no longer matches the Desktop registration; actionHint is restore_registered_project_identity.
+  - id: definition.overtone.failure.reason-text-candidate-failed
     kind: definition
-    title: Unsupported media option
-    meaning: AI_MEDIA_OPTION_UNSUPPORTED uses an inline_alert_warning to explain that the selected model does not support a requested option and the user should adjust duration, instrumental, or style controls; recovery_hint is disable_unsupported_controls.
-  - id: definition.overtone.failure.reason-ai-rate-limited
+    title: Text candidate failed
+    meaning: A failure from NimiLocalAppClient.ai.text.generateCandidate is shown on the brief or lyrics surface and creates no fabricated text candidate.
+  - id: definition.overtone.failure.reason-music-app-access-unavailable
     kind: definition
-    title: Connector rate limited
-    meaning: AI_RATE_LIMITED uses an inline_alert_warning to explain that the connector is rate-limited and the user can wait and retry or switch connector and model pair; recovery_hint is wait_and_retry.
-  - id: definition.overtone.failure.reason-ai-content-filtered
+    title: Music App Access unavailable
+    meaning: Music generation and iteration render a persistent warning and disabled controls because the current App Access contract does not admit music jobs.
+  - id: definition.overtone.failure.reason-realm-publish-unavailable
     kind: definition
-    title: Content filtered
-    meaning: AI_CONTENT_FILTERED uses an inline_alert_warning to explain that the provider filtered the content and the user should adjust prompt or lyrics before retrying; recovery_hint is edit_brief_or_lyrics.
-  - id: definition.overtone.failure.reason-ai-job-timeout
-    kind: definition
-    title: Generation timeout
-    meaning: AI_JOB_TIMEOUT uses an inline_alert_danger to explain that generation timed out before producing audio and the user can retry or choose a shorter duration; recovery_hint is retry_or_shorten.
-  - id: definition.overtone.failure.reason-proof-unsupported
-    kind: definition
-    title: Unsupported login proof
-    meaning: PROOF_UNSUPPORTED uses an inline_alert_danger to explain that Runtime rejected login completion proof as a developer-level regression and the user or developer should retry login or re-check scaffold-managed auth glue; recovery_hint is retry_login.
-  - id: definition.overtone.failure.reason-realm-upload-failed
-    kind: definition
-    title: Realm upload failed
-    meaning: REALM_UPLOAD_FAILED uses a publish_modal_error to explain that Realm could not accept the audio upload and the user should verify network connectivity and retry from the publish modal; recovery_hint is retry_publish.
-  - id: definition.overtone.failure.reason-realm-post-rejected
-    kind: definition
-    title: Realm post rejected
-    meaning: REALM_POST_REJECTED uses a publish_modal_error to explain that Realm rejected the post payload and the user should review title, description, and tags before retrying; recovery_hint is edit_post_metadata.
+    title: Realm publish App Access unavailable
+    meaning: Realm publish remains disabled and explains that an admitted App Access publish operation is required; raw Realm bearer-token transport is forbidden.
+  - id: rule.overtone.failure.r001
+    kind: rule
+    title: Preserve host failure posture
+    modality: must
+    statement: Preserve Local App reasonCode and actionHint through the auth projection and expose a typed unavailable or action-required surface without app-owned login, caller registration, or pseudo-success state.
+    condition: When the host-protected session is not bound or the carrier throws.
+    failure: Block the product shell and render the actual unavailable posture with retry.
+    relations:
+      - type: applies_to
+        target: definition.overtone.failure.reason-code
+  - id: rule.overtone.failure.r002
+    kind: rule
+    title: No unavailable feature submission
+    modality: must_not
+    statement: Submit music generation, music iteration, or Realm publish when its App Access operation is unavailable.
+    condition: Until the corresponding operation is admitted and implemented through NimiLocalAppClient.
+    failure: Keep the control disabled and expose the matching App Access unavailable definition.
+    relations:
+      - type: applies_to
+        target: definition.overtone.failure.reason-music-app-access-unavailable
+      - type: applies_to
+        target: definition.overtone.failure.reason-realm-publish-unavailable

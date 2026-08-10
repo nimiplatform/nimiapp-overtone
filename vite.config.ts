@@ -50,7 +50,12 @@ function manualChunks(id: string) {
 }
 
 export default defineConfig({
+  base: './',
+  cacheDir: '.vite',
   plugins: [react(), tailwindcss()],
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+  },
   build: {
     rollupOptions: {
       output: {

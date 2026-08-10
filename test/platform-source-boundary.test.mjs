@@ -2,21 +2,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const packageJson = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
+const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const viteConfig = readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 
-function blockAfter(label) {
-  return viteConfig.match(new RegExp(`${label}:\\s*\\[([\\s\\S]*?)\\]`))?.[1] ?? '';
-}
-
-test('standalone app consumes Nimi SDK and Kit through package exports', () => {
-  assert.match(packageJson, /"@nimiplatform\/sdk": "\^0\.6\.0"/);
-  assert.match(packageJson, /"@nimiplatform\/kit": "\^0\.2\.0"/);
-  assert.doesNotMatch(packageJson, /"@nimiplatform\/(?:sdk|kit)": "(?:link|file):/);
+test('workspace app consumes the canonical local Nimi SDK, Kit, and app-tools surfaces', () => {
+  assert.equal(packageJson.dependencies['@nimiplatform/sdk'], 'link:../../nimi/sdks/typescript');
+  assert.equal(packageJson.dependencies['@nimiplatform/kit'], 'link:../../nimi/kit');
+  assert.equal(packageJson.devDependencies['@nimiplatform/app-tools'], 'link:../../nimi/app-tools');
+  assert.equal(packageJson.devDependencies['@nimiplatform/nimi-coding'], '0.5.0');
   assert.doesNotMatch(viteConfig, /nimiRepoRoot|nimiSdkSourceRoot|nimiKitSourceRoot/);
   assert.doesNotMatch(viteConfig, /find: \/\^@nimiplatform\\\/(?:sdk|kit)/);
-  assert.doesNotMatch(blockAfter('include'), /@nimiplatform\/(?:sdk|kit)/);
+  assert.match(viteConfig, /dedupe:\s*\['react', 'react-dom', 'react\/jsx-runtime', 'react\/jsx-dev-runtime'\]/);
   assert.match(styles, /@source "\.\.\/node_modules\/@nimiplatform\/kit\/dist\/\*\*\/\*\.\{js,mjs\}";/);
-  assert.doesNotMatch(styles, /\.\.\/\.\.\/nimi-realm\/nimi\/kit/);
 });

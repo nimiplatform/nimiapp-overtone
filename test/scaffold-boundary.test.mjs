@@ -2,105 +2,82 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const authSource = readFileSync(new URL('../src/shell/auth/runtime-platform.ts', import.meta.url), 'utf8');
+const runtimePlatformSource = readFileSync(new URL('../src/shell/auth/runtime-platform.ts', import.meta.url), 'utf8');
+const localAppClientSource = readFileSync(new URL('../src/shell/auth/local-app-client.ts', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/shell/auth/auth-gate.tsx', import.meta.url), 'utf8');
-const runtimeAccountAuthSource = readFileSync(new URL('../src/shell/auth/runtime-account-auth.ts', import.meta.url), 'utf8');
-const runtimeLoginSource = readFileSync(new URL('../src/shell/auth/runtime-login-page.tsx', import.meta.url), 'utf8');
 const productSource = readFileSync(new URL('../src/shell/routes/product-area.tsx', import.meta.url), 'utf8');
 const demoSource = readFileSync(new URL('../src/shell/routes/demo-surfaces.tsx', import.meta.url), 'utf8');
-const mainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
-const tauriMainSource = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8');
-const appSource = [authSource, runtimeLoginSource, productSource, demoSource].join('\n');
+const rendererMainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
+const electronMainSource = readFileSync(new URL('../src-electron/main.ts', import.meta.url), 'utf8');
+const electronPreloadSource = readFileSync(new URL('../src-electron/preload.cts', import.meta.url), 'utf8');
 const manifest = readFileSync(new URL('../nimi.app.yaml', import.meta.url), 'utf8');
+const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const admission = readFileSync(new URL('../ADMISSION.md', import.meta.url), 'utf8');
+const appSource = [runtimePlatformSource, localAppClientSource, authGateSource, productSource, demoSource].join('\n');
 
-test('auth glue uses app-scoped SDK Runtime developer projections', () => {
-  assert.match(authSource, /createNimiClient/);
-  assert.match(authSource, /createNimiLocalFirstPartyRuntimeAccountCaller/);
-  assert.match(authSource, /createNimiRuntimeFullAppRegistration/);
-  assert.match(authSource, /createNimiRuntimeAppSessionMetadataProvider/);
-  assert.doesNotMatch(authSource, /createRealmFetchTransport|getRuntimeDefaults|getAccessToken/);
-  assert.match(authSource, /'developer-registered-local-app'/);
-  assert.match(authSource, /'third-party-nimi-app'/);
-  assert.match(authSource, /getRuntimeNimiClient/);
-  assert.match(authSource, /getRuntimeSubjectUserId/);
-  assert.doesNotMatch(authSource, /createNimiAppRuntimePlatformClient/);
-  assert.doesNotMatch(authSource, /createPlatformClient\s*\(/);
-  assert.doesNotMatch(authSource, /getPlatformClient\(/);
+test('renderer consumes only the host-protected Local App client', () => {
+  assert.match(localAppClientSource, /createNimiClient/);
+  assert.match(localAppClientSource, /createNimiLocalAppStandardShellSurface/);
+  assert.match(runtimePlatformSource, /getNimiLocalAppClient\(\)\.auth\.status\(\)/);
+  assert.match(runtimePlatformSource, /sessionBound/);
+  assert.doesNotMatch(appSource, /createNimiRuntimeFullAppRegistration|createNimiLocalFirstPartyRuntimeAccountCaller/);
+  assert.doesNotMatch(appSource, /runtime\.account\.|beginLogin|completeLogin|accessToken|refreshToken/);
+  assert.doesNotMatch(appSource, /createNimiAppRuntimePlatformClient|createPlatformClient\s*\(/);
 });
 
-test('single login model uses Runtime account login without developer-session bypass', () => {
-  assert.doesNotMatch(authSource, /VITE_NIMI_RUNTIME_DEVELOPER_SESSION/);
-  assert.doesNotMatch(authGateSource, /dev-standalone/);
-  assert.doesNotMatch(authGateSource, /runtime-developer-session/);
-  assert.match(authSource, /registerDeveloperRegisteredRuntimeAccountCaller/);
-  assert.match(authSource, /runtimeProtectedScopes = \['ai\.spend\.meter'\]/);
-  assert.doesNotMatch(authSource, /accountRuntime\.grants|developerRegistration/);
-  assert.match(authGateSource, /loadRuntimeAccountUser/);
-  assert.match(authGateSource, /clearRuntimePlatformProjection/);
-  assert.match(authGateSource, /clearRuntimePlatformProjection\(\);\s*setReloadKey/s);
-  assert.match(authSource, /status: 'login-required'/);
-  assert.match(authSource, /ACCOUNT_SESSION_NOT_AUTHENTICATED/);
-  assert.match(authGateSource, /projection\.status === 'login-required'/);
-  assert.match(authGateSource, /<RuntimeLoginPage client=\{state\.projection\.client\}/);
-  assert.match(runtimeAccountAuthSource, /createRuntimeAccountBrowserBroker/);
-  assert.match(runtimeAccountAuthSource, /from '@nimiplatform\/kit\/auth'/);
-  assert.doesNotMatch(runtimeAccountAuthSource, /runtime\.account\.beginLogin\(/);
-  assert.doesNotMatch(runtimeAccountAuthSource, /runtime\.account\.completeLogin\(/);
-  assert.doesNotMatch(runtimeAccountAuthSource, /desktop-runtime-oauth-url|#\/login|desktop_callback/);
-  assert.match(runtimeLoginSource, /DesktopShellAuthPage/);
-  assert.match(runtimeLoginSource, /createNimiAppRuntimeAccountBroker\(client\)/);
+test('auth gate fails closed and retries the protected session projection', () => {
+  assert.match(authGateSource, /projection\.status !== 'ready'/);
+  assert.match(authGateSource, /clearRuntimePlatformProjection\(\)/);
+  assert.match(authGateSource, /<RuntimeUnavailablePage/);
+  assert.doesNotMatch(authGateSource, /RuntimeLoginPage|developer-session|dev-standalone/);
 });
 
 test('renderer bootstrap installs Kit runtime bridge before render', () => {
   assert.match(
-    mainSource,
+    rendererMainSource,
     /import \{[^}]*installNimiShellRuntimeBridge[^}]*\} from '@nimiplatform\/kit\/shell\/renderer\/bridge'/,
   );
-  const bootstrapAt = mainSource.indexOf('installNimiShellRuntimeBridge()');
-  const renderAt = mainSource.indexOf('.render(');
+  const bootstrapAt = rendererMainSource.indexOf('installNimiShellRuntimeBridge()');
+  const renderAt = rendererMainSource.indexOf('.render(');
   assert.ok(bootstrapAt > -1, 'main.tsx must call installNimiShellRuntimeBridge()');
-  assert.match(mainSource, /createRendererEntryModuleLoader/);
-  assert.match(mainSource, /from '@nimiplatform\/kit\/shell\/renderer\/bootstrap'/);
+  assert.match(rendererMainSource, /createRendererEntryModuleLoader/);
   assert.ok(renderAt > -1, 'main.tsx must render the app');
   assert.ok(bootstrapAt < renderAt, 'bootstrap must run before render');
-  assert.doesNotMatch(mainSource, /__NIMI_TAURI_RUNTIME__/);
-  assert.doesNotMatch(mainSource, /Failed to fetch dynamically imported module|Importing a module script failed|function isRetryable/);
+  assert.doesNotMatch(rendererMainSource, /__NIMI_TAURI_RUNTIME__/);
 });
 
-test('Tauri scaffold consumes Kit standard capabilities and renderer probe', () => {
-  assert.match(tauriMainSource, /tauri::generate_handler!\[/);
-  assert.match(tauriMainSource, /runtime_defaults::runtime_defaults/);
-  assert.match(tauriMainSource, /runtime::runtime_bridge_unary/);
-  assert.match(tauriMainSource, /runtime::runtime_bridge_stream_open/);
-  assert.match(tauriMainSource, /runtime::runtime_bridge_stream_close/);
-  assert.match(tauriMainSource, /runtime::runtime_bridge_status/);
-  assert.match(tauriMainSource, /oauth::open_external_url/);
-  assert.match(tauriMainSource, /oauth::oauth_listen_for_code/);
-  assert.doesNotMatch(tauriMainSource, /oauth::oauth_token_exchange/);
-  assert.match(tauriMainSource, /confirm_dialog/);
-  assert.match(tauriMainSource, /start_window_drag/);
-  assert.match(tauriMainSource, /focus_main_window/);
-  assert.match(tauriMainSource, /capabilities::diagnostics::build_renderer_entry_probe_script/);
-  assert.match(tauriMainSource, /RendererEntryProbeScriptConfig/);
-  assert.doesNotMatch(tauriMainSource, /desktop_macos_smoke_ping/);
-  assert.doesNotMatch(tauriMainSource, /globalRecord\.__TAURI__\?\.core\?\.invoke/);
+test('Electron shell uses the protected Kit bridge and asset protocol', () => {
+  assert.match(electronMainSource, /registerNimiElectronAppAssetProtocolScheme\(protocol\)/);
+  assert.match(electronMainSource, /registerNimiElectronAppBridge\(/);
+  assert.match(electronMainSource, /assetMediaPlatform:\s*\{ protocol, webRequest: session\.defaultSession\.webRequest, webContents \}/);
+  assert.match(electronMainSource, /contextIsolation:\s*true/);
+  assert.match(electronMainSource, /nodeIntegration:\s*false/);
+  assert.match(electronMainSource, /sandbox:\s*true/);
+  assert.match(electronMainSource, /--nimi-dev-renderer-url=/);
+  assert.doesNotMatch(electronMainSource, /remote-debugging-port|cdp-port/);
+  assert.match(electronPreloadSource, /installNimiElectronRuntimeBridge/);
+});
+
+test('pnpm dev is the official Electron development entrypoint', () => {
+  assert.equal(packageJson.scripts.dev, 'nimi-app dev --shell electron');
+  assert.equal(packageJson.scripts['dev:electron'], 'nimi-app dev --shell electron');
+  assert.equal(packageJson.scripts['build:electron'], 'tsc -p tsconfig.electron.json && node scripts/bundle-electron-preload.mjs');
+  assert.doesNotMatch(packageJson.scripts.dev, /tauri|vite/);
 });
 
 test('generated shell rejects placeholder and private Desktop imports', () => {
   assert.doesNotMatch(appSource, /Replace this route with app product behavior/);
   assert.doesNotMatch(appSource, /Open product action/);
   assert.doesNotMatch(appSource, /Add app-owned surfaces/);
-  assert.doesNotMatch(appSource, /from ['\"]@renderer\//);
-  assert.doesNotMatch(appSource, /from ['\"]@runtime\//);
+  assert.doesNotMatch(appSource, /from ['"]@renderer\//);
+  assert.doesNotMatch(appSource, /from ['"]@runtime\//);
 });
 
-test('manifest remains submitted input', () => {
+test('manifest declares current App Access and Electron development origin', () => {
   assert.match(manifest, /manifest_role: submitted-input/);
-  assert.match(manifest, /declared_nimi_api_scopes/);
-  assert.match(manifest, /scope: file\.read\.scoped/);
-  assert.match(manifest, /scope: file\.write\.scoped/);
-  assert.doesNotMatch(manifest, /scope: app\.local\.drafts/);
+  assert.match(manifest, /app_access:\s*\n\s*- runtime\.consume/);
+  assert.match(manifest, /electron:\s*\n\s*renderer_origin: http:\/\/127\.0\.0\.1:1507/);
+  assert.doesNotMatch(manifest, /declared_nimi_api_scopes|permissions:/);
 });
 
 test('admission request remains submitted input', () => {

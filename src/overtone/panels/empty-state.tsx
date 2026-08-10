@@ -18,8 +18,8 @@ export function OvertoneEmptyState() {
             : 'error',
     },
     { label: t('Overtone.common.readiness.realm'), state: readiness.realmConfigured ? 'ready' : 'pending' },
-    { label: t('Overtone.common.readiness.music'), state: readiness.musicConnectorAvailable ? 'ready' : 'pending' },
-    { label: t('Overtone.common.readiness.text'), state: readiness.textConnectorAvailable ? 'ready' : 'pending' },
+    { label: t('Overtone.common.readiness.music'), state: readiness.musicCapabilityAvailable ? 'ready' : 'pending' },
+    { label: t('Overtone.common.readiness.text'), state: readiness.textCapabilityAvailable ? 'ready' : 'pending' },
   ];
 
   return (

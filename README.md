@@ -2,27 +2,25 @@
 
 Profile: `standalone`
 
-This repository is a Nimi App authoring scaffold. `nimi.app.yaml`, the build profile, permission declarations, pack output, validate output, and local audit output are submitted inputs and pre-submission self-checks only.
+This repository is a Nimi App authoring scaffold. `nimi.app.yaml`, the build profile, App Access declaration, pack output, validate output, and local audit output are submitted inputs and pre-submission self-checks only.
 
 ## Development
 
 ```bash
 pnpm install
-pnpm run init
-pnpm dev:shell
+pnpm dev -- --cdp-port 19507
 pnpm run validate
 pnpm run local-audit
 pnpm run pack
 pnpm run doctor
-pnpm run update
 ```
 
-`init` runs the pinned local `nimicoding sync --apply` projection and writes app-scaffold admission/build-profile/lock state. It is explicit after install; package installation does not mutate `.nimi/**` by itself.
+`pnpm dev` asks the running Nimi Desktop supervisor to build the Electron main/preload, start the Vite renderer on `127.0.0.1:1507`, and launch the protected Local App carrier. Use `pnpm dev -- --cdp-port <port>` for loopback CDP inspection.
 
-`dev:shell` launches the Tauri shell (`tauri dev`). The app authenticates through the in-app Runtime account login, exactly like a shipped app — there is no standalone developer session. For a not-yet-admitted local app, enable Developer Mode in the desktop app; the Runtime developer-registration gate then admits the local app under your real logged-in account. This is local developer material only; it is not Nimi listing admission, install truth, or a permission grant.
+The renderer uses the host-injected `NimiLocalAppClient` session. It does not own login, caller identity, tokens, connector bindings, or a generic Runtime transport. The current App Access contract admits text candidates but not music jobs, so music generation and iteration fail closed as explicitly unavailable instead of using the retired direct Runtime path.
 
-`doctor` and `update` are developer scaffold checks for this source repository. They do not update an installed app, publish admission truth, create release descriptors, or grant permissions.
+`doctor` is a developer source check. It does not update an installed app, publish admission truth, create release descriptors, or grant App Access.
 
 For Nimi listing review, keep `nimi.app.yaml`, `.nimi/admission/submission.yaml`, `.nimi/admission/build-profile.yaml`, and `ADMISSION.md` in sync with the product behavior under `src/shell/routes/product-area.tsx`.
 
-Upstream Platform/Runtime review produces release descriptors, ordinary visibility, install truth, and scope authorization. This scaffold does not mint those outcomes.
+Upstream Platform/Runtime review produces release descriptors, ordinary visibility, install truth, and App Access authorization. This scaffold does not mint those outcomes.

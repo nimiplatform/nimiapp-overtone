@@ -5,40 +5,40 @@ units:
   - id: definition.overtone.runtime.binding-f001
     kind: definition
     title: Runtime readiness binding
-    meaning: Feature F-001 binds capability runtime.readiness to runtime.ready({ timeoutMs }), runtime.ai.listScenarioProfiles({}), and listNimiRuntimeRouteOptionsWithHost for text.generate and music.generate using createNimiRuntimeRouteOptionsHostDeps(runtime), with ReadinessSnapshot as the expected output.
+    meaning: Feature F-001 binds readiness to NimiLocalAppClient.auth.status and the portable App AIConfig projection, with ReadinessSnapshot as the expected output and no credit-consuming probe.
   - id: definition.overtone.runtime.binding-f002
     kind: definition
     title: Text generation binding
-    meaning: "Feature F-002 binds capability ai.text.generate to createNimiRuntimeAIModel({ runtime, appId, routePolicy, connectorId, model }) and runNimiTextGenerate({ runtime: { model }, request }), with SongBrief.description, SongBrief fields, and LyricsDocument.text as expected outputs."
+    meaning: Feature F-002 binds text assistance to NimiLocalAppClient.ai.text.generateCandidate with bounded system and user messages, with SongBrief fields and LyricsDocument.text as expected outputs.
   - id: definition.overtone.runtime.binding-f003
     kind: definition
     title: Music generation binding
-    meaning: Feature F-003 binds capability ai.scenario.music.generate to runNimiRuntimeScenarioJob, runtime.ai.submitScenarioJob with MUSIC_GENERATE and ASYNC_JOB, runtime.ai.subscribeScenarioJobEvents, runtime.ai.getScenarioJob, and runtime.ai.getScenarioArtifacts, with a prompt-origin SongTake and TakeArtifact as expected outputs.
+    meaning: Feature F-003 is unavailable because the current protected Nimi Local App AI scenario contract does not admit a music-generation job type; no alternate Runtime transport is permitted.
   - id: definition.overtone.runtime.binding-f005
     kind: definition
     title: Music iteration binding
-    meaning: Feature F-005 binds capability ai.scenario.music.generate.iteration to runNimiRuntimeScenarioJob with a SubmitScenarioJobRequest containing extensions, runtime.ai.subscribeScenarioJobEvents, and runtime.ai.getScenarioArtifacts; the namespace is nimi.scenario.music_generate.request, the payload owner is src/overtone/runtime-workflow.ts::buildMusicIterationExtensions, and expected outputs are an extend-, remix-, or reference-origin SongTake with parentTakeId populated.
+    meaning: Feature F-005 is unavailable while music generation is absent from the protected Nimi Local App contract; extend, remix, and reference inputs dispatch no Runtime operation.
   - id: definition.overtone.runtime.binding-f007
     kind: definition
     title: Realm media binding
-    meaning: Feature F-007 binds capability realm.media.publish to client.domains.resources.createAudioDirectUpload, PUT of audioBlob to uploadUrl with headers, client.domains.resources.finalizeResource with MIME type, duration, title, and tags, and client.domains.resources.createPost with caption, attachments, and tags, with a published PublishDraft and publishedPostId as expected outputs.
+    meaning: Feature F-007 is unavailable because the current protected Nimi Local App Realm contract does not expose media resource upload or post creation for Overtone.
   - id: definition.overtone.runtime.binding-f008
     kind: definition
     title: Image generation binding
-    meaning: Feature F-008 binds capability ai.scenario.image.generate to runtime.ai.executeScenario with IMAGE_GENERATE and SYNC, with a TakeArtifact-shaped cover-art artifact as the expected output.
+    meaning: Feature F-008 may bind only to NimiLocalAppClient.ai.scenario.execute with an admitted image-generate spec and remains optional.
   - id: definition.overtone.runtime.binding-f009
     kind: definition
     title: Speech synthesis binding
-    meaning: Feature F-009 binds capability ai.scenario.audio.synthesize to runtime.ai.listPresetVoices and runtime.ai.executeScenario with SPEECH_SYNTHESIZE and SYNC, with a TakeArtifact-shaped guide-vocal artifact as the expected output.
+    meaning: Feature F-009 may bind only to NimiLocalAppClient.ai.scenarioJobs and voiceAssets with admitted speech-synthesize inputs and remains optional.
   - id: definition.overtone.runtime.account-caller
     kind: definition
-    title: Runtime account caller
-    meaning: The authoritative developer-registered-local-app caller has app_id nimi.overtone, app_instance_id nimi.overtone.local-developer, device_id nimi-overtone-local-developer-device, mode_constant ACCOUNT_CALLER_MODE_LOCAL_DEVELOPER_APP, mode_proto_value 7, and empty scopes; admission uses the app and instance pair only while Desktop Developer Mode opens registration, does not grant first-party account controls or raw tokens, consumes createNimiRuntimeFullAppRegistration through the Runtime account platform projection, and sends runtime.account.completeLogin.refreshToken as an empty string because non-empty proof is rejected as PROOF_UNSUPPORTED.
+    title: Protected Local App carrier identity
+    meaning: The Overtone carrier identity is app_id nimi.overtone bound by Nimi Desktop to the canonical project root and Electron process; Desktop and Runtime own all caller, session, proof, and credential material, and the renderer receives none of it.
   - id: rule.overtone.runtime.r001
     kind: rule
     title: App-scoped runtime entry
     modality: must
-    statement: Obtain runtime access through the app-scoped NimiClient helper using getRuntimeNimiClient or equivalent createNimiClient bootstrap, without direct renderer construction through legacy createPlatformClient.
+    statement: Obtain protected platform access through one NimiLocalAppClient created from the Kit host-injected standard shell surface, without constructing a generic Runtime client.
     condition: When the renderer obtains runtime access.
     failure: Fail client bootstrap and expose a typed runtime-unavailable state rather than constructing a private or legacy client.
     relations:
@@ -48,11 +48,11 @@ units:
         target: definition.overtone.runtime.binding-f001
   - id: rule.overtone.runtime.r002
     kind: rule
-    title: Text generation route binding
+    title: Protected text candidate binding
     modality: must
-    statement: Run brief and lyrics assistance through createNimiRuntimeAIModel and runNimiTextGenerate; source routePolicy cloud, connectorId, providerId equal to the selected connector, modelId, NimiMessage messages, and optional system, temperature, and maxTokens from the readiness route projection; fail before dispatch when no route model exists, without treating a Runtime default, placeholder model, or empty connector and model pair as success.
+    statement: Run brief and lyrics assistance through NimiLocalAppClient.ai.text.generateCandidate using bounded system and user messages plus optional temperature and maxTokens; derive availability from App AIConfig without reading or inventing connector or model identifiers.
     condition: When brief or lyrics assistance is dispatched.
-    failure: Withhold dispatch and surface a typed text-route unavailable or not-configured state.
+    failure: Withhold dispatch and surface a typed text-capability unavailable or not-configured state.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.lyrics-document
@@ -64,11 +64,11 @@ units:
         target: definition.overtone.runtime.binding-f002
   - id: rule.overtone.runtime.r003
     kind: rule
-    title: Music scenario submission
-    modality: must
-    statement: Submit music generation through runNimiRuntimeScenarioJob with SubmitScenarioJobRequest carrying ScenarioType.MUSIC_GENERATE and ExecutionMode.ASYNC_JOB; let the helper own submit, event subscription, terminal lookup, and artifact fetch over runtime.ai.submitScenarioJob, subscribeScenarioJobEvents, getScenarioJob, and getScenarioArtifacts; keep stable input to model, connectorId, prompt, optional lyrics, style, title, durationSeconds, instrumental, and extensions.
+    title: Music scenario admission gap
+    modality: must_not
+    statement: Submit music generation through a generic Runtime client, private SDK surface, raw IPC, or an unsupported Local App scenario discriminator while the protected Nimi Local App contract lacks music generation.
     condition: When submitting music generation.
-    failure: Reject the submission before dispatch and surface a typed generation request error when call path, discriminator, mode, or input shape is invalid.
+    failure: Dispatch no job and render the explicit App Access unavailable state.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -76,11 +76,11 @@ units:
         target: definition.overtone.runtime.binding-f003
   - id: rule.overtone.runtime.r004
     kind: rule
-    title: Async job lifecycle
-    modality: must
-    statement: For job-level control, submit SubmitScenarioJobRequest through runtime.ai.submitScenarioJob, iterate runtime.ai.subscribeScenarioJobEvents by jobId, stop at COMPLETED, FAILED, CANCELED, or TIMEOUT, call runtime.ai.getScenarioJob once if the iterator ends non-terminal, and call runtime.ai.getScenarioArtifacts only after terminal COMPLETED.
-    condition: When controlling an asynchronous scenario job below the helper lifecycle.
-    failure: Stop orchestration, fetch no artifacts before terminal completion, and surface the terminal or lifecycle error.
+    title: No shadow music job lifecycle
+    modality: must_not
+    statement: Create a renderer-owned submit, poll, subscribe, terminal lookup, artifact fetch, or pseudo-job lifecycle for unavailable music generation.
+    condition: While music generation is absent from the protected Local App contract.
+    failure: Keep activeJobs empty and create no SongTake or TakeArtifact.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -90,11 +90,11 @@ units:
         target: definition.overtone.runtime.binding-f003
   - id: rule.overtone.runtime.r005
     kind: rule
-    title: Iteration extension namespace
-    modality: must
-    statement: Place reference-audio, extend, remix, and style-reference iteration in extensions under nimi.scenario.music_generate.request, construct the payload through app-owned buildMusicIterationExtensions, and never expose raw provider JSON to end users.
+    title: Iteration admission gap
+    modality: must_not
+    statement: Serialize or dispatch reference-audio, extend, remix, or style-reference music iteration through a generic Runtime request while music jobs are not admitted for Local Apps.
     condition: When constructing or displaying a music iteration request.
-    failure: Reject malformed iteration before dispatch and display only the typed product-facing error.
+    failure: Dispatch nothing and display the explicit App Access unavailable state.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.song-take
@@ -104,7 +104,7 @@ units:
     kind: rule
     title: Credit-free readiness probes
     modality: must
-    statement: Probe liveness with runtime.ready({ timeoutMs }), scenarios with runtime.ai.listScenarioProfiles({}), and text.generate and music.generate routes with listNimiRuntimeRouteOptionsWithHost plus createNimiRuntimeRouteOptionsHostDeps(runtime); never infer readiness by submitting a credit-consuming generation job; when no selected binding exists, permit at most one unambiguous cloud candidate, and fail closed as not configured when multiple candidates lack a selected binding rather than choosing the first.
+    statement: Probe session posture with NimiLocalAppClient.auth.status and read text capability intent from NimiLocalAppClient.aiConfig.get; never submit a generation request, read connector or model custody, or infer unavailable music support.
     condition: When computing runtime readiness.
     failure: Return a typed unavailable or not-configured readiness projection and dispatch no probe generation.
     relations:
@@ -114,9 +114,9 @@ units:
         target: definition.overtone.runtime.binding-f001
   - id: rule.overtone.runtime.r007
     kind: rule
-    title: Optional P1 scenarios
+    title: Optional P1 protected scenarios
     modality: must_not
-    statement: Use an execution surface other than runtime.ai.executeScenario with ScenarioType.IMAGE_GENERATE for optional cover art or runtime.ai.executeScenario with ScenarioType.SPEECH_SYNTHESIZE plus admitted generated voice-listing surfaces for optional guide vocals, or make either optional surface gate the P0 loop.
+    statement: Use an execution surface other than NimiLocalAppClient.ai.scenario or scenarioJobs for optional image and speech work, or make either optional surface gate the base workspace.
     condition: When P1 cover-art or guide-vocal generation is offered.
     failure: Keep the P1 surface unavailable on failure while leaving the P0 creation loop operational.
     relations:
@@ -128,7 +128,7 @@ units:
     kind: rule
     title: Experimental voice assets
     modality: must_not
-    statement: Use a surface other than runtime.ai.submitScenarioJob with VOICE_CLONE or VOICE_DESIGN and the admitted listing and delete surfaces for experimental P2 voice work, or require any P0 or P1 feature to depend on voice clone or voice design.
+    statement: Use a surface other than NimiLocalAppClient.ai.scenarioJobs and voiceAssets for admitted experimental voice work, or require any base or optional feature to depend on voice clone or voice design.
     condition: When P2 voice clone or voice design experimentation is offered.
     failure: Keep the experimental surface unavailable on failure and preserve every P0 and P1 path.
     relations:
@@ -138,8 +138,8 @@ units:
     kind: rule
     title: Reason-code propagation
     modality: must
-    statement: Propagate runtime reason codes from job, connector, or schema failures to the user through the admitted reason mapping, without swallowing, rewriting, or coercing them into a generic message.
-    condition: When runtime returns a reason code for job, connector, or schema failure.
+    statement: Propagate protected session and admitted App Access reason codes to the user through the admitted reason mapping, without swallowing, rewriting, or coercing them into a generic message.
+    condition: When the Local App carrier or an admitted App Access operation returns a reason code.
     failure: Display the mapped user-readable reason and recovery hint while retaining the original reason-code identity.
     relations:
       - type: applies_to
@@ -148,7 +148,7 @@ units:
     kind: rule
     title: Forbidden runtime patterns
     modality: must_not
-    statement: Call runtime.account.completeLogin with a non-empty refreshToken; read runtime/internal/** from any source path; treat runtime.ready failure as a soft warning that permits music generation; or submit a P0 Scenario job with any type other than MUSIC_GENERATE or an explicitly optional admitted P1 or P2 type for an optional surface.
+    statement: Call runtime.account methods; read runtime/internal/**; construct a generic Runtime transport; treat an unbound Local App session as ready; or submit any unsupported music scenario through App Access.
     condition: Always.
     failure: Fail closed at the call site, dispatch no forbidden runtime operation, and surface the applicable typed failure.
     relations:

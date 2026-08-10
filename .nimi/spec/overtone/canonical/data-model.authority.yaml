@@ -33,7 +33,7 @@ units:
   - id: definition.overtone.data-model.readiness-snapshot
     kind: definition
     title: Readiness snapshot
-    meaning: A readiness-pass projection containing runtimeStatus equal to checking, ready, degraded, or unavailable; optional runtimeErrorMessage; textConnectorAvailable and musicConnectorAvailable; optional selected text connector, text model, music connector, and music model IDs; and realmConfigured and realmAuthenticated.
+    meaning: A readiness-pass projection containing runtimeStatus equal to checking, ready, degraded, or unavailable; optional runtimeErrorMessage; textCapabilityAvailable and musicCapabilityAvailable; and realmConfigured and realmAuthenticated, without connector, model, grant, or caller custody.
   - id: definition.overtone.data-model.origin-prompt
     kind: definition
     title: Prompt origin
@@ -136,7 +136,7 @@ units:
     kind: rule
     title: Local persistence boundary
     modality: must
-    statement: Confine local persistence to in-memory React state or localStorage keys under nimi.overtone:* for non-secret preferences and recoverable draft metadata, or to the scaffold-managed Tauri shell; never persist tokens, refresh tokens, subject user IDs, OAuth codes, session cookies, runtime or Realm response mirrors, artifact bytes, decoded audio buffers, uploaded reference audio, or active job projections across restarts in localStorage, sessionStorage, or IndexedDB.
+    statement: Confine local persistence to in-memory React state or localStorage keys under nimi.overtone:* for non-secret preferences and recoverable draft metadata, or to admitted protected Local App storage; never persist tokens, refresh tokens, subject user IDs, OAuth codes, session cookies, Runtime or Realm response mirrors, artifact bytes, decoded audio buffers, uploaded reference audio, or active job projections across restarts in localStorage, sessionStorage, or IndexedDB.
     condition: When application state is stored locally.
     failure: Reject the persistence write, remove prohibited retained data, and surface a typed storage-boundary error where the user action cannot complete.
     relations:
@@ -150,7 +150,7 @@ units:
     kind: rule
     title: Publish draft provenance
     modality: must
-    statement: Represent PublishDraft with takeId, title, description, string tags, admitted sourceMode, and provenanceConfirmed, and require provenanceConfirmed to be true at the publish call site before invoking Realm media upload.
+    statement: Represent PublishDraft with takeId, title, description, string tags, admitted sourceMode, and provenanceConfirmed; keep invocation unavailable until protected Local App Realm media operations are admitted, then require provenanceConfirmed at the call site.
     condition: When preparing or initiating Realm publish.
     failure: Block upload and keep publish unavailable until provenance is explicitly confirmed.
     relations:
@@ -160,9 +160,9 @@ units:
     kind: rule
     title: Fresh readiness projection
     modality: must
-    statement: Represent ReadinessSnapshot with admitted runtime status, optional runtime error, connector availability, optional selected connector and model IDs, and Realm configuration and authentication; recompute it on every readiness pass and project selected IDs directly from listNimiRuntimeRouteOptionsWithHost without synthesizing any runtime-absent ID.
+    statement: Represent ReadinessSnapshot with admitted session status, optional Runtime error, text and music capability availability, and Realm configuration and authentication; recompute it on every readiness pass from Local App session posture and App AIConfig without exposing or synthesizing connector, model, grant, or caller identifiers.
     condition: On every readiness pass.
-    failure: Mark the affected capability unavailable or not configured and expose a typed readiness state without fabricated IDs.
+    failure: Mark the affected capability unavailable or not configured and expose a typed readiness state without fabricated authority or binding material.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.readiness-snapshot

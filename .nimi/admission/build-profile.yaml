@@ -1,9 +1,16 @@
 build_profile_ref: tauri-pnpm-vite
-toolchain_version: node>=20;pnpm>=9;rust>=1.80;tauri=2
+toolchain_version: node>=24;pnpm>=10;rust>=1.80;tauri=2;electron=42
 install_command: pnpm install
-init_command: pnpm run init
+dev_command: pnpm dev
+dev_renderer_command: pnpm dev:renderer
+dev_electron_command: pnpm dev:electron
+typecheck_command: pnpm typecheck
+test_command: pnpm test
 build_command: pnpm run build
+build_electron_command: pnpm build:electron
 output_path: src-tauri/target/release
+electron_output_path: dist-electron
+renderer_output_path: dist
 lockfile_path: pnpm-lock.yaml
 lockfile_policy: author-install-generates-lockfile
 ci_install_command: pnpm install --no-frozen-lockfile

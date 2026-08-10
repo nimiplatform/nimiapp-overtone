@@ -4,13 +4,19 @@ profile: standalone
 submission_role: developer-submitted-input
 publish_readiness:
   install_command: pnpm install
-  init_command: pnpm run init
-  dev_shell_command: pnpm dev:shell
+  dev_command: pnpm dev
+  dev_renderer_command: pnpm dev:renderer
+  dev_electron_command: pnpm dev:electron
+  dev_cdp_command: pnpm dev -- --cdp-port 19507
+  typecheck_command: pnpm typecheck
+  test_command: pnpm test
   build_command: pnpm run build
+  validate_command: pnpm run validate
+  local_audit_command: pnpm run local-audit
   pack_command: pnpm run pack
 review_inputs:
   manifest: nimi.app.yaml
   build_profile: .nimi/admission/build-profile.yaml
-  scaffold_lock: .nimi/app-scaffold/lock.json
+  spec_authority_root: .nimi/spec/overtone/canonical
   local_audit: pnpm run local-audit
 admission_truth: platform-owned-after-review

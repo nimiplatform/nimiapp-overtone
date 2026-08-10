@@ -5,12 +5,12 @@ units:
   - id: definition.overtone.kit.allowlist
     kind: definition
     title: Kit module allowlist
-    meaning: The admitted @nimiplatform/kit module import set is @nimiplatform/kit/ui, @nimiplatform/kit/ui/styles.css, @nimiplatform/kit/ui/themes/light.css, @nimiplatform/kit/ui/themes/overtone-accent.css, @nimiplatform/kit/auth, @nimiplatform/kit/auth/styles.css, @nimiplatform/kit/shell/renderer/bridge, @nimiplatform/kit/features/generation/runtime, and @nimiplatform/kit/features/generation/ui.
+    meaning: The admitted @nimiplatform/kit imports are ui, ui styles, light and nimi accent themes, core offline coordinator, shell renderer bridge and bootstrap, and shell Electron main and preload-cjs.
   - id: rule.overtone.kit.r001
     kind: rule
     title: Kit-first UI
     modality: must
-    statement: Consume the @nimiplatform/kit export for every covered UI primitive, surface, or pattern rather than building an app-local equivalent, and limit app-local CSS classes to cross-kit workspace zoning and panel-spacing glue.
+    statement: Consume the @nimiplatform/kit export for every covered UI primitive, surface, or pattern rather than building an app-local equivalent, and limit app-local code to Overtone-specific composition and product behavior.
     condition: When implementing UI already covered by Kit.
     failure: Fail UI review and replace the duplicate local surface with the admitted Kit export.
     relations:
@@ -20,7 +20,7 @@ units:
     kind: rule
     title: Allowlisted entry points
     modality: must_not
-    statement: Import from any @nimiplatform/kit submodule path outside the admitted Kit module allowlist.
+    statement: Import from any @nimiplatform/kit submodule outside the admitted Kit module allowlist.
     condition: Always.
     failure: Fail import-boundary validation and block the unlisted module import.
     relations:
@@ -28,31 +28,31 @@ units:
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r003
     kind: rule
-    title: Overtone theme pack
+    title: Nimi accent with Overtone product tokens
     modality: must
-    statement: Initialize @nimiplatform/kit/ui#NimiThemeProvider with accentPack equal to overtone-accent at the renderer root, import @nimiplatform/kit/ui/themes/light.css and @nimiplatform/kit/ui/themes/overtone-accent.css through the application stylesheet, and keep the default surface off nimi-accent, forge-accent, and every other accent.
+    statement: Initialize NimiThemeProvider with accentPack equal to nimi-accent, import Kit UI, light-theme, and nimi-accent styles, and express Overtone branding only through bounded app-owned product variables and layout CSS.
     condition: When initializing renderer theme and styles.
-    failure: Fail theme validation and render only after the Overtone accent and light-theme styles are active.
+    failure: Fail theme validation and render only after the admitted Kit base and bounded Overtone product styles are active.
     relations:
       - type: applies_to
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r004
     kind: rule
-    title: Kit browser auth
+    title: Protected Local App shell
     modality: must
-    statement: Use @nimiplatform/kit/auth#DesktopShellAuthPage with @nimiplatform/kit/shell/renderer/bridge#createTauriOAuthBridge for login, without custom email, OTP, password, or wallet authentication surfaces.
-    condition: When rendering or bridging authentication.
-    failure: Reject the custom auth surface and render the admitted DesktopShellAuthPage flow.
+    statement: Install the Kit standard renderer bridge before constructing NimiLocalAppClient, register the protected Electron bridge and asset media platform in the Electron main process, and render no app-owned login or token surface.
+    condition: When bootstrapping the renderer or Electron carrier.
+    failure: Fail bootstrap and expose the typed host-unavailable state without constructing a direct Runtime, login, or bearer-token path.
     relations:
       - type: applies_to
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r005
     kind: rule
-    title: Kit generation lifecycle
-    modality: must
-    statement: Use @nimiplatform/kit/features/generation/runtime#useRuntimeGenerationPanel and @nimiplatform/kit/features/generation/ui#RuntimeGenerationPanel for music and optional P1 image or TTS generation; app-owned controls slot content is permitted, but reimplementation of generation lifecycle, job subscription, or scenario-job projection is not.
-    condition: When rendering music, P1 image, or P1 TTS generation.
-    failure: Stop duplicate orchestration and keep generation unavailable until the Kit lifecycle owns the operation.
+    title: Music lifecycle unavailable
+    modality: must_not
+    statement: Import or invoke the retired generic RuntimeGenerationPanel lifecycle, submit a music scenario job, or synthesize a successful music artifact while the Local App App Access surface does not admit music jobs.
+    condition: Until an authoritative Local App music operation is admitted.
+    failure: Keep generation and iteration disabled and render the typed App Access unavailable explanation.
     relations:
       - type: applies_to
         target: definition.overtone.kit.allowlist
@@ -60,7 +60,7 @@ units:
     kind: rule
     title: Shared UI primitives
     modality: must
-    statement: Use Surface for panel containers, OverlayShell for publish, StatusBadge for chrome status, take origin, and readiness, InlineAlert for inline typed warnings, and Button, Toggle, SegmentedControl, ProgressIndicator, and TooltipProvider for their primitives, without parallel button, badge, or surface implementations.
+    statement: Use Surface for panel containers, OverlayShell for publish, StatusBadge for status and readiness, InlineAlert for typed warnings, and Kit controls for their covered interactions without parallel button, badge, overlay, or surface implementations.
     condition: When rendering the corresponding workspace UI.
     failure: Fail UI review and replace the duplicate primitive with the admitted Kit component.
     relations:
@@ -70,19 +70,19 @@ units:
     kind: rule
     title: Bounded local CSS
     modality: must_not
-    statement: Use app-local CSS for anything beyond workspace grid, gaps, and max-widths; take-card layout wrapping Kit Surface; transport-bar layout; or branded empty-state typography, or redefine Kit design tokens including --nimi-action-primary-bg, surface tones, or elevation shadows; token overrides belong to the Kit Overtone accent stylesheet.
+    statement: Fork Kit component behavior, accessibility, focus management, material surfaces, or general design tokens through app-local CSS; Overtone-specific layout, content treatment, and bounded brand-variable mapping remain app owned.
     condition: Always.
-    failure: Fail style-boundary validation and remove the out-of-bound rule or token override.
+    failure: Fail style-boundary validation and remove the duplicate Kit behavior or general token override.
     relations:
       - type: applies_to
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r008
     kind: rule
-    title: Workspace-pinned Kit
+    title: Canonical workspace Kit
     modality: must
-    statement: Consume the workspace-pinned @nimiplatform/kit package version; never use a vendored fork, published patched fork, or inline copy; when changing the pinned version, update package.json and pnpm-lock.yaml in the same change.
+    statement: Consume the canonical workspace-linked @nimiplatform/kit package and update package.json plus pnpm-lock.yaml together when its dependency declaration changes; never vendor or inline a fork.
     condition: When consuming or changing the Kit dependency.
-    failure: Fail dependency validation and block the divergent Kit source or incomplete version update.
+    failure: Fail dependency validation and block the divergent Kit source or incomplete lockfile update.
     relations:
       - type: applies_to
         target: definition.overtone.kit.allowlist
@@ -90,7 +90,7 @@ units:
     kind: rule
     title: No DOM tunneling
     modality: must_not
-    statement: Wrap Kit components in dangerouslySetInnerHTML, portal-based tunneling, or runtime-mutating wrappers to bypass accessibility, focus management, or theming; extend Kit only through documented props and slot APIs.
+    statement: Wrap Kit components in dangerouslySetInnerHTML, portal tunneling, or runtime-mutating wrappers to bypass accessibility, focus management, or theming; extend Kit only through documented props and slot APIs.
     condition: Always.
     failure: Fail UI validation and remove the bypass wrapper before rendering the component.
     relations:

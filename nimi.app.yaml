@@ -2,17 +2,8 @@ app_id: nimi.overtone
 display_name: Nimi Overtone
 profile: standalone
 manifest_role: submitted-input
-permissions:
-  declared_nimi_api_scopes:
-    - scope: ai.spend.meter
-      purpose: Meter Runtime AI execution for text assistance and music generation.
-    - scope: ai_profile.selection.consume
-      purpose: Consume Runtime route and model profile selections for Overtone generation.
-    - scope: data.scope.write
-      purpose: Publish finalized Overtone takes and metadata through Realm.
-    - scope: file.read.scoped
-      qualifier: app-local-drafts
-      purpose: Read drafts owned by this app during author testing.
-    - scope: file.write.scoped
-      qualifier: app-local-drafts
-      purpose: Store drafts owned by this app during author testing.
+app_access:
+  - runtime.consume
+local_development:
+  electron:
+    renderer_origin: http://127.0.0.1:1507

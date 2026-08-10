@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Button, InlineAlert, nimiToast, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
+import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
 import { generateRuntimeText } from '../runtime-workflow.js';
 import type { SongBrief } from '../types.js';
 
@@ -25,22 +25,14 @@ export function BriefPanel() {
   const [idea, setIdea] = useState('');
   const [generating, setGenerating] = useState(false);
 
-  const canCallAi = Boolean(
-    readiness.textConnectorAvailable &&
-    readiness.selectedTextTargetRef &&
-    readiness.selectedTextConnectorId &&
-    readiness.selectedTextModelId,
-  );
+  const canCallAi = readiness.textCapabilityAvailable;
 
   const handleGenerate = useCallback(async () => {
     if (!idea.trim() || !canCallAi) return;
     setGenerating(true);
     try {
       const text = await generateRuntimeText({
-        runtime: getRuntimeNimiClient().runtime,
-        model: readiness.selectedTextModelId!,
-        connectorId: readiness.selectedTextConnectorId!,
-        targetRef: readiness.selectedTextTargetRef!,
+        client: getNimiLocalAppClient(),
         input: idea.trim(),
         system: BRIEF_SYSTEM,
         temperature: 0.9,
@@ -54,7 +46,7 @@ export function BriefPanel() {
     } finally {
       setGenerating(false);
     }
-  }, [idea, canCallAi, readiness.selectedTextTargetRef, readiness.selectedTextModelId, readiness.selectedTextConnectorId, setBrief, t]);
+  }, [idea, canCallAi, setBrief, t]);
 
   const handleManualBrief = useCallback(() => {
     setBrief({

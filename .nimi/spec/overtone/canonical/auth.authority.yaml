@@ -4,15 +4,15 @@ scope: overtone.auth
 units:
   - id: definition.overtone.auth.runtime-account-session
     kind: definition
-    title: Runtime account session
-    meaning: The Overtone runtime account session uses the exact developer-registered-local-app caller identity, Runtime-held account custody and browser-login broker flow, and @nimiplatform/kit/auth DesktopShellAuthPage, while Runtime alone holds token material and the renderer projects only a non-secret authenticated account ID and scoped session status.
+    title: Protected Local App session
+    meaning: The Overtone session is the Desktop-supervised protected Local App session exposed through NimiLocalAppClient.auth.status; Desktop and Runtime own process binding and credential custody, while the renderer receives only bounded session posture.
   - id: rule.overtone.auth.r001
     kind: rule
-    title: Exact account caller
+    title: Exact host session posture
     modality: must
-    statement: Pass the authoritative developer-registered-local-app caller exactly as declared on every runtime.account.* call, including its mode and appInstanceId.
-    condition: When invoking any runtime.account.* method.
-    failure: Fail closed at the call site on any caller-field divergence and dispatch no account operation.
+    statement: Consume the exact session posture returned by NimiLocalAppClient.auth.status and treat only sessionBound true as ready without constructing or submitting a renderer-owned caller identity.
+    condition: When resolving application session readiness.
+    failure: Keep the app gate blocked and surface the returned reason code when the protected session is not bound.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -20,11 +20,11 @@ units:
         target: definition.overtone.runtime.account-caller
   - id: rule.overtone.auth.r002
     kind: rule
-    title: SDK session construction
+    title: SDK Local App construction
     modality: must
-    statement: Construct the platform client through createNimiDeveloperRegisteredRuntimeAccountCaller, createNimiRuntimeFullAppRegistration, and createNimiRuntimeAppSessionMetadataProvider only in the scaffold-managed runtime-platform auth boundary; use Runtime account custody, login broker, app-session metadata, and scoped protected-access metadata without Realm bearer-token transport or direct createPlatformClient construction.
-    condition: When bootstrapping the platform client and Runtime account session.
-    failure: Fail bootstrap and expose a typed unauthenticated state without constructing a direct client or bearer-token transport.
+    statement: Construct one NimiLocalAppClient through createNimiClient with createNimiLocalAppStandardShellSurface only in the shell auth boundary and reuse that client for protected App Access operations.
+    condition: When bootstrapping the protected Local App session.
+    failure: Fail bootstrap and expose a typed unavailable state without constructing a direct Runtime client or bearer-token transport.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -34,7 +34,7 @@ units:
     kind: rule
     title: No app token custody
     modality: must_not
-    statement: Give the renderer or Tauri shell custody of access tokens, refresh tokens, subject-user-id providers, session stores, session cookies, or OAuth codes; mint app-session or protected-access metadata from app-owned token inputs; let AuthPlatformAdapter accept applyToken, persistSession, or embedded OAuth or password login; place authToken, authRefreshToken, subjectUserIdProvider, sessionCookie, access-token, or refresh-token fields in renderer state; or read VITE_NIMI_REALM_ACCESS_TOKEN or another bearer-token shortcut from the renderer.
+    statement: Give the renderer or Electron shell custody of access tokens, refresh tokens, subject-user-id providers, session stores, session cookies, OAuth codes, caller identity material, or launch proof; place protected material in renderer state or environment variables; or bypass the host-injected Local App surface.
     condition: Always.
     failure: Fail closed at the SDK helper, auth adapter, renderer-state, or environment boundary and retain token material solely in Runtime.
     relations:
@@ -42,11 +42,11 @@ units:
         target: definition.overtone.auth.runtime-account-session
   - id: rule.overtone.auth.r004
     kind: rule
-    title: Desktop browser login
-    modality: must
-    statement: "Drive login through DesktopShellAuthPage and a Runtime account broker: broker.begin calls runtime.account.beginLogin with caller, redirectUri, callbackOrigin, requestedScopes, and ttlSeconds; Runtime returns a Realm OAuth URL with a PKCE S256 challenge bound to its hidden verifier; the system browser authorizes and redirects raw code to the desktop loopback redirect URI; broker.complete calls runtime.account.completeLogin with caller, loginAttemptId, code, refreshToken as an empty string, state, nonce, redirectUri, callbackOrigin, uxTraceId as an empty string, and sealedCompletionTicket as an empty string; never send a non-empty refreshToken."
-    condition: When a user starts or completes login.
-    failure: Keep the session unauthenticated and surface the typed broker or PROOF_UNSUPPORTED failure without exposing verifier or token material.
+    title: Desktop-owned session establishment
+    modality: must_not
+    statement: Implement login, account registration, OAuth completion, or session establishment inside Overtone; the user establishes account and development posture in Nimi Desktop before running the official app command.
+    condition: When the protected Local App session is unavailable.
+    failure: Keep the app gate blocked and direct recovery to Nimi Desktop without exposing an in-app credential surface.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -54,11 +54,11 @@ units:
         target: definition.overtone.runtime.account-caller
   - id: rule.overtone.auth.r005
     kind: rule
-    title: Runtime session status
+    title: Local App session status
     modality: must
-    statement: Resolve session status through runtime.account.getAccountSessionStatus({ caller }); treat AUTHENTICATED with a non-empty accountProjection.accountId as ready, AUTHENTICATED with an empty accountId as unauthenticated, and every other state as unauthenticated; never infer authentication from cached state, environment overrides, or an absent error.
-    condition: When resolving account session status.
-    failure: Project unauthenticated status and require the admitted login flow whenever Runtime does not return the exact ready state.
+    statement: Resolve session status through NimiLocalAppClient.auth.status; treat sessionBound true as ready and every other state as unavailable or action-required without inferring authentication from cached state, environment overrides, or an absent error.
+    condition: When resolving Local App session status.
+    failure: Project the typed unavailable posture whenever the host does not return an exact bound session.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -66,7 +66,7 @@ units:
     kind: rule
     title: No first-party account controls
     modality: must_not
-    statement: Call runtime.account.logout, runtime.account.switchAccount, or runtime.account.getAccessToken; call auth_session_load, auth_session_save, auth_session_clear, persistSharedDesktopAuthSession, or resolveDesktopBootstrapAuthSession; or register any auth_session_* Tauri IPC handler.
+    statement: Call runtime.account methods, load or save a shared auth session, expose account switching or logout, or register any app-owned auth IPC handler.
     condition: Always.
     failure: Fail closed at the call or registration boundary and expose no first-party control, raw token, shared-session bridge, or IPC handler.
     relations:
@@ -76,9 +76,9 @@ units:
     kind: rule
     title: No standalone auth bypass
     modality: must_not
-    statement: Enable VITE_NIMI_APP_AUTH_MODE=dev-standalone, consume developer-session environment credentials, synthesize developer session credentials, or self-open the Runtime developer-registration gate; local development uses the developer-registered Runtime account path with Desktop Developer Mode opening registration for unreviewed local builds.
-    condition: During local development or authentication bootstrap.
-    failure: Ignore bypass credentials, keep the session unauthenticated, and require Runtime developer registration.
+    statement: Enable standalone auth modes, consume developer-session environment credentials, synthesize session credentials, launch Electron directly, or self-open registration; local development must enter through pnpm dev and the Desktop supervisor.
+    condition: During local development or session bootstrap.
+    failure: Reject the bypass, keep the session unavailable, and require the official Desktop-supervised launch path.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -86,11 +86,11 @@ units:
         target: definition.overtone.runtime.account-caller
   - id: rule.overtone.auth.r008
     kind: rule
-    title: Kit auth UI only
+    title: No app-owned login UI
     modality: must_not
-    statement: Build a parallel login form, OTP code-entry surface, or password-reset surface; @nimiplatform/kit/auth DesktopShellAuthPage is the only admitted authentication UI.
+    statement: Build a login form, OTP code-entry surface, password-reset surface, or embedded browser authorization surface inside Overtone.
     condition: Always.
-    failure: Fail UI validation and render only DesktopShellAuthPage for authentication.
+    failure: Fail UI validation and render only the typed Local App unavailable state with Desktop recovery guidance.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session

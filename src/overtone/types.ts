@@ -1,5 +1,4 @@
 import { createNimiClientId } from '@nimiplatform/sdk/types';
-import type { NimiRuntimeRouteCloudTargetRef } from '@nimiplatform/sdk/runtime';
 
 // Renderer-side typed entities for Overtone. Authority:
 // .nimi/spec/overtone/canonical/data-model.authority.yaml
@@ -66,14 +65,8 @@ export type PublishStatus = 'idle' | 'uploading' | 'creating' | 'done' | 'error'
 export interface ReadinessSnapshot {
   runtimeStatus: 'checking' | 'ready' | 'degraded' | 'unavailable';
   runtimeErrorMessage?: string;
-  textConnectorAvailable: boolean;
-  musicConnectorAvailable: boolean;
-  selectedTextTargetRef?: NimiRuntimeRouteCloudTargetRef;
-  selectedMusicTargetRef?: NimiRuntimeRouteCloudTargetRef;
-  selectedTextConnectorId?: string;
-  selectedTextModelId?: string;
-  selectedMusicConnectorId?: string;
-  selectedMusicModelId?: string;
+  textCapabilityAvailable: boolean;
+  musicCapabilityAvailable: boolean;
   realmConfigured: boolean;
   realmAuthenticated: boolean;
 }

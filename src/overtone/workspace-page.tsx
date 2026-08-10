@@ -47,8 +47,8 @@ function WorkspaceInner() {
           setReadiness({
             runtimeStatus: 'unavailable',
             runtimeErrorMessage: error instanceof Error ? error.message : String(error),
-            textConnectorAvailable: false,
-            musicConnectorAvailable: false,
+            textCapabilityAvailable: false,
+            musicCapabilityAvailable: false,
             realmConfigured: false,
             realmAuthenticated: false,
           });
@@ -224,15 +224,15 @@ function LanguageSwitcher() {
 function ReadinessBanner() {
   const { t } = useTranslation();
   const { readiness } = useOvertoneState();
-  if (readiness.runtimeStatus === 'ready' && readiness.musicConnectorAvailable && readiness.textConnectorAvailable) return null;
+  if (readiness.runtimeStatus === 'ready' && readiness.musicCapabilityAvailable && readiness.textCapabilityAvailable) return null;
   const messages: string[] = [];
   if (readiness.runtimeStatus === 'degraded') {
     messages.push(readiness.runtimeErrorMessage || t('Overtone.workspace.readiness.degraded'));
   }
-  if (!readiness.musicConnectorAvailable) {
+  if (!readiness.musicCapabilityAvailable) {
     messages.push(t('Overtone.workspace.readiness.musicUnavailable'));
   }
-  if (!readiness.textConnectorAvailable) {
+  if (!readiness.textCapabilityAvailable) {
     messages.push(t('Overtone.workspace.readiness.textUnavailable'));
   }
   if (messages.length === 0) return null;

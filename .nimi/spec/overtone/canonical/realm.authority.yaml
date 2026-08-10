@@ -5,24 +5,24 @@ units:
   - id: definition.overtone.realm.publish-surface
     kind: definition
     title: Realm publish surface
-    meaning: The @nimiplatform/sdk Realm publish surface uses app-scoped NimiClient.realm and SDK helpers to upload and finalize audio or cover resources, create posts that reference canonical resource IDs, carry PublishDraft metadata and provenance, and expose typed upload, finalization, or post-creation failures.
+    meaning: A fail-closed Overtone modal that projects publish metadata and provenance but exposes no enabled submission until Nimi App Access admits a protected Realm publish operation.
   - id: rule.overtone.realm.r001
     kind: rule
-    title: SDK Realm entry
+    title: App Access publish entry
     modality: must
-    statement: Access Realm through app-scoped NimiClient.realm and SDK Realm helpers from @nimiplatform/sdk/realm, without constructing a Realm HTTP client inside Overtone.
-    condition: When the app accesses Realm.
-    failure: Fail Realm bootstrap and surface a typed unconfigured state rather than constructing a direct client.
+    statement: Access Realm publish only through an authoritative protected operation admitted to NimiLocalAppClient, without constructing a Realm HTTP client, reading a bearer token, or invoking SDK Realm helpers directly from Overtone.
+    condition: When Realm publish becomes admitted.
+    failure: Keep Realm publish unavailable and render its typed App Access explanation.
     relations:
       - type: applies_to
         target: definition.overtone.realm.publish-surface
   - id: rule.overtone.realm.r002
     kind: rule
-    title: Realm readiness
+    title: Realm readiness unavailable
     modality: must
-    statement: Infer realmConfigured only from a Realm base URL supplied to the SDK helper at bootstrap, and realmAuthenticated only from an authenticated Realm-capable runtime account session projection; on a failed first Realm business call, surface the actual reason code without retroactively setting realmAuthenticated to false.
-    condition: When computing Realm readiness or handling the first Realm business failure.
-    failure: Expose the typed unconfigured, unauthenticated, or business failure state while preserving the authenticated session projection.
+    statement: Project realmConfigured and realmAuthenticated as false while no protected App Access Realm operation exists; do not infer either value from URLs, Runtime accounts, raw tokens, or direct Realm probes.
+    condition: On every readiness pass before Realm App Access admission.
+    failure: Preserve the unavailable projection and issue no Realm request.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.readiness-snapshot
@@ -30,11 +30,11 @@ units:
         target: definition.overtone.realm.publish-surface
   - id: rule.overtone.realm.r003
     kind: rule
-    title: Canonical audio upload
-    modality: must
-    statement: "Upload audio first through uploadNimiRealmResourceFile(realm, { kind: 'audio', file }) so the SDK helper reserves, uploads, and finalizes the resource, then use the returned canonical resource ID as the only audio attachment reference; never embed audio bytes inline in a createPost payload."
-    condition: When uploading take audio for publish.
-    failure: Stop publish, create no post, and surface a typed upload or resource-reference error.
+    title: Publish remains fail closed
+    modality: must_not
+    statement: Upload take audio, create a Realm post, return a fabricated post identifier, or transition publishStatus to done while the protected publish operation is unavailable.
+    condition: Until App Access admits and implements Realm publish.
+    failure: Keep Publish disabled with the explicit unavailable warning and preserve local draft metadata only.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.publish-draft
@@ -42,11 +42,11 @@ units:
         target: definition.overtone.realm.publish-surface
   - id: rule.overtone.realm.r004
     kind: rule
-    title: Resource-backed post creation
-    modality: must
-    statement: Use createNimiRealmPost(realm, onProgress, { caption, attachments, tags? }) as the publish entry point; reference finalized audio resourceId with target type RESOURCE because the current post DTO admits resource references, and attach optional P1 cover art as another finalized resource unless Realm introduces a dedicated asset target.
-    condition: When creating a Realm post for a published take.
-    failure: Reject post creation and surface a typed publish error when attachment references are not finalized admitted resources.
+    title: Explicit provenance confirmation
+    modality: must_not
+    statement: Issue any future publish call before PublishDraft.provenanceConfirmed is true or without an explicit checkbox bound to a human-readable rights statement.
+    condition: Before any admitted publish call.
+    failure: Block publish and prompt for explicit provenance confirmation.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.publish-draft
@@ -54,43 +54,17 @@ units:
         target: definition.overtone.realm.publish-surface
   - id: rule.overtone.realm.r005
     kind: rule
-    title: Explicit provenance confirmation
-    modality: must_not
-    statement: Issue a publish call before PublishDraft.provenanceConfirmed is true or without an explicit checkbox-style affordance bound to a human-readable rights statement.
-    condition: Before any publish call.
-    failure: Block publish and prompt for explicit provenance confirmation.
-    relations:
-      - type: applies_to
-        target: definition.overtone.data-model.publish-draft
-      - type: applies_to
-        target: definition.overtone.realm.publish-surface
-  - id: rule.overtone.realm.r006
-    kind: rule
     title: Source-mode mapping
     modality: must
-    statement: Map published take origin to sourceMode exactly as prompt to prompt-only, extend to derived-take, remix to derived-take, and reference to uploaded-audio.
-    condition: When publishing a take.
-    failure: Reject publish before upload and surface a typed source-mode mismatch.
+    statement: Preserve the mapping from prompt to prompt-only, extend and remix to derived-take, and reference to uploaded-audio in local PublishDraft metadata without treating it as evidence that publish occurred.
+    condition: When creating a local publish draft.
+    failure: Reject the invalid draft and create no publish result.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.publish-draft
       - type: applies_to
         target: definition.overtone.data-model.song-take
-      - type: applies_to
-        target: definition.overtone.realm.publish-surface
-  - id: rule.overtone.realm.r007
-    kind: rule
-    title: Typed publish failure
-    modality: must
-    statement: Surface uploadResponse.ok false, finalization errors, and post-creation errors as typed publish failures with publishStatus equal to error and publishError equal to the message; retain error until explicit dismissal, and restart retry from uploadNimiRealmResourceFile.
-    condition: When Realm upload, finalization, or post creation fails.
-    failure: Keep publishStatus at error with the actual message and require explicit dismissal or a full upload retry.
-    relations:
-      - type: applies_to
-        target: definition.overtone.data-model.publish-draft
-      - type: applies_to
-        target: definition.overtone.realm.publish-surface
-  - id: rule.overtone.realm.r008
+  - id: rule.overtone.realm.r006
     kind: rule
     title: No social shell surfaces
     modality: must_not

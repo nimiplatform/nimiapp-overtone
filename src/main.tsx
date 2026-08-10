@@ -7,13 +7,9 @@ import {
   createRendererEntryModuleLoader,
 } from '@nimiplatform/kit/shell/renderer/bootstrap';
 import './styles.css';
-import './shell/auth/auth-i18n.js';
 
-// Platform bootstrap (Kit-owned): install the scoped runtime-transport bridge
-// (invoke + event listen) before any runtime/platform client is constructed, so
-// SDK/Kit runtime streaming (chat.stream) can subscribe to bridge events. No-op
-// outside the Tauri webview. The app does not know the hook details — that
-// contract lives in @nimiplatform/kit.
+// Install the Kit-owned standard shell bridge before the protected Local App
+// client is constructed. The host owns the carrier and its session posture.
 installNimiShellRuntimeBridge();
 
 const entryModuleLoader = createRendererEntryModuleLoader({

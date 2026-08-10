@@ -1,7 +1,6 @@
 @import "@nimiplatform/kit/ui/styles.css";
 @import "@nimiplatform/kit/ui/themes/light.css";
 @import "@nimiplatform/kit/ui/themes/nimi-accent.css";
-@import "@nimiplatform/kit/auth/styles.css";
 @import "tailwindcss";
 
 /* Tailwind v4 prunes utility classes it never sees in source. Kit components
@@ -29,8 +28,7 @@ body {
 }
 
 .runtime-check-screen,
-.runtime-unavailable-screen,
-.runtime-login-screen {
+.runtime-unavailable-screen {
   min-height: 100vh;
   position: relative;
 }
@@ -40,14 +38,6 @@ body {
   display: grid;
   place-items: center;
   padding: 24px;
-}
-
-.runtime-login-alert {
-  position: absolute;
-  right: 24px;
-  bottom: 24px;
-  z-index: 20;
-  max-width: min(420px, calc(100vw - 48px));
 }
 
 .runtime-alert-copy {

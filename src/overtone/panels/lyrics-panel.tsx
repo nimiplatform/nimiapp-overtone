@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Button, InlineAlert, nimiToast, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { getRuntimeNimiClient } from '../../shell/auth/runtime-platform.js';
+import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
 import { generateRuntimeText } from '../runtime-workflow.js';
 import type { SongBrief } from '../types.js';
 
@@ -21,22 +21,14 @@ export function LyricsPanel() {
 
   const [generating, setGenerating] = useState(false);
 
-  const canCallAi = Boolean(
-    readiness.textConnectorAvailable &&
-    readiness.selectedTextTargetRef &&
-    readiness.selectedTextConnectorId &&
-    readiness.selectedTextModelId,
-  );
+  const canCallAi = readiness.textCapabilityAvailable;
 
   const handleGenerate = useCallback(async () => {
     if (!canCallAi || !brief?.description) return;
     setGenerating(true);
     try {
       const text = await generateRuntimeText({
-        runtime: getRuntimeNimiClient().runtime,
-        model: readiness.selectedTextModelId!,
-        connectorId: readiness.selectedTextConnectorId!,
-        targetRef: readiness.selectedTextTargetRef!,
+        client: getNimiLocalAppClient(),
         input: buildBriefContext(brief),
         system: LYRICS_SYSTEM,
         temperature: 0.85,
@@ -48,7 +40,7 @@ export function LyricsPanel() {
     } finally {
       setGenerating(false);
     }
-  }, [brief, canCallAi, readiness.selectedTextTargetRef, readiness.selectedTextConnectorId, readiness.selectedTextModelId, setLyrics]);
+  }, [brief, canCallAi, setLyrics]);
 
   const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = event.target.value;

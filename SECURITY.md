@@ -1,5 +1,5 @@
 # Security
 
 - Do not store Realm credentials or app-owned bearer credentials in this repository.
-- Use `createNimiClient` plus SDK Runtime / Realm surfaces for platform projection.
-- Treat permission declarations as review transparency, not grants.
+- Use `createNimiClient` only with the host-injected protected Local App standard shell surface.
+- Treat the App Access declaration as review input, not a host grant.

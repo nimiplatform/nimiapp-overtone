@@ -10,7 +10,7 @@ units:
     kind: rule
     title: Readiness gate
     modality: must
-    statement: Before interaction, resolve a fresh ReadinessSnapshot covering runtime.ready liveness, runtime.ai.listScenarioProfiles scenario availability, listNimiRuntimeRouteOptionsWithHost routes for text.generate and music.generate, and SDK Realm configuration; when runtime is unavailable, render an explanatory unavailable state with retry; when runtime is ready but no usable music connector and model pair exists, render the workspace with music-generation entry points disabled and a typed warning.
+    statement: Before interaction, resolve a fresh ReadinessSnapshot from the protected Local App session and App AIConfig; when the session is unavailable, render an explanatory unavailable state with retry; when the session is ready, render the workspace with text assistance enabled only when text.generate is configured and with music and Realm entry points explicitly unavailable under the current App Access contract.
     condition: Before the workspace becomes interactive and on every readiness retry.
     failure: Keep interaction or music generation disabled as applicable and display the typed unavailable or readiness warning state.
     relations:
@@ -22,7 +22,7 @@ units:
     kind: rule
     title: Fixed stage order
     modality: must
-    statement: "Run the loop in this order: brief authors an idea with optional assistant fill, lyrics are assistant-generated or author-written, generate runs a runtime MUSIC_GENERATE job to produce a take, compare selects, plays, and A/B compares takes, iterate extends, remixes, or references to produce a child take, and publish selects a master and publishes to Realm; keep generate and later steps unavailable until SongBrief.description is non-empty; require an existing non-discarded source take for extend or remix, while permitting reference iteration from uploaded audio/* without an existing take."
+    statement: "Run the available loop in this order: brief authors an idea with optional protected text assistance and lyrics are assistant-generated or author-written; render Generate, Iterate, and Publish as explicit unavailable stages until their required protected App Access operations are admitted, and never synthesize takes to advance the loop."
     condition: Always.
     failure: Block the out-of-order stage or invalid iteration entry and keep the user at the first unmet prerequisite.
     relations:
@@ -48,11 +48,11 @@ units:
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r004
     kind: rule
-    title: Generation submission
-    modality: must
-    statement: Use the Kit useRuntimeGenerationPanel and RuntimeGenerationPanel lifecycle to submit through the SDK runtime scenario-job path with ScenarioType.MUSIC_GENERATE and ExecutionMode.ASYNC_JOB; keep app ownership limited to the domain request and completed-artifact-to-SongTake projections; snapshot brief description, lyrics text, joined style tags, duration, and instrumental flag at completion from the immutable submission input.
-    condition: When music generation is submitted and completed.
-    failure: Reject nonconforming submission or completion projection and create no SongTake until the admitted lifecycle returns valid immutable input and output.
+    title: Music generation unavailable
+    modality: must_not
+    statement: Offer an enabled music submit action or dispatch a music job while the protected Nimi Local App contract lacks a music-generation operation.
+    condition: While the platform admission gap remains.
+    failure: Render the explicit unavailable state and create no SongTake.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -62,11 +62,11 @@ units:
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r005
     kind: rule
-    title: Kit-owned job lifecycle
+    title: No pseudo job lifecycle
     modality: must_not
-    statement: Move submitted-job progress or artifact resolution outside the Kit generation lifecycle, duplicate subscription, polling, terminal lookup, or artifact-fetch orchestration, or create a SongTake before Kit returns a completed job with decoded artifact bytes.
-    condition: After a generation submission.
-    failure: Stop duplicate orchestration and withhold SongTake creation until Kit returns a completed decoded artifact.
+    statement: Create job progress, artifact resolution, subscription, polling, terminal lookup, or SongTake output for unavailable music generation.
+    condition: While the protected App Access music operation is absent.
+    failure: Keep activeJobs empty and withhold all take and artifact output.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -76,11 +76,11 @@ units:
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r006
     kind: rule
-    title: Iteration payload namespace
-    modality: must
-    statement: Construct every extend, remix, or reference iteration payload through the app-owned buildMusicIterationExtensions helper and serialize it only to SubmitScenarioJobRequest.extensions[] under nimi.scenario.music_generate.request, without provider-specific raw JSON or unrelated top-level fields outside the stable music input shape.
-    condition: When submitting an iteration request.
-    failure: Reject the request before runtime dispatch and surface a typed invalid-iteration error.
+    title: Music iteration unavailable
+    modality: must_not
+    statement: Enable or dispatch extend, remix, or reference iteration while music jobs are absent from the protected Local App contract.
+    condition: While the platform admission gap remains.
+    failure: Render the explicit unavailable state and dispatch no request.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.song-take
@@ -118,7 +118,7 @@ units:
     kind: rule
     title: Publish gating
     modality: must
-    statement: Block publish at the call site unless selectedTakeId identifies a non-discarded take with a decoded audio buffer in memory, realmConfigured and realmAuthenticated are both true, and PublishDraft.provenanceConfirmed is true.
+    statement: Block publish at the call site while the protected Local App Realm contract lacks media resource upload and post creation; after those operations are admitted, also require selectedTakeId to identify a non-discarded take with decoded audio, ready Realm posture, and confirmed provenance.
     condition: Before any publish call.
     failure: Do not invoke Realm upload or post creation, and surface the first unmet typed publish prerequisite.
     relations:
@@ -136,11 +136,11 @@ units:
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r010
     kind: rule
-    title: Publish artifact path
-    modality: must
-    statement: Upload take audio through uploadNimiRealmResourceFile, then call createNimiRealmPost with the returned resource reference and PublishDraft metadata, without embedding audio bytes inline in the post payload.
-    condition: When publishing a selected master take.
-    failure: Stop publish, surface a typed publish error, and create no post when upload or resource-reference construction fails.
+    title: No Realm publish bypass
+    modality: must_not
+    statement: Upload take audio or create a Realm post through raw HTTP, bearer tokens, generic Realm clients, or any surface outside an admitted protected Local App operation.
+    condition: When the publish surface is shown or invoked.
+    failure: Keep publish unavailable and create no upload or post.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.publish-draft
