@@ -6,6 +6,7 @@ import { OvertoneEmptyState } from './panels/empty-state.js';
 import { BriefPanel } from './panels/brief-panel.js';
 import { LyricsPanel } from './panels/lyrics-panel.js';
 import { GeneratePanel } from './panels/generate-panel.js';
+import { AIConfigPanel } from './panels/ai-config-panel.js';
 import { IterationPanel } from './panels/iteration-panel.js';
 import { TakesPanel } from './panels/takes-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
@@ -152,11 +153,11 @@ function WorkspaceInner() {
           <BriefPanel />
           <LyricsPanel />
           <GeneratePanel />
-          <IterationPanel />
+          {hasTakes ? <IterationPanel /> : null}
         </section>
         <section className="overtone-output" aria-label={t('Overtone.workspace.takesAria')}>
           <div className="overtone-takes">
-            {hasTakes ? <TakesPanel onPublish={handlePublish} /> : (
+            {hasTakes || Object.keys(state.activeJobs).length > 0 ? <TakesPanel onPublish={handlePublish} /> : (
               <div className="overtone-empty">
                 <div>
                   <p>{t('Overtone.workspace.noTakesCompose')}</p>
@@ -176,6 +177,7 @@ function OvertoneScreen({ children }: { children: ReactNode }) {
   return (
     <div className="overtone-screen">
       <div className="overtone-language-bar">
+        <AIConfigPanel />
         <LanguageSwitcher />
       </div>
       {children}

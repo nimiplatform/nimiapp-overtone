@@ -10,6 +10,7 @@ export const overtoneI18nResources = {
   en: {
     translation: {
       Overtone: {
+        configuration: { title: 'AI configuration', configured: 'Configured', empty: 'Not configured', text: 'Text generation', music: 'Music generation', textHint: 'Help write song briefs and lyrics.', musicHint: 'Create audio takes from a brief and lyrics.' },
         language: {
           ariaLabel: 'Language',
           english: 'English',
@@ -48,7 +49,7 @@ export const overtoneI18nResources = {
           noTakesCompose: 'No takes yet. Generate your first take from the Compose column.',
           readiness: {
             degraded: 'Runtime is degraded; some app capabilities may be unavailable.',
-            musicUnavailable: 'Music jobs are not exposed by the current Nimi App Access contract.',
+            musicUnavailable: 'Music generation is not configured for this app.',
             textUnavailable: 'Text generation is not configured for this app.',
           },
         },
@@ -97,7 +98,10 @@ export const overtoneI18nResources = {
           title: 'Generation',
           runtimeLabel: 'Music route',
           runtimeNotConfigured: 'not configured',
-          appAccessUnavailable: 'Music generation is unavailable because the current Nimi App Access contract does not admit music jobs.',
+          appAccessUnavailable: 'Music generation is not configured for this app.',
+          requiredInput: 'Configure music generation and provide a brief and lyrics first.',
+          cancel: 'Cancel generation',
+          cancelRequested: 'Cancellation requested; no take was added.',
           submit: 'Generate Song',
           submitting: 'Generating...',
           untitled: 'Untitled',
@@ -118,7 +122,7 @@ export const overtoneI18nResources = {
           sourceBufferMissing: 'The selected take has no decoded audio buffer in memory, so it cannot be used for iteration.',
           referenceRequired: 'Reference mode requires an uploaded audio file.',
           trimInvalid: 'Trim end must be greater than trim start.',
-          appAccessUnavailable: 'Music iteration is unavailable because the current Nimi App Access contract does not admit music jobs.',
+          appAccessUnavailable: 'Audio extension, remix, and references are not supported yet. Edit the brief or lyrics to generate another take.',
           submit: 'Create Child Take',
           submitting: 'Iterating...',
           childTitle: '{{title}} - {{mode}}',
@@ -150,6 +154,9 @@ export const overtoneI18nResources = {
         player: {
           play: 'Play',
           pause: 'Pause',
+          loadingAudio: 'Loading audio…',
+          audioUnavailable: 'Audio unavailable: {{message}}',
+          retryAudio: 'Retry audio',
           trimStartAria: 'Trim start',
           trimEndAria: 'Trim end',
           invalidTrim: 'Invalid trim',
@@ -189,6 +196,7 @@ export const overtoneI18nResources = {
   zh: {
     translation: {
       Overtone: {
+        configuration: { title: 'AI 配置', configured: '已配置', empty: '未配置', text: '文本生成', music: '音乐生成', textHint: '辅助创作歌曲简报与歌词。', musicHint: '根据简报与歌词生成音频版本。' },
         language: {
           ariaLabel: '语言',
           english: 'English',
@@ -227,7 +235,7 @@ export const overtoneI18nResources = {
           noTakesCompose: '还没有版本。请先在创作栏生成第一个版本。',
           readiness: {
             degraded: 'Runtime 处于降级状态，部分应用能力可能不可用。',
-            musicUnavailable: '当前 Nimi App Access 合约未暴露音乐任务。',
+            musicUnavailable: '当前应用尚未配置音乐生成能力。',
             textUnavailable: '当前应用尚未配置文本生成能力。',
           },
         },
@@ -276,7 +284,10 @@ export const overtoneI18nResources = {
           title: '生成',
           runtimeLabel: '音乐路由',
           runtimeNotConfigured: '未配置',
-          appAccessUnavailable: '当前 Nimi App Access 合约未准入音乐任务，因此音乐生成暂不可用。',
+          appAccessUnavailable: '当前应用尚未配置音乐生成能力。',
+          requiredInput: '请先配置音乐生成，并填写歌曲简报和歌词。',
+          cancel: '取消生成',
+          cancelRequested: '已请求取消，本次未添加新版本。',
           submit: '生成歌曲',
           submitting: '生成中...',
           untitled: '未命名',
@@ -297,7 +308,7 @@ export const overtoneI18nResources = {
           sourceBufferMissing: '所选版本在内存中没有已解码音频，无法用于迭代。',
           referenceRequired: '参考模式需要上传音频文件。',
           trimInvalid: '裁剪终点必须大于裁剪起点。',
-          appAccessUnavailable: '当前 Nimi App Access 合约未准入音乐任务，因此音乐迭代暂不可用。',
+          appAccessUnavailable: '暂不支持音频续写、混音和参考音频。可编辑简报或歌词后生成另一个版本。',
           submit: '创建子版本',
           submitting: '迭代中...',
           childTitle: '{{title}} - {{mode}}',
@@ -329,6 +340,9 @@ export const overtoneI18nResources = {
         player: {
           play: '播放',
           pause: '暂停',
+          loadingAudio: '加载音频…',
+          audioUnavailable: '音频暂不可用：{{message}}',
+          retryAudio: '重试音频',
           trimStartAria: '裁剪起点',
           trimEndAria: '裁剪终点',
           invalidTrim: '裁剪无效',

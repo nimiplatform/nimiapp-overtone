@@ -5,7 +5,7 @@ units:
   - id: definition.overtone.kit.allowlist
     kind: definition
     title: Kit module allowlist
-    meaning: The admitted @nimiplatform/kit imports are ui, ui styles, light and nimi accent themes, core offline coordinator, shell renderer bridge and bootstrap, and shell Electron main and preload-cjs.
+    meaning: The admitted @nimiplatform/kit imports are ui, ui styles, light and nimi accent themes, core offline coordinator, shell renderer bridge and bootstrap, shell Electron main and preload-cjs, features model-config, and features generation runtime.
   - id: rule.overtone.kit.r001
     kind: rule
     title: Kit-first UI
@@ -48,11 +48,11 @@ units:
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r005
     kind: rule
-    title: Music lifecycle unavailable
+    title: Shared music lifecycle
     modality: must_not
-    statement: Import or invoke the retired generic RuntimeGenerationPanel lifecycle, submit a music scenario job, or synthesize a successful music artifact while the Local App App Access surface does not admit music jobs.
-    condition: Until an authoritative Local App music operation is admitted.
-    failure: Keep generation and iteration disabled and render the typed App Access unavailable explanation.
+    statement: Import or invoke the retired generic RuntimeGenerationPanel lifecycle or synthesize a successful music artifact outside the protected Local App adapter and Kit music runner.
+    condition: Whenever music generation is offered.
+    failure: Withhold the unsupported invocation and display its typed failure.
     relations:
       - type: applies_to
         target: definition.overtone.kit.allowlist

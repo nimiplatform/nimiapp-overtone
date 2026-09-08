@@ -1,43 +1,38 @@
 {
   "name": "nimiapp-overtone",
-  "private": false,
+  "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.32.1",
-  "publishConfig": {
-    "access": "public"
-  },
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
+    "postinstall": "install-electron",
     "dev": "nimi-app dev --shell electron",
     "dev:renderer": "vite --host 127.0.0.1 --port 1507 --strictPort",
     "dev:shell": "nimi-app dev",
     "dev:electron": "nimi-app dev --shell electron",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && pnpm run build:electron",
     "build:electron": "tsc -p tsconfig.electron.json && node scripts/bundle-electron-preload.mjs",
-    "build:shell": "tauri build",
+    "build:shell": "pnpm run build:electron",
     "test": "node --test test/*.test.mjs",
-    "check": "pnpm run doctor && pnpm run test && pnpm run validate",
-    "pack": "pnpm run build && node scripts/pack.mjs",
-    "validate": "node scripts/validate.mjs",
-    "local-audit": "node scripts/local-audit.mjs",
-    "doctor": "nimi-app doctor",
+    "check": "pnpm run test && pnpm run validate",
+    "pack": "nimi-app pack",
+    "validate": "nimi-app check && node scripts/check-kit-first-style.mjs",
     "spec:authority:check": "nimicoding authority check .nimi/spec",
-    "spec:authority:compile": "nimicoding authority compile .nimi/spec"
+    "spec:authority:compile": "nimicoding authority compile .nimi/spec",
+    "sync": "nimi-app sync"
   },
   "dependencies": {
-    "@nimiplatform/sdk": "link:../../nimi/sdks/typescript",
-    "@nimiplatform/kit": "link:../../nimi/kit",
     "i18next": "^25.8.18",
     "lucide-react": "^0.577.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-i18next": "^16.5.8"
+    "react-i18next": "^16.5.8",
+    "@nimiplatform/sdk": "^0.9.1",
+    "@nimiplatform/kit": "^0.5.1"
   },
   "devDependencies": {
-    "@nimiplatform/app-tools": "link:../../nimi/app-tools",
-    "@nimiplatform/nimi-coding": "0.5.0",
     "@tailwindcss/vite": "^4.3.0",
-    "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -47,7 +42,9 @@
     "esbuild": "^0.28.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
-    "vite": "^7.2.4",
-    "yaml": "^2.9.0"
+    "vite": "^7.3.6",
+    "yaml": "^2.9.0",
+    "@nimiplatform/app-tools": "^0.2.8",
+    "@nimiplatform/nimi-coding": "0.6.1"
   }
 }

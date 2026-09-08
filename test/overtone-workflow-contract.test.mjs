@@ -102,14 +102,9 @@ test('brief and lyrics assistance use Local App text candidates', () => {
   assert.doesNotMatch(runtimeWorkflowSource, /ScenarioType|ExecutionMode|runtime\.ai\.|buildMusic/);
 });
 
-test('music generation and iteration fail closed until App Access admits music jobs', () => {
-  assert.match(generateSource, /data-testid="overtone-music-app-access-unavailable"/);
-  assert.match(generateSource, /<fieldset disabled/);
-  assert.match(generateSource, /Overtone\.generate\.appAccessUnavailable/);
+test('unsupported music iteration stays unavailable without a private Runtime bypass', () => {
   assert.match(iterationSource, /Overtone\.iteration\.appAccessUnavailable/);
-  assert.match(i18nSource, /current Nimi App Access contract does not admit music jobs/);
   assert.doesNotMatch(generateSource + iterationSource, /RuntimeGenerationPanel|useRuntimeGenerationPanel|submitMusicGenerate|requireCompletedMusicArtifact/);
-  assert.doesNotMatch(runtimeWorkflowSource, /music_generate|MusicGenerate|ASYNC_JOB/);
 });
 
 test('takes remain append-only and discarding clears in-memory audio', () => {

@@ -1,0 +1,8 @@
+app_id: nimi.overtone
+display_name: Nimi Overtone
+version: 0.1.0
+npm_package_name: nimiapp-overtone
+cargo_package_name: nimiapp-overtone-shell
+tauri_identifier: ai.nimi.apps.nimi.overtone
+package_author: null
+identity_role: scaffold-generated-authoring-input

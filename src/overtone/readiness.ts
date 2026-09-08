@@ -1,5 +1,5 @@
 // Readiness is derived only from the protected Local App session and portable
-// App AIConfig. The current App Access contract does not expose music jobs.
+// App AIConfig.
 
 import { getNimiLocalAppClient } from '../shell/auth/local-app-client.js';
 import type { ReadinessSnapshot } from './types.js';
@@ -24,13 +24,16 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
       };
     }
     const config = await client.aiConfig.get();
-    const textConfigured = config.capabilities.some(
+    const textConfigured = config.config?.capabilities.some(
       (capability) => capability.capabilityContract === 'text.generate',
-    );
+    ) ?? false;
     return {
       ...base,
       runtimeStatus: 'ready',
       textCapabilityAvailable: textConfigured,
+      musicCapabilityAvailable: config.config?.capabilities.some(
+        (capability) => capability.capabilityContract === 'music.generate',
+      ) ?? false,
     };
   } catch (error) {
     return {

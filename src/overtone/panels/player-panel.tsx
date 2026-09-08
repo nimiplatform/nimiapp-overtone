@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, TextField } from '@nimiplatform/kit/ui';
+import { Button, InlineAlert, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
-import { useOvertoneState } from '../store.js';
+import { useOvertoneActions, useOvertoneState } from '../store.js';
+import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { readRuntimeMusicArtifact } from '../runtime-workflow.js';
 import { Waveform } from './waveform.js';
 
 export function PlayerPanel() {
   const { t } = useTranslation();
   const state = useOvertoneState();
+  const { setAudioBuffer } = useOvertoneActions();
   const project = state.project;
   const selectedTake = project?.takes.find((take) => take.takeId === project.selectedTakeId && !take.discarded) ?? null;
   const audioData = selectedTake ? state.audioBuffers[selectedTake.takeId] : undefined;
@@ -14,6 +17,9 @@ export function PlayerPanel() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [loadingAudio, setLoadingAudio] = useState(false);
+  const [audioError, setAudioError] = useState('');
+  const [audioRetry, setAudioRetry] = useState(0);
   const [trimStartSec, setTrimStartSec] = useState<number | null>(null);
   const [trimEndSec, setTrimEndSec] = useState<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -36,6 +42,7 @@ export function PlayerPanel() {
       animationRef.current = null;
     }
     if (sourceRef.current) {
+      sourceRef.current.onended = null;
       try { sourceRef.current.stop(); } catch { /* already stopped */ }
       sourceRef.current = null;
     }
@@ -46,6 +53,23 @@ export function PlayerPanel() {
     setTrimStartSec(selectedTake?.trimStartSec ?? null);
     setTrimEndSec(selectedTake?.trimEndSec ?? null);
   }, [selectedTake?.takeId, selectedTake?.trimStartSec, selectedTake?.trimEndSec]);
+
+  useEffect(() => {
+    setAudioError('');
+    if (!selectedTake || audioData) { setLoadingAudio(false); return; }
+    const controller = new AbortController();
+    setLoadingAudio(true);
+    void Promise.resolve().then(() => readRuntimeMusicArtifact({
+      client: getNimiLocalAppClient(),
+      artifact: { artifactId: selectedTake.artifactId, mimeType: selectedTake.artifactMimeType, sizeBytes: selectedTake.artifactByteLength },
+      signal: controller.signal,
+    })).then(({ buffer }) => {
+      if (!controller.signal.aborted) setAudioBuffer(selectedTake.takeId, buffer);
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) setAudioError(error instanceof Error ? error.message : String(error));
+    }).finally(() => { if (!controller.signal.aborted) setLoadingAudio(false); });
+    return () => controller.abort();
+  }, [selectedTake, audioData, audioRetry, setAudioBuffer]);
 
   useEffect(() => {
     stopPlayback();
@@ -60,13 +84,18 @@ export function PlayerPanel() {
       return;
     }
     const context = getAudioContext();
+    let active = true;
     context.decodeAudioData(audioData.slice(0)).then((decoded) => {
+      if (!active) return;
       decodedBufferRef.current = decoded;
       setDuration(decoded.duration);
-    }).catch(() => {
+    }).catch((error: unknown) => {
+      if (!active) return;
       decodedBufferRef.current = null;
+      setAudioError(error instanceof Error ? error.message : String(error));
     });
-  }, [audioData, getAudioContext, stopPlayback]);
+    return () => { active = false; };
+  }, [audioData, audioRetry, getAudioContext, stopPlayback]);
 
   useEffect(() => () => {
     stopPlayback();
@@ -149,8 +178,9 @@ export function PlayerPanel() {
   return (
     <div className="overtone-transport" data-testid="overtone-transport">
       <Button type="button" tone="primary" size="md" onClick={handlePlayPause} disabled={!decodedBufferRef.current}>
-        {isPlaying ? t('Overtone.player.pause') : t('Overtone.player.play')}
+        {loadingAudio ? t('Overtone.player.loadingAudio') : isPlaying ? t('Overtone.player.pause') : t('Overtone.player.play')}
       </Button>
+      {audioError ? <InlineAlert tone="warning">{t('Overtone.player.audioUnavailable', { message: audioError })}<Button type="button" tone="ghost" onClick={() => setAudioRetry((value) => value + 1)}>{t('Overtone.player.retryAudio')}</Button></InlineAlert> : null}
       <Waveform
         buffer={decodedBufferRef.current}
         currentTime={currentTime}

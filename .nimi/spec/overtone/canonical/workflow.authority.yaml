@@ -48,11 +48,11 @@ units:
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r004
     kind: rule
-    title: Music generation unavailable
-    modality: must_not
-    statement: Offer an enabled music submit action or dispatch a music job while the protected Nimi Local App contract lacks a music-generation operation.
-    condition: While the platform admission gap remains.
-    failure: Render the explicit unavailable state and create no SongTake.
+    title: Music generation from the author draft
+    modality: must
+    statement: Require a brief, lyrics, and the App music intent before explicit submission; compose the prompt from the brief and optional style tags and create a new take only from completed and decoded Runtime audio.
+    condition: When the author requests a new generated take.
+    failure: Preserve the author draft, show the missing configuration or typed execution failure, and create no substitute take.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -64,8 +64,8 @@ units:
     kind: rule
     title: No pseudo job lifecycle
     modality: must_not
-    statement: Create job progress, artifact resolution, subscription, polling, terminal lookup, or SongTake output for unavailable music generation.
-    condition: While the protected App Access music operation is absent.
+    statement: Invent job progress or successful SongTake output, or duplicate the SDK and Kit music job lifecycle in renderer code.
+    condition: During music generation.
     failure: Keep activeJobs empty and withhold all take and artifact output.
     relations:
       - type: applies_to
@@ -78,8 +78,8 @@ units:
     kind: rule
     title: Music iteration unavailable
     modality: must_not
-    statement: Enable or dispatch extend, remix, or reference iteration while music jobs are absent from the protected Local App contract.
-    condition: While the platform admission gap remains.
+    statement: Enable or dispatch extend, remix, or reference iteration while those inputs are absent from the protected Local App music contract.
+    condition: While the iteration input admission gap remains.
     failure: Render the explicit unavailable state and dispatch no request.
     relations:
       - type: applies_to

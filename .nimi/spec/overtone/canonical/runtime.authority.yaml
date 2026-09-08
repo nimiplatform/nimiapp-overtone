@@ -13,11 +13,11 @@ units:
   - id: definition.overtone.runtime.binding-f003
     kind: definition
     title: Music generation binding
-    meaning: Feature F-003 is unavailable because the current protected Nimi Local App AI scenario contract does not admit a music-generation job type; no alternate Runtime transport is permitted.
+    meaning: Feature F-003 binds prompt and lyrics to the admitted protected Local App music-generate Scenario Job through the SDK adapter and Kit music runner; a completed Runtime audio artifact is read and decoded before becoming a SongTake.
   - id: definition.overtone.runtime.binding-f005
     kind: definition
     title: Music iteration binding
-    meaning: Feature F-005 is unavailable while music generation is absent from the protected Nimi Local App contract; extend, remix, and reference inputs dispatch no Runtime operation.
+    meaning: Feature F-005 remains unavailable because the protected music operation accepts only prompt and lyrics, without reference-audio, extend, or remix inputs; those iteration controls dispatch no Runtime operation.
   - id: definition.overtone.runtime.binding-f007
     kind: definition
     title: Realm media binding
@@ -64,11 +64,11 @@ units:
         target: definition.overtone.runtime.binding-f002
   - id: rule.overtone.runtime.r003
     kind: rule
-    title: Music scenario admission gap
-    modality: must_not
-    statement: Submit music generation through a generic Runtime client, private SDK surface, raw IPC, or an unsupported Local App scenario discriminator while the protected Nimi Local App contract lacks music generation.
+    title: Protected music generation
+    modality: must
+    statement: Submit music generation only through the SDK protected Local App Scenario Job adapter and Kit runRuntimeMusicGenerate with prompt and lyrics; no generic Runtime client, private SDK, raw IPC, or unsupported duration, instrumental, or reference input is admitted.
     condition: When submitting music generation.
-    failure: Dispatch no job and render the explicit App Access unavailable state.
+    failure: Preserve the draft and display the typed failure without creating a SongTake.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -77,10 +77,10 @@ units:
   - id: rule.overtone.runtime.r004
     kind: rule
     title: No shadow music job lifecycle
-    modality: must_not
-    statement: Create a renderer-owned submit, poll, subscribe, terminal lookup, artifact fetch, or pseudo-job lifecycle for unavailable music generation.
-    condition: While music generation is absent from the protected Local App contract.
-    failure: Keep activeJobs empty and create no SongTake or TakeArtifact.
+    modality: must
+    statement: Delegate submit, subscription, terminal lookup, and cancellation to the Kit music runner; project Runtime job identity and status, read the completed artifact through the public App client, verify MIME and byte metadata, decode audio before adding a take, and abort the owned invocation when its project closes.
+    condition: During a music generation invocation.
+    failure: Display the actual failure and create no take from incomplete, rejected, cancelled, or undecodable output.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -92,7 +92,7 @@ units:
     kind: rule
     title: Iteration admission gap
     modality: must_not
-    statement: Serialize or dispatch reference-audio, extend, remix, or style-reference music iteration through a generic Runtime request while music jobs are not admitted for Local Apps.
+    statement: Serialize or dispatch reference-audio, extend, remix, or style-reference music iteration while those inputs are absent from the protected Local App music contract.
     condition: When constructing or displaying a music iteration request.
     failure: Dispatch nothing and display the explicit App Access unavailable state.
     relations:
@@ -104,7 +104,7 @@ units:
     kind: rule
     title: Credit-free readiness probes
     modality: must
-    statement: Probe session posture with NimiLocalAppClient.auth.status and read text capability intent from NimiLocalAppClient.aiConfig.get; never submit a generation request, read connector or model custody, or infer unavailable music support.
+    statement: Probe session posture with NimiLocalAppClient.auth.status and read configured text and music intent from NimiLocalAppClient.aiConfig.get; never submit a generation request or read connector or model custody as a readiness probe.
     condition: When computing runtime readiness.
     failure: Return a typed unavailable or not-configured readiness projection and dispatch no probe generation.
     relations:

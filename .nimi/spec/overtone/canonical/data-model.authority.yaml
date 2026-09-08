@@ -102,7 +102,7 @@ units:
     kind: rule
     title: In-memory take artifact
     modality: must
-    statement: Project each ScenarioArtifact to an in-memory TakeArtifact with takeId, artifactId, verified non-empty MIME type, nullable bytes, and nullable decoded buffer; never persist decoded audio outside the renderer session; clear buffers on take discard, project reset, and app close; fail before creating a SongTake when artifactId, an audio/* MIME type, or decoded bytes are missing.
+    statement: Project each ScenarioArtifact to an in-memory TakeArtifact with takeId, artifactId, verified non-empty MIME type, nullable bytes, and nullable decoded buffer; never persist decoded audio outside the renderer session; clear buffers on take discard, project reset, and app close; fail before creating a SongTake when artifactId, an audio/* MIME type, or decoded bytes are missing. When retained SongTake metadata is reopened, read the same artifact through the public Runtime SDK and verify its MIME and byte metadata before decoding; preserve the take metadata and show audio unavailable if that read fails, without generating a replacement job.
     condition: When resolving a completed runtime artifact.
     failure: Withhold SongTake creation, clear affected transient buffers, and surface a typed artifact error.
     relations:

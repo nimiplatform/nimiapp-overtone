@@ -25,7 +25,7 @@ units:
   - id: definition.overtone.failure.reason-music-app-access-unavailable
     kind: definition
     title: Music App Access unavailable
-    meaning: Music generation and iteration render a persistent warning and disabled controls because the current App Access contract does not admit music jobs.
+    meaning: Music generation renders a persistent warning and disabled submission when its App intent is not configured or the protected operation is unavailable; reference, extend, and remix iteration remains unavailable until its inputs are admitted.
   - id: definition.overtone.failure.reason-realm-publish-unavailable
     kind: definition
     title: Realm publish App Access unavailable
