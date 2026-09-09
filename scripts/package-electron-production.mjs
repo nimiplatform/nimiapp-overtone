@@ -20,18 +20,21 @@ function resolveWindowsResourceVersion(appVersion) {
   }
   return `${coreComponents.join('.')}.0`;
 }
-const NATIVE_BINDING_PACKAGE = '@nimiplatform/kit-protected-local-win32-x64';
+const MACOS_BUILD = process.platform === 'darwin' && process.arch === 'arm64';
+const NATIVE_PLATFORM = MACOS_BUILD ? 'darwin' : 'win32';
+const NATIVE_ARCH = MACOS_BUILD ? 'arm64' : 'x64';
+const NATIVE_BINDING_PACKAGE = MACOS_BUILD ? '@nimiplatform/kit-protected-local-darwin-arm64' : '@nimiplatform/kit-protected-local-win32-x64';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputRoot = path.join(appRoot, 'dist-electron-package');
 const requireFromApp = createRequire(path.join(appRoot, 'package.json'));
 
-if (process.platform !== 'win32' || process.arch !== 'x64') {
-  throw new Error('The windows-x86_64 Electron production profile requires a win32-x64 build host.');
+if (!MACOS_BUILD && (process.platform !== 'win32' || process.arch !== 'x64')) {
+  throw new Error('Electron production packaging requires a windows-x86_64 or macos-aarch64 build host.');
 }
 
 const appPackage = JSON.parse(await readFile(path.join(appRoot, 'package.json'), 'utf8'));
 const APP_VERSION = appPackage.version;
-const WINDOWS_RESOURCE_VERSION = resolveWindowsResourceVersion(APP_VERSION);
+const RESOURCE_VERSION = MACOS_BUILD ? APP_VERSION : resolveWindowsResourceVersion(APP_VERSION);
 for (const sectionName of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
   if (Object.hasOwn(appPackage[sectionName] || {}, NATIVE_BINDING_PACKAGE)) {
     throw new Error('The protected native binding must arrive through the Kit optional dependency.');
@@ -42,7 +45,7 @@ const kitEntry = requireFromApp.resolve('@nimiplatform/kit/shell/electron/main')
 const kitRoot = await findPackageRoot(kitEntry, '@nimiplatform/kit');
 const kitPackage = JSON.parse(await readFile(path.join(kitRoot, 'package.json'), 'utf8'));
 if (!Object.hasOwn(kitPackage.optionalDependencies || {}, NATIVE_BINDING_PACKAGE)) {
-  throw new Error('Kit does not declare the windows-x64 protected native binding as optional.');
+  throw new Error('Kit does not declare the current-platform protected native binding as optional.');
 }
 const requireFromKit = createRequire(path.join(kitRoot, 'package.json'));
 const nativeEntry = requireFromKit.resolve(NATIVE_BINDING_PACKAGE);
@@ -93,12 +96,13 @@ try {
 
   const packagePaths = await packager({
     dir: productionSourceRoot,
-    platform: 'win32',
-    arch: 'x64',
+    platform: NATIVE_PLATFORM,
+    arch: NATIVE_ARCH,
+    appBundleId: "ai.nimi.apps.nimi.overtone",
     name: APP_EXECUTABLE_NAME,
     executableName: APP_EXECUTABLE_NAME,
-    appVersion: WINDOWS_RESOURCE_VERSION,
-    buildVersion: WINDOWS_RESOURCE_VERSION,
+    appVersion: RESOURCE_VERSION,
+    buildVersion: RESOURCE_VERSION,
     electronVersion: electronPackage.version,
     out: outputRoot,
     tmpdir: packagerTempRoot,
@@ -107,6 +111,13 @@ try {
     prune: false,
     quiet: true,
     derefSymlinks: true,
+    // Publisher-side ad-hoc sealing supplies no Developer ID or notarization.
+    // Runtime preserves these bytes; Nimi never signs installed third-party code.
+    ...(MACOS_BUILD ? { osxSign: {
+      identity: '-', identityValidation: false, preAutoEntitlements: false,
+      preEmbedProvisioningProfile: false, strictVerify: true,
+      optionsForFile: () => ({ entitlements: [], hardenedRuntime: false, timestamp: 'none' }),
+    } } : {}),
     afterInitialize: [async ({ buildPath }) => {
       const packagedManifestPath = path.join(buildPath, 'package.json');
       const packagedManifest = JSON.parse(await readFile(packagedManifestPath, 'utf8'));
@@ -122,11 +133,13 @@ try {
     },
   });
   if (!Array.isArray(packagePaths) || packagePaths.length !== 1) throw new Error('Electron packager returned an ambiguous production package.');
-  const expectedPackageRoot = path.join(outputRoot, `${APP_EXECUTABLE_NAME}-win32-x64`);
+  const expectedPackageRoot = path.join(outputRoot, `${APP_EXECUTABLE_NAME}-${NATIVE_PLATFORM}-${NATIVE_ARCH}`);
   if (path.resolve(packagePaths[0]).toLowerCase() !== path.resolve(expectedPackageRoot).toLowerCase()) {
     throw new Error('Electron packager returned an unexpected production package path.');
   }
-  await realpath(path.join(expectedPackageRoot, `${APP_EXECUTABLE_NAME}.exe`));
+  await realpath(MACOS_BUILD
+    ? path.join(expectedPackageRoot, `${APP_EXECUTABLE_NAME}.app`, 'Contents', 'MacOS', APP_EXECUTABLE_NAME)
+    : path.join(expectedPackageRoot, `${APP_EXECUTABLE_NAME}.exe`));
   packageCompleted = true;
   process.stdout.write(`[nimi-app] Electron production package: ${expectedPackageRoot}\n`);
 } finally {
@@ -137,9 +150,10 @@ try {
 
 async function installProductionDependencies(projectRoot) {
   const command = 'pnpm install --prod --frozen-lockfile --ignore-scripts --node-linker=hoisted';
-  const commandShell = process.env.ComSpec || 'cmd.exe';
+  const commandShell = MACOS_BUILD ? 'pnpm' : process.env.ComSpec || 'cmd.exe';
+  const commandArguments = MACOS_BUILD ? ['install', '--prod', '--frozen-lockfile', '--ignore-scripts', '--node-linker=hoisted'] : ['/d', '/s', '/c', command];
   await new Promise((resolve, reject) => {
-    const child = spawn(commandShell, ['/d', '/s', '/c', command], {
+    const child = spawn(commandShell, commandArguments, {
       cwd: projectRoot,
       stdio: 'inherit',
       windowsHide: true,
