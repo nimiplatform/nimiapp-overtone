@@ -1,6 +1,6 @@
 app_id: nimi.overtone
 display_name: Nimi Overtone
-version: 0.1.0
+version: 0.1.1
 npm_package_name: nimiapp-overtone
 cargo_package_name: nimiapp-overtone-shell
 tauri_identifier: ai.nimi.apps.nimi.overtone
