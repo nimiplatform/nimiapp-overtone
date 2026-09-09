@@ -5,12 +5,18 @@ profile: standalone
 npm_package_name: nimiapp-overtone
 cargo_package_name: nimiapp-overtone-shell
 tauri_identifier: ai.nimi.apps.nimi.overtone
-package_author: null
+package_author: Nimi Overtone
 submission_role: developer-submitted-input
-capability_contract_refs: []
+capability_contract_refs:
+  - text.generate
+  - music.generate
 required_standardized_feature_refs: []
 storage_policy:
-  kind: nimi-mediated-default
+  kind: app-owned-os-storage
+  os_storage_disclosure:
+    - path_pattern: <Electron userData>/Local Storage/**
+      purpose: Project metadata, song draft references and language preference. Generated audio remains in Runtime artifacts. Retained after Nimi uninstall.
+      expected_size_band: Typically KiB to a few MiB of JSON, subject to browser storage quota.
 support_manifest:
   diagnostics_bundle_fields:
     - app_version
@@ -20,7 +26,7 @@ support_manifest:
   user_visible_issue_categories:
     - startup
     - runtime
-  escalation_path: README.md#support
+  escalation_path: https://github.com/nimiplatform/nimiapp-overtone/issues
   kill_switch_visibility: visible
   recovery_instructions: Restart the App from Nimi. If the problem persists, reinstall the current admitted release.
 review_inputs:

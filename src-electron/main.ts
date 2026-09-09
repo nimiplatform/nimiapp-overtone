@@ -8,6 +8,10 @@ import {
 } from '@nimiplatform/kit/shell/electron/main';
 
 const APP_ID = 'nimi.overtone';
+declare const __NIMI_ELECTRON_PRODUCTION__: boolean;
+const IS_PRODUCTION_BUNDLE = typeof __NIMI_ELECTRON_PRODUCTION__ !== 'undefined'
+  && __NIMI_ELECTRON_PRODUCTION__;
+
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(currentDir, '..');
 const preloadPath = path.join(currentDir, 'preload.cjs');
@@ -68,6 +72,9 @@ async function createMainWindow(): Promise<void> {
 function readDevelopmentRendererUrl(): string {
   const prefix = '--nimi-dev-renderer-url=';
   const values = process.argv.filter((value) => value.startsWith(prefix));
+  if (IS_PRODUCTION_BUNDLE && values.length > 0) {
+    throw new Error("Production App does not accept development renderer arguments.");
+  }
   if (values.length === 0) return '';
   if (values.length !== 1) throw new Error('Nimi development renderer URL must be singular.');
   const selected = values[0];

@@ -20,7 +20,8 @@
     "validate": "nimi-app check && node scripts/check-kit-first-style.mjs",
     "spec:authority:check": "nimicoding authority check .nimi/spec",
     "spec:authority:compile": "nimicoding authority compile .nimi/spec",
-    "sync": "nimi-app sync"
+    "sync": "nimi-app sync",
+    "build:electron:production": "node scripts/clean-electron-production.mjs && pnpm run build && node scripts/package-electron-production.mjs"
   },
   "dependencies": {
     "i18next": "^25.8.18",
@@ -32,6 +33,7 @@
     "@nimiplatform/kit": "^0.5.1"
   },
   "devDependencies": {
+    "@electron/packager": "^20.3.0",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.14",
@@ -44,7 +46,9 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.6",
     "yaml": "^2.9.0",
-    "@nimiplatform/app-tools": "^0.2.8",
+    "@nimiplatform/app-tools": "^0.2.9",
     "@nimiplatform/nimi-coding": "0.6.1"
-  }
+  },
+  "main": "dist-electron/main.js",
+  "author": "Nimi Overtone"
 }

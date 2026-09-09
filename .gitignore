@@ -8,3 +8,6 @@ src-tauri/target/
 .turbo/
 .vite/
 .DS_Store
+
+# Windows production package
+dist-electron-package/
