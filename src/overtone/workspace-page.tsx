@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, InlineAlert, NimiToaster, SegmentedControl } from '@nimiplatform/kit/ui';
+import { Button, ConfirmDialog, InlineAlert, NimiToaster, SegmentedControl } from '@nimiplatform/kit/ui';
 import { OvertoneProvider, useOvertoneActions, useOvertoneState } from './store.js';
 import { OvertoneEmptyState } from './panels/empty-state.js';
 import { BriefPanel } from './panels/brief-panel.js';
@@ -34,9 +34,10 @@ export function WorkspacePage() {
 function WorkspaceInner() {
   const { t } = useTranslation();
   const state = useOvertoneState();
-  const { setReadiness, resetProject, publishDraftFromTake, clearCompare } = useOvertoneActions();
+  const { setReadiness, startProject, resetProject, publishDraftFromTake, clearCompare } = useOvertoneActions();
   const [reloadKey, setReloadKey] = useState(0);
   const [publishTakeId, setPublishTakeId] = useState<string | null>(null);
+  const [projectAction, setProjectAction] = useState<'discard' | 'restart' | null>(null);
   const hasCompare = Boolean(state.project?.comparedTakeIds[0] || state.project?.comparedTakeIds[1]);
 
   useEffect(() => {
@@ -69,6 +70,7 @@ function WorkspaceInner() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (projectAction !== null) return;
       const target = event.target as HTMLElement | null;
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if (isInput) return;
@@ -92,24 +94,13 @@ function WorkspaceInner() {
       }
       if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
         event.preventDefault();
-        resetProject();
-        // start fresh project on the next macrotask so the reducer settles
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('overtone-restart-project'));
-        }, 0);
+        if (state.project) setProjectAction('restart');
+        else startProject();
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [clearCompare, hasCompare, publishTakeId, resetProject]);
-
-  // Wire restart event to startProject via a tiny inner subscriber.
-  const { startProject } = useOvertoneActions();
-  useEffect(() => {
-    function onRestart() { startProject(); }
-    window.addEventListener('overtone-restart-project', onRestart);
-    return () => window.removeEventListener('overtone-restart-project', onRestart);
-  }, [startProject]);
+  }, [clearCompare, hasCompare, projectAction, publishTakeId, startProject, state.project]);
 
   if (state.readiness.runtimeStatus === 'unavailable') {
     return (
@@ -145,8 +136,8 @@ function WorkspaceInner() {
             <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--nimi-text-muted)' }}>
               {t('Overtone.workspace.songProject')}
             </span>
-            <Button type="button" tone="secondary" size="sm" onClick={resetProject}>
-              {t('Overtone.workspace.closeProject')}
+            <Button type="button" tone="secondary" size="sm" onClick={() => setProjectAction('discard')}>
+              {t('Overtone.workspace.discardProject')}
             </Button>
           </div>
           <ReadinessBanner />
@@ -168,6 +159,19 @@ function WorkspaceInner() {
           <PlayerPanel />
         </section>
         <PublishModal open={publishTakeId !== null} takeId={publishTakeId} onClose={closePublish} />
+        <ConfirmDialog
+          open={projectAction !== null}
+          title={t(projectAction === 'restart' ? 'Overtone.workspace.restartTitle' : 'Overtone.workspace.discardTitle')}
+          message={t('Overtone.workspace.discardMessage')}
+          confirmLabel={t(projectAction === 'restart' ? 'Overtone.workspace.discardAndRestart' : 'Overtone.workspace.discardProject')}
+          cancelLabel={t('Overtone.workspace.keepProject')}
+          onClose={() => setProjectAction(null)}
+          onConfirm={() => {
+            if (projectAction === 'restart') startProject();
+            else if (projectAction === 'discard') resetProject();
+            setProjectAction(null);
+          }}
+        />
       </div>
     </OvertoneScreen>
   );
