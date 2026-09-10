@@ -88,7 +88,9 @@ try {
   await writeFile(productionManifestPath, `${JSON.stringify(productionManifest, null, 2)}\n`);
   await rm(path.join(productionSourceRoot, 'pnpm-lock.yaml'));
 
-  const nativeDestination = path.join(productionSourceRoot, 'node_modules', ...NATIVE_BINDING_PACKAGE.split('/'));
+  const nativeDestination = MACOS_BUILD
+    ? path.join(stagingRoot, 'nimi-native', 'protected-local')
+    : path.join(productionSourceRoot, 'node_modules', ...NATIVE_BINDING_PACKAGE.split('/'));
   await rm(nativeDestination, { recursive: true, force: true });
   await mkdir(path.dirname(nativeDestination), { recursive: true });
   await cp(nativePackageRoot, nativeDestination, { recursive: true, dereference: true, force: false });
@@ -111,6 +113,7 @@ try {
     prune: false,
     quiet: true,
     derefSymlinks: true,
+    extraResource: MACOS_BUILD ? [path.join(stagingRoot, 'nimi-native')] : [],
     // Publisher-side ad-hoc sealing supplies no Developer ID or notarization.
     // Runtime preserves these bytes; Nimi never signs installed third-party code.
     ...(MACOS_BUILD ? { osxSign: {
