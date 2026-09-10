@@ -1,6 +1,6 @@
 {
   "name": "nimiapp-overtone",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.34.5",
@@ -29,8 +29,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-i18next": "^16.5.8",
-    "@nimiplatform/sdk": "^0.9.1",
-    "@nimiplatform/kit": "^0.5.1"
+    "@nimiplatform/sdk": "^0.10.0",
+    "@nimiplatform/kit": "^0.6.0"
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",
@@ -46,8 +46,8 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.6",
     "yaml": "^2.9.0",
-    "@nimiplatform/app-tools": "^0.2.9",
-    "@nimiplatform/nimi-coding": "0.6.1"
+    "@nimiplatform/app-tools": "^0.3.0",
+    "@nimiplatform/nimi-coding": "0.6.2"
   },
   "main": "dist-electron/main.js",
   "author": "Nimi Overtone"
