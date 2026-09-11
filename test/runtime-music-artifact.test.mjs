@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readRuntimeMusicArtifact } from '../src/overtone/runtime-workflow.ts';
+import { loadSource } from './load-source.mjs';
+const {readRuntimeMusicArtifact, recoverRuntimeMusic, generateRuntimeText} = await loadSource('../src/overtone/runtime-workflow.ts');
 
 test('restored takes read their existing Runtime artifact without generating a new job', async () => {
   const calls = [];

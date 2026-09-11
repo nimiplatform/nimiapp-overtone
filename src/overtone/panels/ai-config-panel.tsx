@@ -33,7 +33,7 @@ export function AIConfigPanel() {
   }, [refresh, setReadiness]);
 
   return <>
-    <Button type="button" tone="secondary" size="sm" onClick={() => setOpen(true)} disabled={readiness.runtimeStatus !== 'ready'}>
+    <Button type="button" className="ot-ai-settings" tone="secondary" size="sm" onClick={() => setOpen(true)} disabled={readiness.runtimeStatus !== 'ready'}>
       {t('Overtone.configuration.title')}
     </Button>
     <OverlayShell open={open} onClose={() => setOpen(false)} kind="dialog" size="lg"

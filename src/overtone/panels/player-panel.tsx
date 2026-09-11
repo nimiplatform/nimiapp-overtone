@@ -1,325 +1,255 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, IconToggleAction, InlineAlert, LoadingSkeleton, NimiText, NumberStepper, Slider, Surface } from '@nimiplatform/kit/ui';
+import { Button, IconToggleAction, InlineAlert, NimiText, NumberStepper, SegmentedControl, Slider, Surface } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
-import { useOvertoneActions, useOvertonePlayback, useOvertoneState } from '../store.js';
+import { useAudioCache, useAudioSnapshot, useOvertonePlayback, useOvertoneState } from '../store.js';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
-import { readRuntimeMusicArtifact } from '../runtime-workflow.js';
+import { loadRuntimeMusicArtifact } from '../runtime-workflow.js';
 import { persistOvertoneVolume, resolveInitialOvertoneVolume } from '../volume-preference.js';
+import { formatAudioTime } from '../exploration.js';
+import { downloadAudio, encodeTrimmedWav } from '../audio-export.js';
 import { Waveform } from './waveform.js';
-
-const TRIM_STEP_SEC = 1;
+import { OvertoneIcon } from './icons.js';
 
 // @nimi-authority: rule.overtone.ia.r006
+// @nimi-authority: rule.overtone.exploration.r003
 export function PlayerPanel() {
   const { t } = useTranslation();
   const state = useOvertoneState();
-  const { setAudioBuffer } = useOvertoneActions();
+  const cache = useAudioCache();
   const playback = useOvertonePlayback();
-  const project = state.project;
-  const selectedTake = project?.takes.find((take) => take.takeId === project.selectedTakeId && !take.discarded) ?? null;
-  const audioData = selectedTake ? state.audioBuffers[selectedTake.takeId] : undefined;
-
+  const selectedTake = state.project?.takes.find((take) => take.takeId === state.project?.selectedTakeId && !take.discarded) ?? null;
+  const media = useAudioSnapshot(selectedTake?.artifactId ?? '');
+  const audioData = media?.audio?.bytes;
+  const decoded = media?.audio?.decoded ?? null;
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [audioError, setAudioError] = useState('');
   const [audioRetry, setAudioRetry] = useState(0);
   const [volume, setVolume] = useState(resolveInitialOvertoneVolume);
+  const [speed, setSpeed] = useState(1);
+  const [loop, setLoop] = useState(false);
   // @nimi-authority: rule.overtone.data-model.r006
-  // Audition bounds are transient; the take's source trim metadata is immutable.
-  const [trimStartSec, setTrimStartSec] = useState<number | null>(null);
-  const [trimEndSec, setTrimEndSec] = useState<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const volumeRef = useRef(volume);
+  const [trim, setTrim] = useState<{ takeId: string; start: number | null; end: number | null } | null>(null);
+  // A newly selected buffer must never render or start with another take's bounds.
+  const trimStartSec = trim?.takeId === selectedTake?.takeId ? trim?.start ?? null : null;
+  const trimEndSec = trim?.takeId === selectedTake?.takeId ? trim?.end ?? null : null;
+  const contextRef = useRef<AudioContext | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const decodedBufferRef = useRef<AudioBuffer | null>(null);
-  const animationRef = useRef<number | null>(null);
-  const startTimeRef = useRef(0);
+  const frameRef = useRef(0);
   const offsetRef = useRef(0);
-
-  const getAudioContext = useCallback(() => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-      const gain = audioContextRef.current.createGain();
-      gain.gain.value = volumeRef.current / 100;
-      gain.connect(audioContextRef.current.destination);
-      gainNodeRef.current = gain;
-    }
-    return audioContextRef.current;
-  }, []);
-
-  const releaseAudioContext = useCallback(() => {
-    const context = audioContextRef.current;
-    audioContextRef.current = null;
-    gainNodeRef.current = null;
-    if (context) void context.close().catch(() => undefined);
-  }, []);
-
-  const handleVolumeChange = useCallback((next: number) => {
-    if (!Number.isFinite(next)) return;
-    const clamped = Math.max(0, Math.min(100, Math.round(next)));
-    volumeRef.current = clamped;
-    setVolume(clamped);
-    persistOvertoneVolume(clamped);
-    const gain = gainNodeRef.current;
-    if (gain) gain.gain.value = clamped / 100;
-  }, []);
+  const volumeRef = useRef(volume);
+  const speedRef = useRef(speed);
+  const loopRef = useRef(loop);
+  const clock = useRef({ offset: 0, started: 0 });
+  const consumedRequest = useRef(0);
+  const duration = decoded?.duration ?? 0;
+  const trimStart = Math.max(0, Math.min(trimStartSec ?? 0, duration));
+  const trimEnd = Math.max(0, Math.min(trimEndSec ?? duration, duration));
+  const trimInvalid = duration > 0 && trimEnd <= trimStart;
+  const bounds = useRef({ start: trimStart, end: trimEnd });
+  bounds.current = { start: trimStart, end: trimEnd };
 
   const stopPlayback = useCallback(() => {
-    if (animationRef.current !== null) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
+    cancelAnimationFrame(frameRef.current);
     if (sourceRef.current) {
       sourceRef.current.onended = null;
-      try { sourceRef.current.stop(); } catch { /* already stopped */ }
+      try { sourceRef.current.stop(); } catch { /* the source may already have ended */ }
+      sourceRef.current.disconnect();
       sourceRef.current = null;
     }
     setIsPlaying(false);
   }, []);
 
+  const position = useCallback(() => {
+    const context = contextRef.current;
+    if (!context || !sourceRef.current) return offsetRef.current;
+    const elapsed = clock.current.offset + (context.currentTime - clock.current.started) * speedRef.current;
+    const { start, end } = bounds.current;
+    return loopRef.current && end > start ? start + ((elapsed - start) % (end - start) + end - start) % (end - start) : Math.min(end, elapsed);
+  }, []);
+
   useEffect(() => {
-    setTrimStartSec(null);
-    setTrimEndSec(null);
+    setTrim(null);
+    setAudioError('');
   }, [selectedTake?.takeId]);
 
   useEffect(() => {
-    setAudioError('');
-    if (!selectedTake || audioData) { setLoadingAudio(false); return; }
-    const controller = new AbortController();
-    setLoadingAudio(true);
-    void Promise.resolve().then(() => readRuntimeMusicArtifact({
-      client: getNimiLocalAppClient(),
-      artifact: { artifactId: selectedTake.artifactId, mimeType: selectedTake.artifactMimeType, sizeBytes: selectedTake.artifactByteLength },
-      signal: controller.signal,
-    })).then(({ buffer }) => {
-      if (!controller.signal.aborted) setAudioBuffer(selectedTake.takeId, buffer);
-    }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setAudioError(error instanceof Error ? error.message : String(error));
-    }).finally(() => { if (!controller.signal.aborted) setLoadingAudio(false); });
-    return () => controller.abort();
-  }, [selectedTake, audioData, audioRetry, setAudioBuffer]);
+    cache.pin(selectedTake?.artifactId ?? null);
+    return () => cache.pin(null);
+  }, [cache, selectedTake?.artifactId]);
 
   useEffect(() => {
-    stopPlayback();
-    setCurrentTime(0);
-    setDuration(0);
-    decodedBufferRef.current = null;
-    offsetRef.current = 0;
-    if (!audioData) {
-      releaseAudioContext();
-      return;
-    }
-    const context = getAudioContext();
-    let active = true;
-    context.decodeAudioData(audioData.slice(0)).then((decoded) => {
-      if (!active) return;
-      decodedBufferRef.current = decoded;
-      setDuration(decoded.duration);
-    }).catch((error: unknown) => {
-      if (!active) return;
-      decodedBufferRef.current = null;
-      setAudioError(error instanceof Error ? error.message : String(error));
-    });
-    return () => { active = false; };
-  }, [audioData, audioRetry, getAudioContext, releaseAudioContext, stopPlayback]);
+    stopPlayback(); setCurrentTime(0); offsetRef.current = 0;
+    if (!selectedTake) { setLoadingAudio(false); return; }
+    if (audioData) { setLoadingAudio(false); return; }
+    const controller = new AbortController(); setLoadingAudio(true); setAudioError('');
+    void loadRuntimeMusicArtifact({ client: getNimiLocalAppClient(), cache,
+      artifact: { artifactId: selectedTake.artifactId, mimeType: selectedTake.artifactMimeType, sizeBytes: selectedTake.artifactByteLength }, signal: controller.signal,
+    }).catch((cause: unknown) => { if (!controller.signal.aborted) setAudioError(cause instanceof Error && cause.name === 'TimeoutError' ? 'OVERTONE_AUDIO_READ_TIMEOUT' : cause instanceof Error ? cause.message : String(cause)); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingAudio(false); });
+    return () => controller.abort();
+  }, [selectedTake?.takeId, audioData, audioRetry, cache, stopPlayback]);
 
   useEffect(() => () => {
     stopPlayback();
-    releaseAudioContext();
-  }, [stopPlayback, releaseAudioContext]);
-
-  const trimStart = normalizeTrimStart(trimStartSec, duration);
-  const trimEnd = normalizeTrimEnd(trimEndSec, duration);
-  const trimInvalid = duration > 0 && trimEnd <= trimStart;
+    const context = contextRef.current;
+    contextRef.current = null;
+    gainRef.current = null;
+    if (context) void context.close().catch(() => undefined);
+  }, [stopPlayback]);
 
   const startPlayback = useCallback((fromOffset?: number) => {
-    const decoded = decodedBufferRef.current;
-    if (!decoded || trimInvalid) return;
-    const context = getAudioContext();
-    if (context.state === 'suspended') void context.resume();
-    const source = context.createBufferSource();
-    source.buffer = decoded;
-    source.connect(gainNodeRef.current ?? context.destination);
-    const rawOffset = fromOffset !== undefined ? fromOffset : offsetRef.current;
-    const offset = clampSeconds(rawOffset, trimStart, Math.max(trimStart, trimEnd - 0.01));
-    source.onended = () => { stopPlayback(); setCurrentTime(trimEnd); offsetRef.current = trimStart; };
-    source.start(0, offset, trimEnd - offset);
-    sourceRef.current = source;
-    startTimeRef.current = context.currentTime - offset;
-    setIsPlaying(true);
-    const tick = () => {
-      const elapsed = context.currentTime - startTimeRef.current;
-      const nextTime = Math.min(elapsed, trimEnd);
-      setCurrentTime(nextTime);
-      if (nextTime >= trimEnd) {
-        offsetRef.current = trimStart;
-        stopPlayback();
-        return;
+    if (!decoded || bounds.current.end <= bounds.current.start) return;
+    stopPlayback();
+    try {
+      if (!contextRef.current) {
+        const context = new AudioContext();
+        contextRef.current = context;
+        gainRef.current = context.createGain();
+        gainRef.current.gain.value = volumeRef.current / 100;
+        gainRef.current.connect(context.destination);
       }
-      animationRef.current = requestAnimationFrame(tick);
-    };
-    animationRef.current = requestAnimationFrame(tick);
-  }, [getAudioContext, stopPlayback, trimEnd, trimInvalid, trimStart]);
+      const context = contextRef.current;
+      if (context.state === 'suspended') void context.resume().catch((error) => setAudioError(String(error)));
+      const source = context.createBufferSource();
+      const { start, end } = bounds.current;
+      const offset = fromOffset === undefined && offsetRef.current >= end
+        ? start
+        : Math.max(start, Math.min(fromOffset ?? offsetRef.current, end - .001));
+      source.buffer = decoded;
+      source.playbackRate.value = speedRef.current;
+      source.loop = loopRef.current;
+      source.loopStart = start;
+      source.loopEnd = end;
+      source.connect(gainRef.current!);
+      source.onended = () => { stopPlayback(); setCurrentTime(end); offsetRef.current = start; };
+      if (loopRef.current) source.start(0, offset);
+      else source.start(0, offset, end - offset);
+      sourceRef.current = source;
+      offsetRef.current = offset;
+      clock.current = { offset, started: context.currentTime };
+      setIsPlaying(true);
+      const tick = () => {
+        setCurrentTime(position());
+        frameRef.current = requestAnimationFrame(tick);
+      };
+      frameRef.current = requestAnimationFrame(tick);
+    } catch (error) { setAudioError(error instanceof Error ? error.message : String(error)); stopPlayback(); }
+  }, [decoded, position, stopPlayback]);
 
   const handlePlayPause = useCallback(() => {
-    if (isPlaying) {
-      const context = getAudioContext();
-      offsetRef.current = context.currentTime - startTimeRef.current;
+    if (sourceRef.current) {
+      offsetRef.current = position();
+      setCurrentTime(offsetRef.current);
       stopPlayback();
-      return;
-    }
-    startPlayback();
-  }, [isPlaying, getAudioContext, stopPlayback, startPlayback]);
+    } else startPlayback();
+  }, [position, startPlayback, stopPlayback]);
 
   const handleSeek = useCallback((time: number) => {
-    if (isPlaying) {
-      stopPlayback();
-      offsetRef.current = time;
-      setCurrentTime(time);
-      startPlayback(time);
-      return;
-    }
-    const next = clampSeconds(time, 0, duration);
+    const next = Math.max(trimStart, Math.min(trimEnd, time));
+    const wasPlaying = !!sourceRef.current;
+    stopPlayback();
     offsetRef.current = next;
     setCurrentTime(next);
-  }, [duration, isPlaying, stopPlayback, startPlayback]);
+    if (wasPlaying) startPlayback(next);
+  }, [trimStart, trimEnd, startPlayback, stopPlayback]);
 
   useEffect(() => {
-    playback.registerController({
-      togglePlayback: handlePlayPause,
-      seekBy(deltaSec) {
-        const next = Math.max(0, Math.min(duration, currentTime + deltaSec));
-        handleSeek(next);
-      },
-    });
+    playback.registerController({ togglePlayback: handlePlayPause, seekBy: (delta) => handleSeek(position() + delta), getPosition: position });
     return () => playback.registerController(null);
-  }, [playback, handlePlayPause, handleSeek, currentTime, duration]);
+  }, [playback, handlePlayPause, handleSeek, position]);
 
-  const trimControlsDisabled = !selectedTake || duration <= 0;
+  useEffect(() => {
+    const request = playback.request;
+    if (!decoded || !request || request.takeId !== selectedTake?.takeId || request.serial === consumedRequest.current) return;
+    consumedRequest.current = request.serial;
+    startPlayback(request.offset < bounds.current.end ? Math.max(bounds.current.start, request.offset) : bounds.current.start);
+  }, [decoded, playback.request, selectedTake?.takeId, startPlayback]);
 
-  const stopForTrimChange = useCallback(() => {
-    if (isPlaying) offsetRef.current = getAudioContext().currentTime - startTimeRef.current;
+  useEffect(() => {
+    playback.reportPlaying(isPlaying && sourceRef.current ? selectedTake?.takeId ?? null : null);
+  }, [isPlaying, selectedTake?.takeId, playback.reportPlaying]);
+  useEffect(() => () => playback.reportPlaying(null), [playback.reportPlaying]);
+
+  function changeSpeed(value: string) {
+    const next = Number(value);
+    if (![.75, 1, 1.25].includes(next)) return;
+    const at = position();
+    speedRef.current = next;
+    setSpeed(next);
+    if (contextRef.current && sourceRef.current) {
+      clock.current = { offset: at, started: contextRef.current.currentTime };
+      sourceRef.current.playbackRate.setValueAtTime(next, contextRef.current.currentTime);
+    }
+  }
+
+  function toggleLoop() {
+    const at = position();
+    const playing = !!sourceRef.current;
+    loopRef.current = !loopRef.current;
+    setLoop(loopRef.current);
+    if (playing) startPlayback(at);
+  }
+
+  function trimChange(value: number, edge: 'start' | 'end') {
+    if (!selectedTake) return;
+    offsetRef.current = position();
     stopPlayback();
-  }, [getAudioContext, isPlaying, stopPlayback]);
+    setTrim({ takeId: selectedTake.takeId, start: edge === 'start' ? value : trimStartSec, end: edge === 'end' ? value : trimEndSec });
+  }
 
-  const handleTrimStartChange = useCallback((value: number) => {
-    stopForTrimChange();
-    setTrimStartSec(value);
-  }, [stopForTrimChange]);
+  function exportAudio(trimmed: boolean) {
+    if (!selectedTake || !decoded || !audioData || (trimmed && trimInvalid)) return;
+    try {
+      downloadAudio(trimmed ? encodeTrimmedWav(decoded, trimStart, trimEnd) : audioData,
+        trimmed ? 'audio/wav' : selectedTake.artifactMimeType,
+        trimmed ? `${selectedTake.title}-trim` : selectedTake.title,
+        trimmed ? 'wav' : selectedTake.artifactFileExtension);
+    } catch (error) { setAudioError(error instanceof Error ? error.message : String(error)); }
+  }
 
-  const handleTrimEndChange = useCallback((value: number) => {
-    stopForTrimChange();
-    setTrimEndSec(value);
-  }, [stopForTrimChange]);
-
-  return (
-    <Surface material="glass-chrome" tone="panel" elevation="base" padding="none" className="overtone-transport" data-testid="overtone-transport">
+  return <Surface material="solid" tone="panel" elevation="base" padding="none" className="overtone-transport" data-testid="overtone-transport">
+    <div className="overtone-transport__main">
+      <div className="overtone-transport__identity"><strong>{selectedTake?.title || t('Overtone.playground.waitingAudio')}</strong>
+        <span>{t(!selectedTake ? 'Overtone.studio.emptyPlayer' : isPlaying ? 'Overtone.playground.playing' : 'Overtone.playground.selectedRecording')}</span></div>
       <div className="overtone-transport__controls">
-        <IconToggleAction
-          icon={isPlaying ? <PauseIcon /> : <PlayIcon />}
-          active={isPlaying}
-          onClick={handlePlayPause}
-          disabled={!decodedBufferRef.current || trimInvalid}
-          aria-label={loadingAudio ? t('Overtone.player.loadingAudio') : isPlaying ? t('Overtone.player.pause') : t('Overtone.player.play')}
-        />
-        <Slider
-          value={volume}
-          min={0}
-          max={100}
-          showValue
-          onChange={(event) => handleVolumeChange(Number(event.target.value))}
-          aria-label={t('Overtone.player.volumeAria')}
-          className="overtone-volume"
-        />
+        <IconToggleAction className="ot-main-play" icon={isPlaying ? <PauseIcon /> : <PlayIcon />} active={isPlaying} onClick={handlePlayPause}
+          disabled={!decoded || trimInvalid} aria-label={isPlaying ? t('Overtone.player.pause') : t('Overtone.player.play')} />
+        <Button tone={loop ? 'primary' : 'ghost'} size="sm" onClick={toggleLoop} disabled={!decoded || trimInvalid} aria-label={t('Overtone.playground.loop')} aria-pressed={loop}><OvertoneIcon name="loop" /></Button>
       </div>
-      {audioError ? <InlineAlert tone="warning">{t('Overtone.player.audioUnavailable', { message: audioError })}<Button type="button" tone="ghost" onClick={() => setAudioRetry((value) => value + 1)}>{t('Overtone.player.retryAudio')}</Button></InlineAlert> : null}
-      {loadingAudio && !audioData && !audioError ? (
-        <LoadingSkeleton lines={2} label={t('Overtone.player.loadingAudio')} className="overtone-transport__loading" />
-      ) : (
-        <Waveform
-          buffer={decodedBufferRef.current}
-          currentTime={currentTime}
-          duration={duration}
-          trimStart={trimStartSec}
-          trimEnd={trimEndSec}
-          onSeek={handleSeek}
-        />
-      )}
+      <Waveform peaks={media?.peaks} currentTime={currentTime} duration={duration} trimStart={trimStartSec} trimEnd={trimEndSec} onSeek={handleSeek} />
       <div className="overtone-transport__meta">
-        <NimiText as="span" role="caption" className="overtone-transport__time">{formatTime(currentTime)} / {formatTime(duration)}</NimiText>
-        <div className="overtone-trim-controls">
-          <NimiText as="span" role="caption">{t('Overtone.player.trimStartAria')}</NimiText>
-          <NumberStepper
-            ariaLabel={t('Overtone.player.trimStartAria')}
-            decreaseLabel={t('Overtone.player.trimStartDecreaseAria')}
-            increaseLabel={t('Overtone.player.trimStartIncreaseAria')}
-            min={0}
-            max={duration > 0 ? Math.max(trimStart, trimEnd) : undefined}
-            step={TRIM_STEP_SEC}
-            value={trimStart}
-            onValueChange={handleTrimStartChange}
-            disabled={trimControlsDisabled}
-          />
-          <NimiText as="span" role="caption">{t('Overtone.player.trimEndAria')}</NimiText>
-          <NumberStepper
-            ariaLabel={t('Overtone.player.trimEndAria')}
-            decreaseLabel={t('Overtone.player.trimEndDecreaseAria')}
-            increaseLabel={t('Overtone.player.trimEndIncreaseAria')}
-            min={0}
-            max={duration > 0 ? duration : undefined}
-            step={TRIM_STEP_SEC}
-            value={trimEnd}
-            onValueChange={handleTrimEndChange}
-            disabled={trimControlsDisabled}
-          />
-          <Button type="button" tone="ghost" size="sm"
-            disabled={trimControlsDisabled || (trimStartSec === null && trimEndSec === null)}
-            onClick={() => { stopForTrimChange(); setTrimStartSec(null); setTrimEndSec(null); }}>
-            {t('Overtone.player.clearTrim')}
-          </Button>
-        </div>
-        {trimInvalid ? <NimiText as="span" role="helper" className="overtone-trim-error">{t('Overtone.player.invalidTrim')}</NimiText> : null}
+        <NimiText as="span" role="caption" className="overtone-transport__time">{formatAudioTime(currentTime)} / {formatAudioTime(duration)}</NimiText>
+        <Slider value={volume} min={0} max={100} className="overtone-volume" aria-label={t('Overtone.player.volumeAria')}
+          onChange={(event) => { const next = Number(event.target.value); volumeRef.current = next; setVolume(next); persistOvertoneVolume(next); if (gainRef.current) gainRef.current.gain.value = next / 100; }} />
       </div>
-    </Surface>
-  );
+    </div>
+    {loadingAudio ? <NimiText role="helper">{t('Overtone.player.loadingAudio')}</NimiText> : null}
+    {audioError ? <InlineAlert tone="warning">{t('Overtone.player.audioUnavailable', { message: audioError === 'OVERTONE_AUDIO_READ_TIMEOUT' ? t('Overtone.player.loadTimeout') : audioError })}<Button tone="ghost" size="sm" onClick={() => setAudioRetry((value) => value + 1)}>{t('Overtone.player.retryAudio')}</Button></InlineAlert> : null}
+    {selectedTake ? <div className="overtone-transport__extras">
+      <div className="overtone-row"><NimiText role="caption">{t('Overtone.playground.speed')}</NimiText>
+        <SegmentedControl size="sm" ariaLabel={t('Overtone.playground.speed')} value={String(speed)} onValueChange={changeSpeed}
+          items={[{ value: '0.75', label: '0.75×' }, { value: '1', label: '1×' }, { value: '1.25', label: '1.25×' }]} /></div>
+      <details><summary>{t('Overtone.playground.trim')}</summary>
+        <div className="overtone-trim-controls">
+          <div className="ot-trim-field"><NimiText as="span" role="caption">{t('Overtone.player.trimStartAria')}</NimiText>
+          <NumberStepper ariaLabel={t('Overtone.player.trimStartAria')} decreaseLabel={t('Overtone.player.trimStartDecreaseAria')} increaseLabel={t('Overtone.player.trimStartIncreaseAria')}
+            min={0} max={duration} step={1} value={Math.round(trimStart * 1000) / 1000} onValueChange={(value) => trimChange(value, 'start')} disabled={!decoded} /></div>
+          <div className="ot-trim-field"><NimiText as="span" role="caption">{t('Overtone.player.trimEndAria')}</NimiText>
+          <NumberStepper ariaLabel={t('Overtone.player.trimEndAria')} decreaseLabel={t('Overtone.player.trimEndDecreaseAria')} increaseLabel={t('Overtone.player.trimEndIncreaseAria')}
+            min={0} max={duration} step={1} value={Math.round(trimEnd * 1000) / 1000} onValueChange={(value) => trimChange(value, 'end')} disabled={!decoded} /></div>
+          <Button tone="ghost" size="sm" disabled={!decoded} onClick={() => { stopPlayback(); setTrim(null); }}>{t('Overtone.player.clearTrim')}</Button>
+          <Button tone="secondary" size="sm" disabled={!decoded || trimInvalid} onClick={() => exportAudio(true)}>{t('Overtone.playground.exportTrim')}</Button>
+        </div>
+        <NimiText role="caption" className="ot-trim-hint">{t('Overtone.playground.exportHint')}</NimiText>
+      </details>
+      <Button tone="ghost" size="sm" disabled={!decoded || !audioData} onClick={() => exportAudio(false)}><OvertoneIcon name="download" size={15} />{t('Overtone.playground.exportOriginal')}</Button>
+    </div> : null}
+    {trimInvalid ? <NimiText role="helper" className="overtone-trim-error">{t('Overtone.player.invalidTrim')}</NimiText> : null}
+  </Surface>;
 }
 
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
-  const minutes = Math.floor(seconds / 60);
-  const remainder = Math.floor(seconds % 60);
-  return `${minutes}:${remainder.toString().padStart(2, '0')}`;
-}
-
-function PlayIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M8 5.5v13l11-6.5z" />
-    </svg>
-  );
-}
-
-function PauseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <rect x="6" y="5" width="4" height="14" rx="1" />
-      <rect x="14" y="5" width="4" height="14" rx="1" />
-    </svg>
-  );
-}
-
-function normalizeTrimStart(value: number | null, duration: number): number {
-  return clampSeconds(value ?? 0, 0, Math.max(0, duration));
-}
-
-function normalizeTrimEnd(value: number | null, duration: number): number {
-  return clampSeconds(value ?? duration, 0, Math.max(0, duration));
-}
-
-function clampSeconds(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return min;
-  return Math.max(min, Math.min(max, value));
-}
+function PlayIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>; }
+function PauseIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z" /></svg>; }

@@ -1,46 +1,22 @@
-// Renderer-local store. Pure React context + useReducer; no external state library.
-// Authority: .nimi/spec/overtone/canonical/data-model.authority.yaml.
-
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type Dispatch, type ReactNode } from 'react';
-import {
-  ORIGIN_TO_SOURCE_MODE,
-  makeId,
-  type GenerationJob,
-  type LyricsDocument,
-  type PublishDraft,
-  type PublishStatus,
-  type ReadinessSnapshot,
-  type SongBrief,
-  type SongTake,
-} from './types.js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { makeId, type FullSongDraft, type GenerationJob, type LyricsDocument, type ReadinessSnapshot, type RecoverableMusicResult, type SongBrief, type SongTake } from './types.js';
+import { MusicAudioCache } from './media-cache.js';
 
 export interface SongProject {
-  projectId: string;
-  createdAt: number;
-  brief: SongBrief | null;
-  lyrics: LyricsDocument | null;
-  takes: SongTake[];
-  selectedTakeId: string | null;
-  comparedTakeIds: [string | null, string | null];
-  draftPost: PublishDraft | null;
+  projectId: string; createdAt: number; brief: SongBrief | null; lyrics: LyricsDocument | null;
+  takes: SongTake[]; selectedTakeId: string | null; comparedTakeIds: [string | null, string | null];
+  fullSong?: FullSongDraft | null; recoverableResults?: RecoverableMusicResult[];
 }
-
 export interface OvertoneState {
-  project: SongProject | null;
-  readiness: ReadinessSnapshot;
-  activeJobs: Record<string, GenerationJob>;
-  audioBuffers: Record<string, ArrayBuffer>;
-  publishStatus: PublishStatus;
-  publishError: string | null;
-  publishedPostId: string | null;
+  project: SongProject | null; readiness: ReadinessSnapshot; activeJobs: Record<string, GenerationJob>;
 }
-
 type Action =
   | { type: 'readiness/set'; readiness: ReadinessSnapshot }
-  | { type: 'project/start' }
-  | { type: 'project/reset' }
+  | { type: 'project/start'; idea?: string }
   | { type: 'brief/set'; brief: SongBrief | null }
-  | { type: 'lyrics/set'; text: string; source: 'assistant' | 'manual' | 'mixed' }
+  | { type: 'lyrics/set'; text: string; source: LyricsDocument['source'] }
+  | { type: 'song/set'; draft: FullSongDraft | null }
+  | { type: 'result/remember'; result: RecoverableMusicResult; projectId: string }
   | { type: 'take/add'; take: SongTake }
   | { type: 'take/select'; takeId: string | null }
   | { type: 'take/favorite'; takeId: string }
@@ -49,389 +25,127 @@ type Action =
   | { type: 'compare/set'; slot: 0 | 1; takeId: string | null }
   | { type: 'compare/clear' }
   | { type: 'job/set'; job: GenerationJob }
-  | { type: 'job/remove'; jobId: string }
-  | { type: 'audio/set'; takeId: string; buffer: ArrayBuffer }
-  | { type: 'audio/clear'; takeId: string }
-  | { type: 'draft/set'; draft: PublishDraft | null }
-  | { type: 'draft/provenance'; confirmed: boolean }
-  | { type: 'publish/status'; status: PublishStatus; error?: string | null }
-  | { type: 'publish/post-id'; postId: string | null };
-
-const INITIAL_READINESS: ReadinessSnapshot = {
-  runtimeStatus: 'checking',
-  textCapabilityAvailable: false,
-  musicCapabilityAvailable: false,
-  realmConfigured: false,
-  realmAuthenticated: false,
-};
-
+  | { type: 'job/remove'; jobId: string };
 const INITIAL_STATE: OvertoneState = {
-  project: null,
-  readiness: INITIAL_READINESS,
-  activeJobs: {},
-  audioBuffers: {},
-  publishStatus: 'idle',
-  publishError: null,
-  publishedPostId: null,
+  project: null, readiness: { runtimeStatus: 'checking', textCapabilityAvailable: false, musicCapabilityAvailable: false }, activeJobs: {},
 };
-
 const LOCAL_DRAFT_STORAGE_KEY = 'nimi.overtone:workspace.v1';
-
-function ensureProject(state: OvertoneState): SongProject | null {
-  return state.project;
-}
-
 function withProject(state: OvertoneState, update: (project: SongProject) => SongProject): OvertoneState {
-  const project = ensureProject(state);
-  if (!project) return state;
-  return { ...state, project: update(project) };
+  return state.project ? { ...state, project: update(state.project) } : state;
 }
-
-function reducer(state: OvertoneState, action: Action): OvertoneState {
+// @nimi-authority: rule.overtone.data-model.r007
+export function overtoneReducer(state: OvertoneState, action: Action): OvertoneState {
   switch (action.type) {
-    case 'readiness/set':
-      return { ...state, readiness: action.readiness };
-
-    case 'project/start': {
-      const project: SongProject = {
-        projectId: makeId('proj'),
-        createdAt: Date.now(),
-        brief: null,
-        lyrics: null,
-        takes: [],
-        selectedTakeId: null,
-        comparedTakeIds: [null, null],
-        draftPost: null,
-      };
-      return { ...state, project, activeJobs: {}, audioBuffers: {}, publishStatus: 'idle', publishError: null, publishedPostId: null };
-    }
-
-    case 'project/reset':
-      return { ...state, project: null, activeJobs: {}, audioBuffers: {}, publishStatus: 'idle', publishError: null, publishedPostId: null };
-
-    case 'brief/set':
-      return withProject(state, (project) => ({ ...project, brief: action.brief }));
-
-    case 'lyrics/set':
-      return withProject(state, (project) => ({
-        ...project,
-        lyrics: { text: action.text, source: action.source, updatedAt: Date.now() },
-      }));
-
-    case 'take/add':
-      return withProject(state, (project) => ({
-        ...project,
-        takes: [...project.takes, action.take],
-        selectedTakeId: project.selectedTakeId ?? action.take.takeId,
-      }));
-
-    case 'take/select':
-      return withProject(state, (project) => ({ ...project, selectedTakeId: action.takeId }));
-
-    case 'take/favorite':
-      return withProject(state, (project) => ({
-        ...project,
-        takes: project.takes.map((take) =>
-          take.takeId === action.takeId ? { ...take, favorite: !take.favorite } : take,
-        ),
-      }));
-
-    case 'take/rename':
-      return withProject(state, (project) => ({
-        ...project,
-        takes: project.takes.map((take) =>
-          take.takeId === action.takeId ? { ...take, title: action.title } : take,
-        ),
-      }));
-
-    case 'take/discard': {
-      const project = ensureProject(state);
-      if (!project) return state;
-      const { [action.takeId]: _removed, ...audioBuffers } = state.audioBuffers;
-      return {
-        ...state,
-        audioBuffers,
-        project: {
-          ...project,
-          takes: project.takes.map((take) =>
-            take.takeId === action.takeId ? { ...take, discarded: true } : take,
-          ),
-          selectedTakeId: project.selectedTakeId === action.takeId ? null : project.selectedTakeId,
-          comparedTakeIds: project.comparedTakeIds.map((takeId) =>
-            takeId === action.takeId ? null : takeId,
-          ) as [string | null, string | null],
-        },
-      };
-    }
-
-    case 'compare/set':
-      return withProject(state, (project) => {
-        const next: [string | null, string | null] = [...project.comparedTakeIds];
-        next[action.slot] = action.takeId;
-        return { ...project, comparedTakeIds: next };
-      });
-
-    case 'compare/clear':
-      return withProject(state, (project) => ({ ...project, comparedTakeIds: [null, null] }));
-
-    case 'job/set':
-      return { ...state, activeJobs: { ...state.activeJobs, [action.job.jobId]: action.job } };
-
-    case 'job/remove': {
-      const { [action.jobId]: _removed, ...rest } = state.activeJobs;
-      return { ...state, activeJobs: rest };
-    }
-
-    case 'audio/set':
-      return { ...state, audioBuffers: { ...state.audioBuffers, [action.takeId]: action.buffer } };
-
-    case 'audio/clear': {
-      const { [action.takeId]: _removed, ...rest } = state.audioBuffers;
-      return { ...state, audioBuffers: rest };
-    }
-
-    case 'draft/set':
-      return withProject(state, (project) => ({ ...project, draftPost: action.draft }));
-
-    case 'draft/provenance':
-      return withProject(state, (project) => {
-        if (!project.draftPost) return project;
-        return { ...project, draftPost: { ...project.draftPost, provenanceConfirmed: action.confirmed } };
-      });
-
-    case 'publish/status':
-      return { ...state, publishStatus: action.status, publishError: action.error ?? null };
-
-    case 'publish/post-id':
-      return { ...state, publishedPostId: action.postId };
-
-    default:
-      return state;
+    case 'readiness/set': return { ...state, readiness: action.readiness };
+    case 'project/start': return { ...state, activeJobs: {}, project: {
+      projectId: makeId('proj'), createdAt: Date.now(), brief: action.idea ? { title: '', genre: '', mood: '', tempo: '', description: action.idea.slice(0,1500) } : null,
+      lyrics: null, takes: [], selectedTakeId: null, comparedTakeIds: [null,null],
+    } };
+    case 'brief/set': return withProject(state, project => ({ ...project, brief: action.brief }));
+    case 'lyrics/set': return withProject(state, project => ({ ...project, lyrics: { text: action.text, source: action.source, updatedAt: Date.now() } }));
+    case 'song/set': return withProject(state, project => ({ ...project, fullSong: action.draft }));
+    case 'result/remember': return withProject(state, project => {
+      if (project.projectId !== action.projectId) return project;
+      if (project.takes.some(take => take.jobId === action.result.jobId) || project.recoverableResults?.some(result => result.jobId === action.result.jobId)) return project;
+      return { ...project, recoverableResults: [...project.recoverableResults ?? [], action.result] };
+    });
+    case 'take/add': return withProject(state, project => {
+      const existing = project.takes.find(take => take.jobId === action.take.jobId);
+      return { ...project, takes: existing ? project.takes : [...project.takes, action.take], selectedTakeId: existing?.takeId ?? action.take.takeId,
+        recoverableResults: project.recoverableResults?.filter(result => result.jobId !== action.take.jobId) };
+    });
+    case 'take/select': return withProject(state, project => ({ ...project, selectedTakeId: action.takeId }));
+    case 'take/favorite': return withProject(state, project => ({ ...project, takes: project.takes.map(take => take.takeId === action.takeId ? { ...take, favorite: !take.favorite } : take) }));
+    case 'take/rename': return withProject(state, project => ({ ...project, takes: project.takes.map(take => take.takeId === action.takeId ? { ...take, title: action.title } : take) }));
+    case 'take/discard': return withProject(state, project => ({ ...project, takes: project.takes.map(take => take.takeId === action.takeId ? { ...take, discarded: true } : take),
+      selectedTakeId: project.selectedTakeId === action.takeId ? null : project.selectedTakeId,
+      comparedTakeIds: project.comparedTakeIds.map(id => id === action.takeId ? null : id) as [string|null,string|null] }));
+    case 'compare/set': return withProject(state, project => { const next: [string|null,string|null] = [...project.comparedTakeIds]; next[action.slot] = action.takeId; return { ...project, comparedTakeIds: next }; });
+    case 'compare/clear': return withProject(state, project => ({ ...project, comparedTakeIds: [null,null] }));
+    case 'job/set': return { ...state, activeJobs: { ...state.activeJobs, [action.job.jobId]: action.job } };
+    case 'job/remove': { const { [action.jobId]: removed, ...activeJobs } = state.activeJobs; return { ...state, activeJobs }; }
   }
 }
-
-// Ephemeral playback bridge: the player panel registers its transport controls
-// here so workspace-level keyboard shortcuts act on playback state directly
-// (no window CustomEvents). Never persisted.
-export interface OvertonePlaybackController {
-  togglePlayback: () => void;
-  seekBy: (deltaSec: number) => void;
+export interface OvertonePlaybackController { togglePlayback: () => void; seekBy: (delta: number) => void; getPosition: () => number }
+const StateContext = createContext<OvertoneState | null>(null);
+const CacheContext = createContext<MusicAudioCache | null>(null);
+function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCache, stateRef: React.RefObject<OvertoneState>) {
+  return useMemo(() => ({
+    setReadiness: (readiness: ReadinessSnapshot) => dispatch({ type: 'readiness/set', readiness }),
+    startProject: (idea?: string) => { cache.clear(); dispatch({ type: 'project/start', idea }); },
+    setBrief: (brief: SongBrief | null) => dispatch({ type: 'brief/set', brief }),
+    setLyrics: (text: string, source: LyricsDocument['source']) => dispatch({ type: 'lyrics/set', text, source }),
+    setFullSong: (draft: FullSongDraft | null) => dispatch({ type: 'song/set', draft }),
+    rememberResult: (result: RecoverableMusicResult, projectId: string) => dispatch({ type: 'result/remember', result, projectId }),
+    addTake: (take: SongTake) => dispatch({ type: 'take/add', take }),
+    selectTake: (takeId: string | null) => dispatch({ type: 'take/select', takeId }),
+    favoriteTake: (takeId: string) => dispatch({ type: 'take/favorite', takeId }),
+    renameTake: (takeId: string, title: string) => dispatch({ type: 'take/rename', takeId, title }),
+    discardTake: (takeId: string) => { const take = stateRef.current.project?.takes.find(take => take.takeId === takeId); if (take) cache.remove(take.artifactId); dispatch({ type: 'take/discard', takeId }); },
+    setCompareSlot: (slot: 0|1, takeId: string|null) => dispatch({ type: 'compare/set', slot, takeId }),
+    clearCompare: () => dispatch({ type: 'compare/clear' }),
+    setJob: (job: GenerationJob) => dispatch({ type: 'job/set', job }),
+    removeJob: (jobId: string) => dispatch({ type: 'job/remove', jobId }),
+  }), [dispatch, cache, stateRef]);
 }
-
-interface OvertoneContextValue {
-  state: OvertoneState;
-  dispatch: Dispatch<Action>;
-  playback: {
-    registerController: (controller: OvertonePlaybackController | null) => void;
-    togglePlayback: () => void;
-    seekBy: (deltaSec: number) => void;
-  };
-  actions: {
-    setReadiness: (readiness: ReadinessSnapshot) => void;
-    startProject: () => void;
-    resetProject: () => void;
-    setBrief: (brief: SongBrief | null) => void;
-    setLyrics: (text: string, source: 'assistant' | 'manual' | 'mixed') => void;
-    addTake: (take: SongTake, buffer?: ArrayBuffer) => void;
-    selectTake: (takeId: string | null) => void;
-    favoriteTake: (takeId: string) => void;
-    renameTake: (takeId: string, title: string) => void;
-    discardTake: (takeId: string) => void;
-    setCompareSlot: (slot: 0 | 1, takeId: string | null) => void;
-    clearCompare: () => void;
-    setJob: (job: GenerationJob) => void;
-    removeJob: (jobId: string) => void;
-    setAudioBuffer: (takeId: string, buffer: ArrayBuffer) => void;
-    setDraft: (draft: PublishDraft | null) => void;
-    setProvenance: (confirmed: boolean) => void;
-    setPublishStatus: (status: PublishStatus, error?: string | null) => void;
-    setPublishedPostId: (postId: string | null) => void;
-    publishDraftFromTake: (takeId: string) => PublishDraft | null;
-  };
+const ActionsContext = createContext<ReturnType<typeof useStoreActions> | null>(null);
+function usePlaybackBridge(dispatch: React.Dispatch<Action>) {
+  const controller = useRef<OvertonePlaybackController | null>(null);
+  const serial = useRef(0);
+  const [request, setRequest] = useState<{ takeId: string; serial: number; offset: number } | null>(null);
+  const [playingTakeId, reportPlaying] = useState<string | null>(null);
+  const registerController = useCallback((value: OvertonePlaybackController | null) => { controller.current = value; }, []);
+  const togglePlayback = useCallback(() => controller.current?.togglePlayback(), []);
+  const seekBy = useCallback((delta: number) => controller.current?.seekBy(delta), []);
+  const requestTake = useCallback((takeId: string, preservePosition = false) => {
+    const offset = preservePosition ? controller.current?.getPosition() ?? 0 : 0;
+    dispatch({ type: 'take/select', takeId }); setRequest({ takeId, serial: ++serial.current, offset });
+  }, [dispatch]);
+  return useMemo(() => ({ registerController, togglePlayback, seekBy, requestTake, request, playingTakeId, reportPlaying }), [registerController,togglePlayback,seekBy,requestTake,request,playingTakeId]);
 }
-
-const OvertoneContext = createContext<OvertoneContextValue | null>(null);
-
-export function OvertoneProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, INITIAL_STATE, loadInitialState);
-  const playbackControllerRef = useRef<OvertonePlaybackController | null>(null);
-
+const PlaybackContext = createContext<ReturnType<typeof usePlaybackBridge> | null>(null);
+// @nimi-authority: rule.overtone.data-model.r008
+function useProjectPersistence(project: SongProject | null) {
+  const [write, setWrite] = useState<{ project: SongProject | null; status: 'saved' | 'failed' }>({ project: null, status: 'saved' });
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt(value => value + 1), []);
   useEffect(() => {
-    persistLocalDraft(state.project);
-  }, [state.project]);
-
-  const registerPlaybackController = useCallback((controller: OvertonePlaybackController | null) => {
-    playbackControllerRef.current = controller;
-  }, []);
-  const togglePlayback = useCallback(() => {
-    playbackControllerRef.current?.togglePlayback();
-  }, []);
-  const seekBy = useCallback((deltaSec: number) => {
-    playbackControllerRef.current?.seekBy(deltaSec);
-  }, []);
-
-  const setReadiness = useCallback((readiness: ReadinessSnapshot) => dispatch({ type: 'readiness/set', readiness }), []);
-  const startProject = useCallback(() => dispatch({ type: 'project/start' }), []);
-  const resetProject = useCallback(() => dispatch({ type: 'project/reset' }), []);
-  const setBrief = useCallback((brief: SongBrief | null) => dispatch({ type: 'brief/set', brief }), []);
-  const setLyrics = useCallback((text: string, source: 'assistant' | 'manual' | 'mixed') => dispatch({ type: 'lyrics/set', text, source }), []);
-
-  const setAudioBuffer = useCallback((takeId: string, buffer: ArrayBuffer) => {
-    dispatch({ type: 'audio/set', takeId, buffer });
-  }, []);
-
-  const addTake = useCallback((take: SongTake, buffer?: ArrayBuffer) => {
-    if (buffer) {
-      dispatch({ type: 'audio/set', takeId: take.takeId, buffer });
-    }
-    dispatch({ type: 'take/add', take });
-  }, []);
-
-  const selectTake = useCallback((takeId: string | null) => dispatch({ type: 'take/select', takeId }), []);
-  const favoriteTake = useCallback((takeId: string) => dispatch({ type: 'take/favorite', takeId }), []);
-  const renameTake = useCallback((takeId: string, title: string) => dispatch({ type: 'take/rename', takeId, title }), []);
-  const discardTake = useCallback((takeId: string) => dispatch({ type: 'take/discard', takeId }), []);
-  const setCompareSlot = useCallback((slot: 0 | 1, takeId: string | null) => dispatch({ type: 'compare/set', slot, takeId }), []);
-  const clearCompare = useCallback(() => dispatch({ type: 'compare/clear' }), []);
-  const setJob = useCallback((job: GenerationJob) => dispatch({ type: 'job/set', job }), []);
-  const removeJob = useCallback((jobId: string) => dispatch({ type: 'job/remove', jobId }), []);
-  const setDraft = useCallback((draft: PublishDraft | null) => dispatch({ type: 'draft/set', draft }), []);
-  const setProvenance = useCallback((confirmed: boolean) => dispatch({ type: 'draft/provenance', confirmed }), []);
-  const setPublishStatus = useCallback((status: PublishStatus, error?: string | null) => dispatch({ type: 'publish/status', status, error: error ?? null }), []);
-  const setPublishedPostId = useCallback((postId: string | null) => dispatch({ type: 'publish/post-id', postId }), []);
-
-  const publishDraftFromTake = useCallback((takeId: string): PublishDraft | null => {
-    const project = state.project;
-    if (!project) return null;
-    const take = project.takes.find((entry) => entry.takeId === takeId);
-    if (!take || take.discarded) return null;
-    const draft: PublishDraft = {
-      takeId: take.takeId,
-      title: take.title || project.brief?.title || '',
-      description: project.brief?.description || '',
-      tags: [project.brief?.genre, project.brief?.mood].filter((value): value is string => Boolean(value)),
-      sourceMode: ORIGIN_TO_SOURCE_MODE[take.origin],
-      provenanceConfirmed: false,
-    };
-    dispatch({ type: 'draft/set', draft });
-    dispatch({ type: 'publish/status', status: 'idle', error: null });
-    dispatch({ type: 'publish/post-id', postId: null });
-    return draft;
-  }, [state.project]);
-
-  const value = useMemo<OvertoneContextValue>(() => ({
-    state,
-    dispatch,
-    playback: {
-      registerController: registerPlaybackController,
-      togglePlayback,
-      seekBy,
-    },
-    actions: {
-      setReadiness,
-      startProject,
-      resetProject,
-      setBrief,
-      setLyrics,
-      addTake,
-      selectTake,
-      favoriteTake,
-      renameTake,
-      discardTake,
-      setCompareSlot,
-      clearCompare,
-      setJob,
-      removeJob,
-      setAudioBuffer,
-      setDraft,
-      setProvenance,
-      setPublishStatus,
-      setPublishedPostId,
-      publishDraftFromTake,
-    },
-  }), [
-    state,
-    registerPlaybackController,
-    togglePlayback,
-    seekBy,
-    setReadiness,
-    startProject,
-    resetProject,
-    setBrief,
-    setLyrics,
-    addTake,
-    selectTake,
-    favoriteTake,
-    renameTake,
-    discardTake,
-    setCompareSlot,
-    clearCompare,
-    setJob,
-    removeJob,
-    setAudioBuffer,
-    setDraft,
-    setProvenance,
-    setPublishStatus,
-    setPublishedPostId,
-    publishDraftFromTake,
-  ]);
-
-  return <OvertoneContext.Provider value={value}>{children}</OvertoneContext.Provider>;
+    try {
+      if (project) localStorage.setItem(LOCAL_DRAFT_STORAGE_KEY, JSON.stringify({ project }));
+      setWrite({ project, status: 'saved' });
+    } catch { setWrite({ project, status: 'failed' }); }
+  }, [project, attempt]);
+  // A previous successful write does not certify the newly edited draft.
+  const status = write.project === project ? write.status : 'saving';
+  return useMemo(() => ({ status, retry }), [status, retry]);
 }
-
-function loadInitialState(initialState: OvertoneState): OvertoneState {
-  if (typeof window === 'undefined') return initialState;
-  try {
-    const raw = window.localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY);
-    if (!raw) return initialState;
-    const parsed = JSON.parse(raw) as { project?: SongProject | null };
-    if (!isPersistedProject(parsed.project)) return initialState;
-    return {
-      ...initialState,
-      project: parsed.project,
-    };
-  } catch {
-    return initialState;
-  }
+const PersistenceContext = createContext<ReturnType<typeof useProjectPersistence> | null>(null);
+export function OvertoneProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(overtoneReducer, INITIAL_STATE, loadInitialState);
+  const [cache] = useState(() => new MusicAudioCache());
+  const stateRef = useRef(state); stateRef.current = state;
+  const actions = useStoreActions(dispatch, cache, stateRef);
+  const playback = usePlaybackBridge(dispatch);
+  const persistence = useProjectPersistence(state.project);
+  useEffect(() => () => cache.clear(), [cache]);
+  return <CacheContext.Provider value={cache}><ActionsContext.Provider value={actions}><PlaybackContext.Provider value={playback}><PersistenceContext.Provider value={persistence}><StateContext.Provider value={state}>{children}</StateContext.Provider></PersistenceContext.Provider></PlaybackContext.Provider></ActionsContext.Provider></CacheContext.Provider>;
 }
-
-function persistLocalDraft(project: SongProject | null): void {
-  if (typeof window === 'undefined') return;
-  try {
-    if (!project) {
-      window.localStorage.removeItem(LOCAL_DRAFT_STORAGE_KEY);
-      return;
-    }
-    window.localStorage.setItem(LOCAL_DRAFT_STORAGE_KEY, JSON.stringify({ project }));
-  } catch {
-    // Local draft persistence is best-effort and must not block creation.
-  }
+function loadInitialState(initial: OvertoneState): OvertoneState {
+  try { const value = JSON.parse(localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY) ?? 'null')?.project;
+    if (value && typeof value.projectId === 'string' && Number.isFinite(value.createdAt) && Array.isArray(value.takes) && Array.isArray(value.comparedTakeIds)
+      && (!value.recoverableResults || Array.isArray(value.recoverableResults) && value.recoverableResults.every((r: RecoverableMusicResult) => typeof r.jobId === 'string' && typeof r.title === 'string' && typeof r.promptSnapshot === 'string' && typeof r.lyricsSnapshot === 'string')))
+      return { ...initial, project: value };
+  } catch { /* invalid local draft does not become Runtime truth */ }
+  return initial;
 }
-
-function isPersistedProject(value: unknown): value is SongProject {
-  if (!value || typeof value !== 'object') return false;
-  const project = value as Partial<SongProject>;
-  return typeof project.projectId === 'string' &&
-    typeof project.createdAt === 'number' &&
-    Array.isArray(project.takes) &&
-    (project.selectedTakeId === null || typeof project.selectedTakeId === 'string') &&
-    Array.isArray(project.comparedTakeIds);
-}
-
-export function useOvertone(): OvertoneContextValue {
-  const ctx = useContext(OvertoneContext);
-  if (!ctx) throw new Error('useOvertone must be used inside <OvertoneProvider>');
-  return ctx;
-}
-
-export function useOvertoneState(): OvertoneState {
-  return useOvertone().state;
-}
-
-export function useOvertoneActions(): OvertoneContextValue['actions'] {
-  return useOvertone().actions;
-}
-
-export function useOvertonePlayback(): OvertoneContextValue['playback'] {
-  return useOvertone().playback;
+export function useOvertoneState() { const value = useContext(StateContext); if (!value) throw Error('OvertoneProvider required'); return value; }
+export function useOvertoneActions() { const value = useContext(ActionsContext); if (!value) throw Error('OvertoneProvider required'); return value; }
+export function useOvertonePlayback() { const value = useContext(PlaybackContext); if (!value) throw Error('OvertoneProvider required'); return value; }
+export function useOvertonePersistence() { const value = useContext(PersistenceContext); if (!value) throw Error('OvertoneProvider required'); return value; }
+export function useAudioCache() { const value = useContext(CacheContext); if (!value) throw Error('OvertoneProvider required'); return value; }
+export function useAudioSnapshot(id: string) {
+  const cache = useAudioCache();
+  const subscribe = useCallback((listener: () => void) => cache.subscribe(id, listener), [cache,id]);
+  const snapshot = useCallback(() => cache.getSnapshot(id), [cache,id]);
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }

@@ -1,0 +1,40 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+scope: overtone.exploration
+units:
+  - id: definition.overtone.exploration.music-playground
+    kind: definition
+    title: Music playground
+    meaning: App-owned creative intent and transient AI proposals turn an idea into three contrasting arrangements and lyric sketches; energy and surprise are prompt intent, never guaranteed Runtime parameters or measured audio facts.
+  - id: rule.overtone.exploration.r001
+    kind: rule
+    title: Honest creative directions
+    modality: must
+    statement: Obtain AI directions only through protected text candidates, validate all three complete proposals, label them as ideas until actual audio exists, and apply a proposal only through explicit selection; a failed or stale response cannot replace the draft or create recordings. Show the actual generation target and withhold new generation while the visible idea differs from the explicitly applied idea; let the author apply the new idea or return to the current direction.
+    condition: When requesting or applying musical direction proposals.
+    failure: Keep the existing draft and show the actual failure; discard responses belonging to a closed project.
+    relations:
+      - type: applies_to
+        target: definition.overtone.exploration.music-playground
+  - id: rule.overtone.exploration.r002
+    kind: rule
+    title: Reinterpret words without audio-reference claims
+    modality: must
+    statement: Build a selected take's new interpretation from immutable prompt and lyric snapshots plus explicit user intent; explain that its melody may change, submit only admitted prompt and lyrics, and append a prompt-origin take with optional text-lineage parentTakeId after verified audio completion. Bring the author to the exploration stage so progress, cancellation, errors and resulting directions are visible; reject conflicting reinterpretation while music generation or song arrangement is active.
+    condition: When exploring a new direction from a selected take.
+    failure: Preserve the source take and dispatch no unsupported remix, extend or reference-audio request.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.exploration.music-playground
+  - id: rule.overtone.exploration.r003
+    kind: rule
+    title: Local listening edits and explicit export
+    modality: must
+    statement: Apply playback speed, loop and trim only to decoded audio as reversible local audition controls; preserve the source take, export original bytes or a separately labelled trimmed WAV only on explicit user action, and never claim that these listening controls are AI edits or Realm publication.
+    condition: When auditioning or exporting a completed take.
+    failure: Disable actions without decoded audio or valid trim, preserve source bytes, and show errors without export success claims.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact

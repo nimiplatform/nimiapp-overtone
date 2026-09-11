@@ -44,18 +44,71 @@ const USER_VISIBLE_OBJECT_PROPERTIES = new Set([
   'warning',
 ]);
 
-const RAW_COPY_EXCEPTIONS = new Map([
-  ['src/overtone/panels/empty-state.tsx::OVERTONE', 'brand wordmark'],
-]);
+const RAW_COPY_EXCEPTIONS = new Map();
 
 const REQUIRED_DYNAMIC_KEYS = [
-  'Overtone.common.takeOrigins.prompt',
-  'Overtone.common.takeOrigins.extend',
-  'Overtone.common.takeOrigins.remix',
-  'Overtone.common.takeOrigins.reference',
-  'Overtone.common.sourceModes.prompt-only',
-  'Overtone.common.sourceModes.uploaded-audio',
-  'Overtone.common.sourceModes.derived-take',
+  "Overtone.song.verse", "Overtone.song.chorus", "Overtone.song.bridge", "Overtone.song.ending",
+  "Overtone.playground.energy",
+  "Overtone.playground.energyLow",
+  "Overtone.playground.energyMid",
+  "Overtone.playground.energyHigh",
+  "Overtone.playground.surprise",
+  "Overtone.playground.surpriseLow",
+  "Overtone.playground.surpriseMid",
+  "Overtone.playground.surpriseHigh",
+  "Overtone.playground.scenes.0",
+  "Overtone.playground.scenes.1",
+  "Overtone.playground.scenes.2",
+  "Overtone.playground.scenes.3",
+  "Overtone.playground.scenes.4",
+  "Overtone.playground.scenes.5",
+  "Overtone.playground.genres.0",
+  "Overtone.playground.genres.1",
+  "Overtone.playground.genres.2",
+  "Overtone.playground.genres.3",
+  "Overtone.playground.genres.4",
+  "Overtone.playground.genres.5",
+  "Overtone.playground.twists.0",
+  "Overtone.playground.twists.1",
+  "Overtone.playground.twists.2",
+  "Overtone.playground.twists.3",
+  "Overtone.playground.twists.4",
+  "Overtone.playground.twists.5",
+  "Overtone.playground.sparks.moon.name",
+  "Overtone.playground.sparks.moon.detail",
+  "Overtone.playground.sparks.moon.prompt",
+  "Overtone.playground.sparks.rain.name",
+  "Overtone.playground.sparks.rain.detail",
+  "Overtone.playground.sparks.rain.prompt",
+  "Overtone.playground.sparks.arcade.name",
+  "Overtone.playground.sparks.arcade.detail",
+  "Overtone.playground.sparks.arcade.prompt",
+  "Overtone.playground.reinterpret.dream.name",
+  "Overtone.playground.reinterpret.dream.prompt",
+  "Overtone.playground.reinterpret.dance.name",
+  "Overtone.playground.reinterpret.dance.prompt",
+  "Overtone.playground.reinterpret.stripped.name",
+  "Overtone.playground.reinterpret.stripped.prompt",
+  "Overtone.song.duration90",
+  "Overtone.song.duration120",
+  "Overtone.song.duration180",
+  "Overtone.song.sectionKinds.intro",
+  "Overtone.song.sectionKinds.verse",
+  "Overtone.song.sectionKinds.pre-chorus",
+  "Overtone.song.sectionKinds.chorus",
+  "Overtone.song.sectionKinds.bridge",
+  "Overtone.song.sectionKinds.outro",
+  "Overtone.runtime.status.queued",
+  "Overtone.runtime.status.running",
+  "Overtone.runtime.status.completed",
+  "Overtone.runtime.status.failed",
+  "Overtone.runtime.status.canceled",
+  "Overtone.runtime.status.timeout",
+  "Overtone.brief.fields.title",
+  "Overtone.brief.fields.genre",
+  "Overtone.brief.fields.mood",
+  "Overtone.brief.fields.tempo",
+  "Overtone.brief.fields.description"
 ];
 
 function toRepoPath(filePath) {
@@ -378,7 +431,7 @@ test('overtone translation keys used by UI resolve in English and Chinese resour
 
   for (const [locale, localeData] of Object.entries(localeResources)) {
     const localeKeys = new Set(flattenLocaleKeys(localeData));
-    const missing = [...keyUsages].filter((key) => !localeKeys.has(key)).sort();
+    const missing = [...keyUsages].filter((key) => !localeKeys.has(key) && !localeKeys.has(key + '_other')).sort();
     assert.deepEqual(missing, [], `${locale} locale is missing Overtone keys: ${missing.join(', ')}`);
 
     for (const key of localeKeys) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -7,24 +7,30 @@ import {
   InlineAlert,
   NimiText,
   NimiToaster,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   SegmentedControl,
   Surface,
   useNimiTheme,
   type NimiThemeScheme,
 } from '@nimiplatform/kit/ui';
 import { OvertoneProvider, useOvertoneActions, useOvertonePlayback, useOvertoneState } from './store.js';
-import { OvertoneEmptyState } from './panels/empty-state.js';
-import { BriefPanel } from './panels/brief-panel.js';
+import { BriefPanel, SoundNotes } from './panels/brief-panel.js';
 import { LyricsPanel } from './panels/lyrics-panel.js';
 import { GeneratePanel } from './panels/generate-panel.js';
 import { AIConfigPanel } from './panels/ai-config-panel.js';
 import { IterationPanel } from './panels/iteration-panel.js';
 import { TakesPanel } from './panels/takes-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
-import { PublishModal } from './panels/publish-panel.js';
+import { DraftSaveNotice } from './panels/draft-save-notice.js';
 import { probeReadiness } from './readiness.js';
 import { usePlaybackShortcuts } from './use-playback-shortcuts.js';
 import { persistOvertoneScheme } from './theme-scheme.js';
+import { ExplorationProvider, useExploration } from './exploration-context.js';
+import { DirectionsPanel } from './panels/directions-panel.js';
+import { SongComposer } from './panels/song-composer.js';
+import { OvertoneIcon } from './panels/icons.js';
 import {
   OVERTONE_LOCALES,
   applyOvertoneDocumentLocale,
@@ -38,21 +44,39 @@ import './overtone.css';
 export function WorkspacePage() {
   return (
     <OvertoneProvider>
-      <WorkspaceInner />
+      <CreativeWorkspace />
       <NimiToaster />
     </OvertoneProvider>
   );
 }
 
+function CreativeWorkspace() {
+  const { project } = useOvertoneState();
+  return <ExplorationProvider key={project?.projectId ?? 'entry'}><WorkspaceInner /></ExplorationProvider>;
+}
+
 function WorkspaceInner() {
   const { t } = useTranslation();
   const state = useOvertoneState();
-  const { setReadiness, startProject, resetProject, publishDraftFromTake, clearCompare } = useOvertoneActions();
+  const { setReadiness, startProject, clearCompare } = useOvertoneActions();
+  const creative = useExploration();
+  const started = useRef(false);
   const playback = useOvertonePlayback();
   const [reloadKey, setReloadKey] = useState(0);
-  const [publishTakeId, setPublishTakeId] = useState<string | null>(null);
   const [projectAction, setProjectAction] = useState<'discard' | 'restart' | null>(null);
   const hasCompare = Boolean(state.project?.comparedTakeIds[0] || state.project?.comparedTakeIds[1]);
+
+  // @nimi-authority: rule.overtone.ia.r002
+  useEffect(() => {
+    if (!state.project && !started.current && state.readiness.runtimeStatus === 'ready') {
+      started.current = true;
+      startProject();
+    }
+  }, [state.project, state.readiness.runtimeStatus, startProject]);
+
+  useEffect(() => {
+    if (creative.notesOpen) document.getElementById('ot-notebook')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [creative.notesOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,37 +89,27 @@ function WorkspaceInner() {
             runtimeErrorMessage: error instanceof Error ? error.message : String(error),
             textCapabilityAvailable: false,
             musicCapabilityAvailable: false,
-            realmConfigured: false,
-            realmAuthenticated: false,
           });
         }
       });
     return () => { cancelled = true; };
   }, [reloadKey, setReadiness]);
 
-  const handlePublish = useCallback((takeId: string) => {
-    const draft = publishDraftFromTake(takeId);
-    if (draft) setPublishTakeId(takeId);
-  }, [publishDraftFromTake]);
-
-  const closePublish = useCallback(() => {
-    setPublishTakeId(null);
-  }, []);
-
   usePlaybackShortcuts({
-    enabled: projectAction === null && publishTakeId === null && !!state.project,
+    enabled: projectAction === null && !!state.project,
     onTogglePlayback: playback.togglePlayback,
     onSeekDelta: playback.seekBy,
   });
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (projectAction !== null) return;
+      if (projectAction !== null || event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
+      if (target?.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if (isInput) return;
 
-      if (event.key === 'Escape' && publishTakeId === null && hasCompare) {
+      if (event.key === 'Escape' && hasCompare) {
         event.preventDefault();
         clearCompare();
         return;
@@ -108,7 +122,7 @@ function WorkspaceInner() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [clearCompare, hasCompare, projectAction, publishTakeId, startProject, state.project]);
+  }, [clearCompare, hasCompare, projectAction, startProject, state.project]);
 
   if (state.readiness.runtimeStatus === 'unavailable') {
     return (
@@ -129,59 +143,35 @@ function WorkspaceInner() {
     );
   }
 
-  if (!state.project) {
-    return (
-      <OvertoneScreen>
-        <OvertoneEmptyState />
-      </OvertoneScreen>
-    );
-  }
-
-  const hasTakes = state.project.takes.some((take) => !take.discarded);
+  const hasTakes = state.project?.takes.some((take) => !take.discarded);
 
   return (
-    <OvertoneScreen>
-      <div className="overtone-workspace" data-testid="overtone-workspace">
-        <Surface
-          as="section"
-          material="glass-regular"
-          tone="panel"
-          elevation="base"
-          padding="none"
-          className="overtone-compose"
-          aria-label={t('Overtone.workspace.composeAria')}
-        >
-          <div className="overtone-row overtone-row--between">
-            <NimiText role="overline">{t('Overtone.workspace.songProject')}</NimiText>
-            <Button type="button" tone="secondary" size="sm" onClick={() => setProjectAction('discard')}>
-              {t('Overtone.workspace.discardProject')}
-            </Button>
+    <OvertoneScreen onCloseProject={() => setProjectAction('discard')}>
+      <main className="overtone-workspace" data-testid="overtone-workspace">
+        <div className="ot-workspace-content">
+        <section className="ot-creation" aria-label={t('Overtone.workspace.composeAria')}>
+          <div className="ot-creation-scroll">
+            <ReadinessBanner />
+            {state.project?.fullSong ? <div className="ot-stage-switch"><SegmentedControl value={creative.stage}
+              ariaLabel={t('Overtone.song.stageLabel')} items={[{ value: 'explore', label: t('Overtone.song.exploreStage'), disabled: creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0 }, { value: 'song', label: t('Overtone.song.songStage'), disabled: creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0 }]}
+              onValueChange={value => { if (!creative.arranging && !creative.musicBusy && !Object.keys(state.activeJobs).length) creative.setStage(value as 'explore' | 'song'); }}/></div> : null}
+            {creative.stage === 'song' && state.project?.fullSong ? <SongComposer /> : <><BriefPanel />
+            <DirectionsPanel />
+            <div id="ot-notebook" className="ot-notebook" hidden={!creative.notesOpen}>
+              <SoundNotes /><LyricsPanel />
+            </div></>}
           </div>
-          <ReadinessBanner />
-          <BriefPanel />
-          <LyricsPanel />
           <GeneratePanel />
-          {hasTakes ? <IterationPanel /> : null}
-        </Surface>
-        <section className="overtone-output" aria-label={t('Overtone.workspace.takesAria')}>
-          <Surface
-            material="glass-regular"
-            tone="panel"
-            elevation="base"
-            padding="none"
-            className="overtone-takes"
-          >
-            {hasTakes || Object.keys(state.activeJobs).length > 0 ? <TakesPanel onPublish={handlePublish} /> : (
-              <div className="overtone-empty">
-                <EmptyState
-                  title={<NimiText as="span" role="helper">{t('Overtone.workspace.noTakesCompose')}</NimiText>}
-                />
-              </div>
-            )}
-          </Surface>
-          <PlayerPanel />
         </section>
-        <PublishModal open={publishTakeId !== null} takeId={publishTakeId} onClose={closePublish} />
+        <aside className="ot-recordings" aria-label={t('Overtone.workspace.takesAria')}>
+          <TakesPanel />
+          {hasTakes ? <IterationPanel /> : null}
+        </aside>
+        </div>
+        <PlayerPanel />
+        <ConfirmDialog open={creative.pendingSong !== null} title={t('Overtone.song.replaceTitle')} message={t('Overtone.song.replaceHint')}
+          confirmLabel={t('Overtone.song.replace')} cancelLabel={t('Overtone.song.keepPlan')} onClose={() => creative.setPendingSong(null)}
+          onConfirm={() => { if (creative.pendingSong) creative.openSong(creative.pendingSong); }}/>
         <ConfirmDialog
           open={projectAction !== null}
           title={t(projectAction === 'restart' ? 'Overtone.workspace.restartTitle' : 'Overtone.workspace.discardTitle')}
@@ -191,23 +181,37 @@ function WorkspaceInner() {
           onClose={() => setProjectAction(null)}
           onConfirm={() => {
             if (projectAction === 'restart') startProject();
-            else if (projectAction === 'discard') resetProject();
+            else if (projectAction === 'discard') startProject();
             setProjectAction(null);
           }}
         />
-      </div>
+      </main>
     </OvertoneScreen>
   );
 }
 
-function OvertoneScreen({ children }: { children: ReactNode }) {
+function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onCloseProject?: () => void }) {
+  const { t, i18n } = useTranslation();
+  const { readiness } = useOvertoneState();
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const documentLocale = normalizeOvertoneLocale(i18n.resolvedLanguage || i18n.language);
+  useEffect(() => applyOvertoneDocumentLocale(documentLocale), [documentLocale]);
   return (
     <div className="overtone-screen">
-      <div className="overtone-language-bar">
-        <AIConfigPanel />
-        <SchemeToggle />
-        <LanguageSwitcher />
-      </div>
+      <header className="overtone-masthead">
+        <div className="overtone-brand"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M3 15c0-7 7-12 12-12s12 5 12 12-7 12-12 12S3 22 3 15Z" fill="none" stroke="currentColor" strokeWidth="3"/><path d="M9 15c0-5 3-9 6-9s6 4 6 9-3 9-6 9-6-4-6-9Z" fill="none" stroke="currentColor" strokeWidth="2"/></svg><strong>{t('Overtone.playground.wordmark')}</strong></div>
+        <span className="ot-header-purpose">{t('Overtone.studio.headerPurpose')}</span>
+        <div className="overtone-language-bar">
+          <span className="ot-connection" data-ready={readiness.runtimeStatus === 'ready'}><i />{t(readiness.runtimeStatus === 'ready' ? 'Overtone.studio.connected' : readiness.runtimeStatus === 'checking' ? 'Overtone.common.status.checking' : 'Overtone.common.status.unavailable')}</span>
+          {onCloseProject ? <Button className="ot-tool-button ot-new-session" tone="ghost" size="sm" leadingIcon={<OvertoneIcon name="plus" size={16} />} onClick={onCloseProject}>{t('Overtone.studio.newSession')}</Button> : null}
+          <AIConfigPanel />
+          <Popover open={preferencesOpen} onOpenChange={setPreferencesOpen}>
+            <PopoverTrigger asChild><Button className="ot-settings-button" tone="ghost" size="sm" aria-label={t('Overtone.studio.preferences')}><OvertoneIcon name="settings" size={19} /></Button></PopoverTrigger>
+            <PopoverContent align="end" className="ot-preferences"><h2>{t('Overtone.studio.preferences')}</h2><div><span>{t('Overtone.scheme.ariaLabel')}</span><SchemeToggle /></div><div><span>{t('Overtone.language.ariaLabel')}</span><LanguageSwitcher /></div></PopoverContent>
+          </Popover>
+        </div>
+      </header>
+      <DraftSaveNotice />
       {children}
     </div>
   );
@@ -279,11 +283,10 @@ function LanguageSwitcher() {
 function ReadinessBanner() {
   const { t } = useTranslation();
   const { readiness } = useOvertoneState();
+  if (readiness.runtimeStatus === 'checking') return <NimiText role="helper">{t('Overtone.workspace.readiness.checking')}</NimiText>;
   if (readiness.runtimeStatus === 'ready' && readiness.musicCapabilityAvailable && readiness.textCapabilityAvailable) return null;
   const messages: string[] = [];
-  if (readiness.runtimeStatus === 'degraded') {
-    messages.push(readiness.runtimeErrorMessage || t('Overtone.workspace.readiness.degraded'));
-  }
+
   if (!readiness.musicCapabilityAvailable) {
     messages.push(t('Overtone.workspace.readiness.musicUnavailable'));
   }

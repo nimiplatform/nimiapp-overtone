@@ -3,7 +3,7 @@ import { createNimiClientId } from '@nimiplatform/sdk/types';
 // Renderer-side typed entities for Overtone. Authority:
 // .nimi/spec/overtone/canonical/data-model.authority.yaml
 
-export type TakeOrigin = 'prompt' | 'extend' | 'remix' | 'reference';
+export type TakeOrigin = 'prompt';
 
 export interface SongBrief {
   title: string;
@@ -19,6 +19,24 @@ export interface LyricsDocument {
   updatedAt: number;
 }
 
+export interface SongSection {
+  kind: 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'bridge' | 'outro';
+  name: string;
+  arrangement: string;
+  lyrics: string;
+}
+
+// App-owned writing draft; this is creative intent, not an audio analysis or job.
+export interface FullSongDraft {
+  sourceTakeId: string;
+  sourceTitle: string;
+  sourcePrompt: string;
+  sourceLyrics: string;
+  title: string;
+  durationSeconds: 90 | 120 | 180;
+  sections: SongSection[];
+}
+
 export interface SongTake {
   takeId: string;
   parentTakeId?: string;
@@ -29,14 +47,12 @@ export interface SongTake {
   artifactMimeType: string;
   artifactByteLength: number;
   artifactFileExtension: string;
-  sourceMimeType?: string;
-  trimStartSec?: number;
-  trimEndSec?: number;
   promptSnapshot: string;
   lyricsSnapshot?: string;
   styleSnapshot?: string;
   durationSeconds?: number;
-  instrumental?: boolean;
+  targetDurationSeconds?: number;
+  creationMode?: 'sketch' | 'song';
   favorite: boolean;
   discarded: boolean;
   createdAt: number;
@@ -45,38 +61,27 @@ export interface SongTake {
 export interface GenerationJob {
   jobId: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'canceled' | 'timeout';
-  progressLabel?: string;
-  errorMessage?: string;
 }
 
-export type PublishSourceMode = 'prompt-only' | 'uploaded-audio' | 'derived-take';
-
-export interface PublishDraft {
-  takeId: string;
+// Author-owned pending import: references a completed Runtime job, never a shadow job state.
+export interface RecoverableMusicResult {
+  jobId: string;
   title: string;
-  description: string;
-  tags: string[];
-  sourceMode: PublishSourceMode;
-  provenanceConfirmed: boolean;
+  parentTakeId?: string;
+  promptSnapshot: string;
+  lyricsSnapshot: string;
+  styleSnapshot?: string;
+  targetDurationSeconds: number;
+  creationMode: 'sketch' | 'song';
+  createdAt: number;
 }
-
-export type PublishStatus = 'idle' | 'uploading' | 'creating' | 'done' | 'error';
 
 export interface ReadinessSnapshot {
-  runtimeStatus: 'checking' | 'ready' | 'degraded' | 'unavailable';
+  runtimeStatus: 'checking' | 'ready' | 'unavailable';
   runtimeErrorMessage?: string;
   textCapabilityAvailable: boolean;
   musicCapabilityAvailable: boolean;
-  realmConfigured: boolean;
-  realmAuthenticated: boolean;
 }
-
-export const ORIGIN_TO_SOURCE_MODE: Record<TakeOrigin, PublishSourceMode> = {
-  prompt: 'prompt-only',
-  extend: 'derived-take',
-  remix: 'derived-take',
-  reference: 'uploaded-audio',
-};
 
 export function makeId(prefix: string): string {
   return createNimiClientId(prefix);

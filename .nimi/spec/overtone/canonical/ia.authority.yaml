@@ -5,16 +5,16 @@ units:
   - id: definition.overtone.ia.single-workspace
     kind: definition
     title: Single workspace
-    meaning: Exactly one active SongProject creation workspace per app instance, entered from a readiness-bearing empty state and reset through one in-workspace Close Project affordance rather than project navigation.
+    meaning: Exactly one active SongProject per app instance; opening the protected app enters an existing draft or a blank interactive playground, and one New Exploration action resets the session with confirmation when work exists.
   - id: definition.overtone.ia.three-zone-layout
     kind: definition
     title: Three-zone layout
-    meaning: The authenticated workspace layout has Compose on the left for brief, lyrics, generation, and iteration; Output on the right for takes, selection, and A/B comparison; Transport in the footer for selected-take playback and waveform; modal and dialog surfaces overlay these zones without parallel navigation primitives.
+    meaning: One music playground with a spacious Compose stage for idea, two-axis intent, AI proposals and draft editing; an adjacent Output shelf for recordings and direct A/B audition; and a compact Transport footer. Narrow windows reflow the same content without extra project navigation.
   - id: rule.overtone.ia.r001
     kind: rule
     title: Exactly three zones
     modality: must
-    statement: "Render exactly three authenticated primary zones: Compose in the left column for brief, lyrics, generation controls, and iteration controls; Output in the right column for the take list, selection, and A/B comparison; and Transport in the footer for selected-take playback and waveform; add no fourth primary zone such as sidebar projects, chat sidebar, dataset console, or agent panel."
+    statement: Render a creation stage, an always-reachable recording shelf and a transport footer; give AI proposals the creation stage and keep existing recordings independently reachable during exploration. Reflow for narrow windows without introducing a separate project navigation system.
     condition: When the authenticated workspace is rendered.
     failure: Fail layout validation and omit any fourth primary zone.
     relations:
@@ -22,10 +22,10 @@ units:
         target: definition.overtone.ia.three-zone-layout
   - id: rule.overtone.ia.r002
     kind: rule
-    title: Readiness-bearing empty state
+    title: Direct creative entry
     modality: must
-    statement: Before a project starts, render an empty state with Overtone app identity, one Start New Session primary CTA, and a visible typed readiness indicator for runtime, Realm, music, and text; never hide readiness behind settings.
-    condition: Before the user starts a project.
+    statement: After protected session readiness, restore the local draft or initialize one blank app-owned SongProject directly in the interactive playground; show a clear idea input and authored sparks, with actual capability readiness and no credit-consuming automatic generation.
+    condition: When initializing the protected workspace.
     failure: Render the visible typed indicator with the applicable state and keep only unavailable capability actions disabled; manual brief and local editing may still start.
     relations:
       - type: applies_to
@@ -34,11 +34,11 @@ units:
         target: definition.overtone.ia.single-workspace
   - id: rule.overtone.ia.r003
     kind: rule
-    title: Ordered compose panels
+    title: Progressive creative detail
     modality: must
-    statement: "Present Compose panels in this order: Song Brief, Lyrics, Generation Controls, then Iteration only after at least one take exists; use accordion sections or vertical scroll if needed, and never horizontal tab navigation in Compose."
+    statement: Lead with the idea and visual intent controls, allow browsing the three AI proposals in the same stage, and reveal editable sound notes and lyrics when requested. Keep the generation target and explicit generation action adjacent; text reinterpretation uses only a selected take snapshot.
     condition: When rendering the Compose zone.
-    failure: Fail layout validation and render the panels in admitted order without an invalid Iteration panel or horizontal tabs.
+    failure: Reject layouts that hide the active generation target or its prerequisites, expose unsupported iteration, or add separate project navigation.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.song-take
@@ -74,7 +74,7 @@ units:
     kind: rule
     title: Selected-take transport
     modality: must
-    statement: Render Transport with play and pause bound to the selected take's decoded buffer, current time and duration in m:ss / m:ss form, and a clickable waveform that seeks within the selected take; admit adjacent P0 set-in, set-out, and clear trim controls, but no advanced multi-region trims.
+    statement: Render Transport with play and pause bound to the selected take's decoded buffer, current time and duration in m:ss / m:ss form, and a clickable waveform that seeks within the selected take; admit adjacent P0 set-in, set-out, and clear trim controls, but no advanced multi-region trims. Start each selected take with its own trim bounds, keep trim labels legible on the transport surface, and lay transport outside the narrow-window content scroller so focused controls remain visible.
     condition: When the Transport zone is rendered for a selected take.
     failure: Disable unavailable playback or seek controls with a typed artifact state and omit out-of-scope trim controls.
     relations:
@@ -86,23 +86,23 @@ units:
         target: definition.overtone.ia.three-zone-layout
   - id: rule.overtone.ia.r007
     kind: rule
-    title: Publish modal
+    title: Unavailable publication has no action surface
     modality: must
-    statement: Open Realm publish only as a modal through @nimiplatform/kit/ui#OverlayShell containing take preview with title and origin badge, editable title, description, and tags, provenance checkbox, typed upload, create, done, and error status, and Cancel plus Publish controls; never publish from an inline panel or navigation route.
-    condition: When the user opens Realm publish.
-    failure: Block publish and render the complete admitted modal rather than an inline or routed surface.
+    statement: Omit publication actions, forms and completion copy while the protected Realm publication operation is unavailable; expose working audio export instead.
+    condition: While the protected Realm publication operation is unavailable.
+    failure: Expose no publication UI or publish request.
     relations:
-      - type: applies_to
-        target: definition.overtone.data-model.publish-draft
       - type: applies_to
         target: definition.overtone.data-model.song-take
       - type: applies_to
         target: definition.overtone.ia.three-zone-layout
+      - type: applies_to
+        target: definition.overtone.realm.publish-surface
   - id: rule.overtone.ia.r008
     kind: rule
-    title: No parallel navigation
+    title: Single session without project navigation
     modality: must_not
-    statement: Introduce tab bars, breadcrumb trails, multi-page navigation, project-picker dropdowns, or persistent left rails listing prior sessions, prior projects, or external dataset consoles; only one in-workspace Close Project affordance is admitted for reset.
+    statement: Introduce multi-project navigation, saved-session rails, project pickers or a parallel app shell. Local choices between AI proposals, settings disclosures and draft detail are in-place interactions within the single workspace.
     condition: Always.
     failure: Fail layout validation and keep the parallel navigation primitive unavailable.
     relations:
@@ -114,8 +114,8 @@ units:
     kind: rule
     title: Actionable readiness banner
     modality: must
-    statement: Render a typed readiness banner above Output when runtime is degraded, text capability is unconfigured, music App Access is unavailable, or Realm publish is unavailable; preserve a host-provided actionHint when the protected session posture supplies one and never link to app-owned connector or login custody.
-    condition: When ReadinessSnapshot reports degraded runtime or unconfigured Realm.
+    statement: Show neutral checking feedback while probing; show a warning only when a completed protected probe proves the text or music capability is unconfigured. Keep recovery local to the affected task and preserve typed error details.
+    condition: While protected readiness is checking or a completed probe reports an unconfigured text or music capability.
     failure: Keep the affected action disabled and display the actionable typed readiness banner.
     relations:
       - type: applies_to
@@ -126,7 +126,7 @@ units:
     kind: rule
     title: Keyboard affordances
     modality: must
-    statement: Bind Space to selected-take playback toggle; Left and Right Arrow to five-second seek; Shift plus Left and Right Arrow to fifteen-second seek; Escape to close the publish modal or exit compare mode, whichever is active; and Command-N or Control-N to reset the project and start a new session; bind none of these keys to another action.
+    statement: Bind Space to playback, Left and Right to five-second seek, Shift plus arrows to fifteen-second seek, Escape to dismiss the active dialog or exit compare, and Control-N or Command-N to confirmed project reset. Editable controls retain their own key behavior.
     condition: When an admitted keyboard affordance is handled.
     failure: Ignore conflicting bindings, preserve current state, and expose only the admitted action for the key.
     relations:

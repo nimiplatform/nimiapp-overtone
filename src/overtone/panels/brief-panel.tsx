@@ -1,152 +1,70 @@
-import { useCallback, useState } from 'react';
-import { Button, FieldShell, InlineAlert, NimiText, nimiToast, StatusBadge, Surface, TextareaField, TextField } from '@nimiplatform/kit/ui';
+import { useState } from 'react';
+import { Button, FieldShell, InlineAlert, NimiText, Popover, PopoverContent, PopoverTrigger, TextareaField, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
-import { generateRuntimeText } from '../runtime-workflow.js';
-import type { SongBrief } from '../types.js';
+import { useExploration } from '../exploration-context.js';
+import { OvertoneIcon } from './icons.js';
 
-const BRIEF_SYSTEM = `You are a music production assistant. Given a song idea, output a structured brief as JSON with these fields:
-- title (max 50 chars)
-- genre (primary genre or genres)
-- mood (emotional tone)
-- tempo (slow / moderate / fast)
-- description (1-2 sentence creative direction)
-Output ONLY valid JSON. No markdown fences. No extra text.`;
-
+// @nimi-authority: rule.overtone.exploration.r001
 export function BriefPanel() {
   const { t } = useTranslation();
-  const state = useOvertoneState();
-  const { setBrief } = useOvertoneActions();
-  const project = state.project;
-  const brief = project?.brief ?? null;
-  const { readiness } = state;
-
-  const [idea, setIdea] = useState('');
-  const [generating, setGenerating] = useState(false);
-
-  const canCallAi = readiness.textCapabilityAvailable;
-
-  const handleGenerate = useCallback(async () => {
-    if (!idea.trim() || !canCallAi) return;
-    setGenerating(true);
-    try {
-      const text = await generateRuntimeText({
-        client: getNimiLocalAppClient(),
-        input: idea.trim(),
-        system: BRIEF_SYSTEM,
-        temperature: 0.9,
-        maxTokens: 1024,
-      });
-      const parsed = parseBriefJson(text);
-      if (!parsed) throw new Error(t('Overtone.brief.errors.nonJson'));
-      setBrief(parsed);
-    } catch (nextError) {
-      nimiToast.danger(nextError instanceof Error ? nextError.message : String(nextError));
-    } finally {
-      setGenerating(false);
-    }
-  }, [idea, canCallAi, setBrief, t]);
-
-  const handleManualBrief = useCallback(() => {
-    setBrief({
-      title: '',
-      genre: '',
-      mood: '',
-      tempo: '',
-      description: idea.trim(),
-    });
-  }, [idea, setBrief]);
-
-  return (
-    <Surface tone="panel" padding="md" className="overtone-section">
-      <div className="overtone-section__heading">
-        <NimiText as="h2" role="section-title">{t('Overtone.brief.title')}</NimiText>
-        {brief ? <StatusBadge tone="success" shape="dot">{t('Overtone.common.status.ready')}</StatusBadge> : null}
-      </div>
-
-      <FieldShell label={t('Overtone.brief.ideaLabel')}>
-        <TextareaField
-          id="overtone-idea"
-          rows={3}
-          value={idea}
-          onChange={(event) => setIdea(event.target.value)}
-          placeholder={t('Overtone.brief.ideaPlaceholder')}
-        />
-      </FieldShell>
-
-      <div className="overtone-row">
-        <Button
-          type="button"
-          tone="primary"
-          size="sm"
-          onClick={handleGenerate}
-          disabled={!idea.trim() || generating || !canCallAi}
-        >
-          {generating ? t('Overtone.brief.generating') : t('Overtone.brief.generate')}
-        </Button>
-        <Button
-          type="button"
-          tone="secondary"
-          size="sm"
-          onClick={handleManualBrief}
-          disabled={!idea.trim()}
-        >
-          {t('Overtone.brief.manual')}
-        </Button>
-      </div>
-
-      {!canCallAi ? (
-        <InlineAlert tone="warning">
-          {t('Overtone.brief.noTextRoute')}
-        </InlineAlert>
-      ) : null}
-
-      {brief ? (
-        <div className="overtone-field-stack">
-          <BriefField id="title" label={t('Overtone.brief.fields.title')} value={brief.title} onChange={(value) => setBrief({ ...brief, title: value })} />
-          <BriefField id="genre" label={t('Overtone.brief.fields.genre')} value={brief.genre} onChange={(value) => setBrief({ ...brief, genre: value })} />
-          <BriefField id="mood" label={t('Overtone.brief.fields.mood')} value={brief.mood} onChange={(value) => setBrief({ ...brief, mood: value })} />
-          <BriefField id="tempo" label={t('Overtone.brief.fields.tempo')} value={brief.tempo} onChange={(value) => setBrief({ ...brief, tempo: value })} />
-          <FieldShell label={t('Overtone.brief.fields.description')}>
-            <TextareaField
-              id="overtone-brief-description"
-              rows={3}
-              value={brief.description}
-              onChange={(event) => setBrief({ ...brief, description: event.target.value })}
-            />
-          </FieldShell>
-        </div>
-      ) : null}
-    </Surface>
-  );
-}
-
-function BriefField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <FieldShell label={label}>
-      <TextField
-        id={`overtone-brief-${id}`}
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </FieldShell>
-  );
-}
-
-export function parseBriefJson(text: string): SongBrief | null {
-  try {
-    const cleaned = text.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
-    const value = JSON.parse(cleaned) as Record<string, unknown>;
-    return {
-      title: String(value.title || '').slice(0, 80),
-      genre: String(value.genre || ''),
-      mood: String(value.mood || ''),
-      tempo: String(value.tempo || ''),
-      description: String(value.description || ''),
-    };
-  } catch {
-    return null;
+  const { readiness } = useOvertoneState();
+  const creative = useExploration();
+  const [sparksOpen, setSparksOpen] = useState(false);
+  function surpriseMe() {
+    const pick = (group: string) => t(`Overtone.playground.${group}.${Math.floor(Math.random() * 6)}`);
+    creative.setIdea(t('Overtone.playground.collision', { scene: pick('scenes'), genre: pick('genres'), twist: pick('twists') }));
+    document.getElementById('overtone-idea')?.focus();
   }
+  return <section className="ot-composer">
+    <div className="ot-composer__heading"><h1>{t('Overtone.studio.title')}</h1><span>{t('Overtone.studio.subtitle')}</span></div>
+    <div className="ot-prompt-box">
+      <TextareaField id="overtone-idea" className="ot-prompt-field" textareaClassName="ot-prompt-text" rows={2} maxLength={1500}
+        aria-label={t('Overtone.brief.ideaLabel')} value={creative.idea} disabled={creative.exploring}
+        placeholder={t('Overtone.studio.promptPlaceholder')} onChange={(event) => creative.setIdea(event.target.value)} />
+      <div className="ot-prompt-toolbar">
+        <div className="ot-prompt-tools">
+          <Popover open={sparksOpen} onOpenChange={setSparksOpen}>
+            <PopoverTrigger asChild><Button className="ot-tool-button" tone="ghost" size="sm" disabled={creative.exploring} leadingIcon={<OvertoneIcon name="spark" size={15} />}>{t('Overtone.studio.sparks')}</Button></PopoverTrigger>
+            <PopoverContent align="start" className="ot-spark-menu"><h2>{t('Overtone.studio.sparkMenuTitle')}</h2>
+              {['moon', 'rain', 'arcade'].map((key) => <Button className="ot-spark-choice" tone="ghost" key={key} trailingIcon={<OvertoneIcon name="arrow" size={16} />}
+                onClick={() => { creative.setIdea(t(`Overtone.playground.sparks.${key}.prompt`)); setSparksOpen(false); }}>
+                <span><strong>{t(`Overtone.playground.sparks.${key}.name`)}</strong><span>{t(`Overtone.playground.sparks.${key}.detail`)}</span></span>
+              </Button>)}
+            </PopoverContent>
+          </Popover>
+          <Button className="ot-tool-button" tone="ghost" size="sm" onClick={surpriseMe} disabled={creative.exploring} leadingIcon={<OvertoneIcon name="shuffle" size={15} />}>{t('Overtone.studio.shuffle')}</Button>
+        </div>
+        <Button className="ot-explore-button" tone={creative.ideaDirty && !creative.proposalsCurrent ? 'secondary' : 'primary'} loading={creative.exploring}
+          disabled={!creative.idea.trim() || creative.exploring || !readiness.textCapabilityAvailable}
+          trailingIcon={<OvertoneIcon name="arrow" size={17} />} onClick={() => void creative.explore()}>
+          {t(creative.exploring ? 'Overtone.playground.exploring' : 'Overtone.playground.explore')}
+        </Button>
+      </div>
+    </div>
+    {creative.error ? <InlineAlert tone="warning">{creative.error}</InlineAlert> : null}
+    {creative.exploring ? <div className="ot-waiting" role="status" tabIndex={-1}><span className="ot-pulse" /><span>{t('Overtone.studio.exploringHint')}</span><Button tone="ghost" size="sm" onClick={creative.cancelExploration}>{t('Overtone.playground.stopExploring')}</Button></div> : null}
+    {!readiness.textCapabilityAvailable ? <NimiText role="helper">{t('Overtone.playground.textSetup')}</NimiText> : null}
+  </section>;
+}
+
+export function SoundNotes() {
+  const { t } = useTranslation();
+  const { project } = useOvertoneState();
+  const { setBrief } = useOvertoneActions();
+  const creative = useExploration();
+  const brief = project?.brief;
+  return <section className="ot-sound-notes">
+    <div className="overtone-section__heading"><h3>{t('Overtone.playground.soundNotes')}</h3>
+      <Button tone="ghost" size="sm" disabled={!creative.idea.trim() || creative.exploring} onClick={creative.applyOwnIdea}>{t('Overtone.playground.useOwnIdea')}</Button></div>
+    {brief ? <div className="ot-notes-fields">
+      {(['title', 'genre', 'mood', 'tempo'] as const).map((key) => <FieldShell key={key} label={t(`Overtone.brief.fields.${key}`)}>
+        <TextField id={`overtone-brief-${key}`} value={brief[key]} maxLength={key === 'title' ? 80 : 160}
+          onChange={(event) => setBrief({ ...brief, [key]: event.target.value })} />
+      </FieldShell>)}
+      <FieldShell className="ot-notes-description" label={t('Overtone.brief.fields.description')}>
+        <TextareaField id="overtone-brief-description" rows={4} maxLength={1500} value={brief.description} onChange={(event) => setBrief({ ...brief, description: event.target.value })} />
+      </FieldShell>
+    </div> : <p className="ot-muted">{t('Overtone.studio.manualNotesHint')}</p>}
+  </section>;
 }

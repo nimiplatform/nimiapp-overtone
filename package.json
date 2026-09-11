@@ -21,7 +21,7 @@
     "spec:authority:check": "nimicoding authority check .nimi/spec",
     "spec:authority:compile": "nimicoding authority compile .nimi/spec",
     "sync": "nimi-app sync",
-    "build:electron:production": "node scripts/clean-electron-production.mjs && pnpm run build && node scripts/package-electron-production.mjs"
+    "build:electron:production": "nimi-app check --production && node scripts/clean-electron-production.mjs && pnpm run build && node scripts/package-electron-production.mjs"
   },
   "dependencies": {
     "i18next": "^25.8.18",
@@ -41,6 +41,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^42.5.0",
     "esbuild": "^0.28.0",
+    "jsdom": "27.4.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.6",

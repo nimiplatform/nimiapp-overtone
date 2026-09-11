@@ -13,11 +13,11 @@ units:
   - id: definition.overtone.product.feature-f002
     kind: definition
     title: Song brief and lyrics canvas
-    meaning: Feature F-002 is the P0 song brief and lyrics canvas; its protected SDK surface is NimiLocalAppClient.ai.text.generateCandidate, while manual authoring remains available when text.generate is not configured.
+    meaning: The song canvas accepts scenes, emotions and authored inspiration prompts; protected text candidates propose three contrasting musical directions and lyric sketches for explicit selection, with manual authoring available without text configuration.
   - id: definition.overtone.product.feature-f003
     kind: definition
     title: Music generation
-    meaning: Feature F-003 is the music generation stage and remains explicitly unavailable until the protected Nimi Local App contract admits a music-generation job operation.
+    meaning: Music generation consumes the admitted protected Local App music-generate Scenario Job through the SDK adapter and Kit runner, submitting prompt, lyrics and an optional duration budget and projecting only completed, verified and decoded audio as takes.
   - id: definition.overtone.product.feature-f004
     kind: definition
     title: Candidate stack and compare
@@ -25,7 +25,7 @@ units:
   - id: definition.overtone.product.feature-f005
     kind: definition
     title: Reference iteration
-    meaning: Feature F-005 is reference-audio, extend, and remix iteration and remains explicitly unavailable while protected Local App music jobs are absent.
+    meaning: Feature F-005 is reference-audio, extend, and remix iteration and remains explicitly unavailable while the required audio-reference inputs are absent from the protected Local App music contract; text-based reinterpretation is a new prompt-origin generation governed by music playground authority.
   - id: definition.overtone.product.feature-f006
     kind: definition
     title: Playback and trim
@@ -92,7 +92,7 @@ units:
     kind: rule
     title: Take-based iteration
     modality: must
-    statement: Represent admitted future music-generation results as takes, append rather than overwrite, and select through selectedTakeId; while no music operation is admitted, create no SongTake.
+    statement: Represent admitted music-generation results as append-only takes and select through selectedTakeId; create no SongTake without a completed, verified and decoded Runtime artifact.
     condition: When projecting music output or the current unavailable state.
     failure: Reject fabricated output, replacement of prior results, or any take created without admitted completed artifact evidence.
     relations:
@@ -136,7 +136,7 @@ units:
     kind: rule
     title: No failure-hiding fallback
     modality: must_not
-    statement: Use retry or session refresh to rescue decode, content-type, schema, or contract failures, or silently route an unavailable operation through another transport.
+    statement: Silently retry AI generation, change transport, or relax validation to rescue artifact or decode errors; explicit user recovery may only re-read and decode the same completed Runtime artifact.
     condition: When a decode, content-type, schema, contract, or music-generation job failure occurs.
     failure: Surface the original failure and require the user to choose the recovery action.
     relations:

@@ -5,7 +5,7 @@ units:
   - id: definition.overtone.realm.publish-surface
     kind: definition
     title: Realm publish surface
-    meaning: A fail-closed Overtone modal that projects publish metadata and provenance but exposes no enabled submission until Nimi App Access admits a protected Realm publish operation.
+    meaning: Publication is unavailable on the current protected Local App contract; Overtone exposes no publish action or form.
   - id: rule.overtone.realm.r001
     kind: rule
     title: App Access publish entry
@@ -20,9 +20,9 @@ units:
     kind: rule
     title: Realm readiness unavailable
     modality: must
-    statement: Project realmConfigured and realmAuthenticated as false while no protected App Access Realm operation exists; do not infer either value from URLs, Runtime accounts, raw tokens, or direct Realm probes.
+    statement: Keep Realm publication unavailable and omit unqueried Realm account or configuration projections. Do not infer Realm facts from URLs, raw tokens or Runtime accounts.
     condition: On every readiness pass before Realm App Access admission.
-    failure: Preserve the unavailable projection and issue no Realm request.
+    failure: Expose no publish action or fabricated Realm readiness.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.readiness-snapshot
@@ -34,36 +34,32 @@ units:
     modality: must_not
     statement: Upload take audio, create a Realm post, return a fabricated post identifier, or transition publishStatus to done while the protected publish operation is unavailable.
     condition: Until App Access admits and implements Realm publish.
-    failure: Keep Publish disabled with the explicit unavailable warning and preserve local draft metadata only.
+    failure: Omit unavailable publication UI and preserve the author draft and audio references.
     relations:
-      - type: applies_to
-        target: definition.overtone.data-model.publish-draft
       - type: applies_to
         target: definition.overtone.realm.publish-surface
   - id: rule.overtone.realm.r004
     kind: rule
     title: Explicit provenance confirmation
     modality: must_not
-    statement: Issue any future publish call before PublishDraft.provenanceConfirmed is true or without an explicit checkbox bound to a human-readable rights statement.
+    statement: Issue any future publish call without explicit provenance confirmation through a checkbox bound to a human-readable rights statement.
     condition: Before any admitted publish call.
     failure: Block publish and prompt for explicit provenance confirmation.
     relations:
-      - type: applies_to
-        target: definition.overtone.data-model.publish-draft
       - type: applies_to
         target: definition.overtone.realm.publish-surface
   - id: rule.overtone.realm.r005
     kind: rule
     title: Source-mode mapping
     modality: must
-    statement: Preserve the mapping from prompt to prompt-only, extend and remix to derived-take, and reference to uploaded-audio in local PublishDraft metadata without treating it as evidence that publish occurred.
-    condition: When creating a local publish draft.
-    failure: Reject the invalid draft and create no publish result.
+    statement: Keep origin prompt and optional textual parent lineage on generated audio; never represent textual reinterpretation as audio derivation or publication.
+    condition: When creating a playable music take.
+    failure: Preserve textual lineage without claiming audio derivation or publication.
     relations:
       - type: applies_to
-        target: definition.overtone.data-model.publish-draft
-      - type: applies_to
         target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.realm.publish-surface
   - id: rule.overtone.realm.r006
     kind: rule
     title: No social shell surfaces

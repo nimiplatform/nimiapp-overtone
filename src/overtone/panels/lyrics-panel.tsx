@@ -1,96 +1,61 @@
-import { useCallback, useState } from 'react';
-import { Button, InlineAlert, NimiText, nimiToast, StatusBadge, Surface, TextareaField } from '@nimiplatform/kit/ui';
+import { useEffect, useRef, useState } from 'react';
+import { Button, InlineAlert, NimiText, TextareaField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
-import { generateRuntimeText } from '../runtime-workflow.js';
-import type { SongBrief } from '../types.js';
+import { generateRuntimeText, textFailureMessage } from '../runtime-workflow.js';
+import { normalizeGeneratedLyrics } from '../lyrics.js';
 
-const LYRICS_SYSTEM = `You are a songwriting assistant.
-Write singable lyrics that follow the provided brief.
-Return plain lyrics only, with section labels (Verse, Chorus, Bridge) when useful.`;
+const LYRICS_SYSTEM = 'You are a songwriting collaborator. Write 4-12 short singable lines in the requested language, under 1500 characters, with [verse] and [chorus] tags on their own lines, followed by sung words on new lines. Return only actual lyrics. Follow the provided scene and arrangement.';
 
+// @nimi-authority: rule.overtone.workflow.r003
 export function LyricsPanel() {
-  const { t } = useTranslation();
-  const state = useOvertoneState();
+  const { t, i18n } = useTranslation();
+  const { project, readiness } = useOvertoneState();
   const { setLyrics } = useOvertoneActions();
-  const project = state.project;
-  const lyrics = project?.lyrics ?? null;
-  const brief = project?.brief ?? null;
-  const { readiness } = state;
-
+  const lyrics = project?.lyrics;
+  const brief = project?.brief;
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [candidate, setCandidate] = useState('');
+  const revision = useRef(lyrics);
+  revision.current = lyrics;
+  const invocation = useRef(0);
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => () => { invocation.current += 1; request.current?.abort(); }, []);
 
-  const canCallAi = readiness.textCapabilityAvailable;
-
-  const handleGenerate = useCallback(async () => {
-    if (!canCallAi || !brief?.description) return;
+  async function generate() {
+    if (!brief?.description || !readiness.textCapabilityAvailable || generating) return;
+    const id = ++invocation.current;
+    const before = lyrics;
+    const controller = new AbortController(); request.current = controller;
+    const chinese = (i18n.resolvedLanguage || i18n.language).startsWith('zh');
     setGenerating(true);
+    setError('');
     try {
-      const text = await generateRuntimeText({
-        client: getNimiLocalAppClient(),
-        input: buildBriefContext(brief),
-        system: LYRICS_SYSTEM,
-        temperature: 0.85,
-        maxTokens: 768,
-      });
-      setLyrics(text.trim(), 'assistant');
-    } catch (nextError) {
-      nimiToast.danger(nextError instanceof Error ? nextError.message : String(nextError));
-    } finally {
-      setGenerating(false);
-    }
-  }, [brief, canCallAi, setLyrics]);
+      const text = await generateRuntimeText({ client: getNimiLocalAppClient(), signal: controller.signal, system: `${LYRICS_SYSTEM}\n${chinese ? '用简体中文写歌词，不要使用英文。' : 'Write the lyrics in English.'}`,
+        input: JSON.stringify({ brief, language: chinese ? 'Chinese' : 'English' }), temperature: .85, maxTokens: 800 });
+      if (id !== invocation.current) return;
+      if (revision.current === before) setLyrics(normalizeGeneratedLyrics(text), 'assistant');
+      else setCandidate(normalizeGeneratedLyrics(text));
+    } catch (cause) {
+      if (id === invocation.current) setError(textFailureMessage(cause, t));
+    } finally { if (id === invocation.current) setGenerating(false); }
+  }
 
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = event.target.value;
-    const nextSource: 'manual' | 'mixed' = lyrics?.source === 'assistant' ? 'mixed' : 'manual';
-    setLyrics(text, nextSource);
-  }, [lyrics, setLyrics]);
-
-  return (
-    <Surface tone="panel" padding="md" className="overtone-section">
-      <div className="overtone-section__heading">
-        <NimiText as="h2" role="section-title">{t('Overtone.lyrics.title')}</NimiText>
-        {lyrics ? <StatusBadge tone="info">{t(`Overtone.lyrics.sources.${lyrics.source}`)}</StatusBadge> : null}
-      </div>
-
-      <div className="overtone-row">
-        <Button
-          type="button"
-          tone="secondary"
-          size="sm"
-          onClick={handleGenerate}
-          disabled={generating || !canCallAi || !brief?.description}
-        >
-          {generating
-            ? t('Overtone.lyrics.writing')
-            : lyrics ? t('Overtone.lyrics.regenerate') : t('Overtone.lyrics.generate')}
-        </Button>
-      </div>
-
-      {!brief?.description ? (
-        <InlineAlert tone="info">{t('Overtone.lyrics.briefRequired')}</InlineAlert>
-      ) : null}
-
-      <TextareaField
-        rows={10}
-        textareaClassName="overtone-lyrics-textarea"
-        aria-label={t('Overtone.lyrics.title')}
-        value={lyrics?.text ?? ''}
-        onChange={handleChange}
-        placeholder={t('Overtone.lyrics.placeholder')}
-      />
-    </Surface>
-  );
-}
-
-function buildBriefContext(brief: SongBrief): string {
-  return [
-    `Title: ${brief.title}`,
-    `Genre: ${brief.genre}`,
-    `Mood: ${brief.mood}`,
-    `Tempo: ${brief.tempo}`,
-    `Description: ${brief.description}`,
-  ].filter(Boolean).join('\n');
+  return <section className="ot-lyrics-editor" id="overtone-lyrics-fold">
+    <div className="overtone-section__heading"><h3>{t('Overtone.lyrics.title')}</h3><span className="ot-muted">{lyrics?.text.trim() ? t('Overtone.playground.lyricsReady') : t('Overtone.playground.lyricsNeeded')}</span></div>
+    <div className="overtone-field-stack">
+      <div className="overtone-row overtone-row--between"><NimiText role="caption">{t('Overtone.playground.lyricsHint')}</NimiText>
+        {generating ? <Button tone="secondary" size="sm" onClick={() => { request.current?.abort(); invocation.current += 1; setGenerating(false); setError(t('Overtone.text.canceled')); }}>{t('Overtone.text.cancel')}</Button> : null}
+        <Button tone="secondary" size="sm" disabled={generating || !readiness.textCapabilityAvailable || !brief?.description} onClick={() => void generate()}>
+          {t(generating ? 'Overtone.lyrics.writing' : lyrics?.text ? 'Overtone.lyrics.regenerate' : 'Overtone.lyrics.generate')}
+        </Button></div>
+      <TextareaField rows={7} maxLength={6000} aria-label={t('Overtone.lyrics.title')} value={lyrics?.text ?? ''}
+        onChange={(event) => setLyrics(event.target.value, lyrics?.source === 'assistant' || lyrics?.source === 'mixed' ? 'mixed' : 'manual')}
+        placeholder={t('Overtone.lyrics.placeholder')} />
+      {error ? <InlineAlert tone="warning">{error}</InlineAlert> : null}
+      {candidate ? <div className="overtone-field-stack"><p className="overtone-lyric-sketch">{candidate}</p><Button tone="secondary" onClick={() => { setLyrics(candidate, 'assistant'); setCandidate(''); }}>{t('Overtone.playground.applyLyrics')}</Button></div> : null}
+    </div>
+  </section>;
 }

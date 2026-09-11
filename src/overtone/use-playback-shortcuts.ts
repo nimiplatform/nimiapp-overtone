@@ -17,7 +17,7 @@ export function usePlaybackShortcuts(input: {
       if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
       if (target?.isContentEditable || target?.closest?.(
-        'input, textarea, select, button, a[href], [role="button"], [role="slider"], [role="tab"], [role="menu"], [role="listbox"]',
+        'input, textarea, select, button, summary, a[href], [role="button"], [role="slider"], [role="tab"], [role="menu"], [role="listbox"]',
       )) return;
       if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')) return;
 

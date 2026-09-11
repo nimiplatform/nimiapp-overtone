@@ -12,16 +12,15 @@ const typesSource = read('../src/overtone/types.ts');
 const runtimeWorkflowSource = read('../src/overtone/runtime-workflow.ts');
 const readinessSource = read('../src/overtone/readiness.ts');
 const briefSource = read('../src/overtone/panels/brief-panel.tsx');
+const explorationSource = read('../src/overtone/exploration-context.tsx');
 const lyricsSource = read('../src/overtone/panels/lyrics-panel.tsx');
 const generateSource = read('../src/overtone/panels/generate-panel.tsx');
 const iterationSource = read('../src/overtone/panels/iteration-panel.tsx');
-const publishSource = read('../src/overtone/panels/publish-panel.tsx');
 const playerSource = read('../src/overtone/panels/player-panel.tsx');
 const takesSource = read('../src/overtone/panels/takes-panel.tsx');
 const stylesSource = read('../src/styles.css');
 const overtoneCssSource = read('../src/overtone/overtone.css');
 const mainSource = read('../src/main.tsx');
-const devPreviewSource = read('../src/dev-preview.tsx');
 const manifest = read('../nimi.app.yaml');
 const runtimeAuthority = read('../.nimi/spec/overtone/canonical/runtime.authority.yaml');
 
@@ -35,10 +34,10 @@ const allSource = [
   runtimeWorkflowSource,
   readinessSource,
   briefSource,
+  explorationSource,
   lyricsSource,
   generateSource,
   iterationSource,
-  publishSource,
   playerSource,
   takesSource,
 ].join('\n');
@@ -64,10 +63,9 @@ test('runtime identity authority is host-bound and has no legacy app-prefixed id
 
 test('renderer uses Kit base accent with app-owned Overtone variables', () => {
   assert.match(mainSource, /accentPack="nimi-accent"/);
-  assert.match(devPreviewSource, /accentPack="nimi-accent"/);
   assert.match(stylesSource, /@import "@nimiplatform\/kit\/ui\/themes\/nimi-accent\.css"/);
   assert.match(workspaceSource, /import '\.\/overtone\.css'/);
-  assert.match(overtoneCssSource, /--overtone-accent-primary:\s*#8b5cf6/);
+  assert.match(overtoneCssSource, /--nimi-action-primary-bg:\s*var\(--overtone-accent-primary\)/);
 });
 
 test('overtone i18n supports English and Chinese through Kit language switcher', () => {
@@ -90,28 +88,29 @@ test('readiness is derived from protected session posture and App AIConfig', () 
   assert.match(readinessSource, /client\.aiConfig\.get\(\)/);
   assert.match(readinessSource, /capabilityContract === 'text\.generate'/);
   assert.match(readinessSource, /musicCapabilityAvailable:\s*false/);
-  assert.match(readinessSource, /realmConfigured:\s*false/);
   assert.doesNotMatch(readinessSource, /listScenarioProfiles|listNimiRuntimeRouteOptions|inventory\.targets/);
 });
 
-test('brief and lyrics assistance use Local App text candidates', () => {
-  assert.match(runtimeWorkflowSource, /client\.ai\.text\.generateCandidate\(/);
-  assert.match(briefSource, /getNimiLocalAppClient\(\)/);
+test('brief and lyrics assistance use cancelable protected Local App text streams', () => {
+  assert.match(runtimeWorkflowSource, /client\.ai\.text\.streamTurn\(/);
+  assert.match(explorationSource, /getNimiLocalAppClient\(\)/);
   assert.match(lyricsSource, /getNimiLocalAppClient\(\)/);
-  assert.match(briefSource + lyricsSource, /generateRuntimeText\(/);
+  assert.match(explorationSource + lyricsSource, /generateRuntimeText\(/);
   assert.doesNotMatch(runtimeWorkflowSource, /ScenarioType|ExecutionMode|runtime\.ai\.|buildMusic/);
 });
 
-test('unsupported music iteration stays unavailable without a private Runtime bypass', () => {
-  assert.match(iterationSource, /Overtone\.iteration\.appAccessUnavailable/);
+test('text reinterpretation uses snapshots without an unsupported audio iteration bypass', () => {
+  assert.match(explorationSource, /source\.promptSnapshot/);
+  assert.match(explorationSource, /source\?\.lyricsSnapshot/);
+  assert.match(iterationSource, /Overtone\.playground\.reinterpretHint/);
   assert.doesNotMatch(generateSource + iterationSource, /RuntimeGenerationPanel|useRuntimeGenerationPanel|submitMusicGenerate|requireCompletedMusicArtifact/);
 });
 
 test('takes remain append-only and discarding clears in-memory audio', () => {
   assert.doesNotMatch(storeSource, /takes\.splice|takes\.pop|takes\.shift/);
   assert.match(storeSource, /case 'take\/discard'/);
-  assert.match(storeSource, /audioBuffers/);
-  assert.match(storeSource, /\[action\.takeId\]/);
+  assert.doesNotMatch(storeSource, /audioBuffers/);
+  assert.match(storeSource, /cache\.remove\(take\.artifactId\)/);
 });
 
 test('local drafts persist only project metadata, not audio buffers', () => {
@@ -120,17 +119,9 @@ test('local drafts persist only project metadata, not audio buffers', () => {
   assert.doesNotMatch(storeSource, /JSON\.stringify\(\{ project, audioBuffers/);
 });
 
-test('publish draft creation resets stale publish state', () => {
-  assert.match(storeSource, /publishDraftFromTake/);
-  assert.match(storeSource, /type: 'publish\/status', status: 'idle'/);
-  assert.match(storeSource, /type: 'publish\/post-id', postId: null/);
-});
 
-test('Realm publish flow also fails closed without raw token transport', () => {
-  assert.doesNotMatch(publishSource, /uploadNimiRealmResourceFile|createNimiRealmPost|requireRealm\(/);
-  assert.match(publishSource, /realmPublishProxyAvailable = false/);
-  assert.match(publishSource, /proxyUnavailable/);
-  assert.match(publishSource, /provenanceConfirmed/);
+test('unavailable publication has no user action or form', () => {
+  assert.doesNotMatch(workspaceSource + takesSource, /PublishModal|onPublish|takes\.publish/);
 });
 
 test('ids use SDK client ids rather than random ids', () => {
@@ -158,7 +149,7 @@ test('removed surface names do not reappear in active source', () => {
 });
 
 test('SongTake origin enum admits only spec-listed values', () => {
-  assert.match(typesSource, /type TakeOrigin = 'prompt' \| 'extend' \| 'remix' \| 'reference'/);
+  assert.match(typesSource, /type TakeOrigin = 'prompt'/);
 });
 
 test('workspace probes readiness and exposes unavailable state', () => {
@@ -167,10 +158,10 @@ test('workspace probes readiness and exposes unavailable state', () => {
   assert.match(workspaceSource, /musicCapabilityAvailable/);
 });
 
-test('escape key exits compare mode when publish modal is not open', () => {
+test('escape key exits compare mode when no dialog owns it', () => {
   assert.match(workspaceSource, /event\.key === 'Escape'/);
   assert.match(workspaceSource, /clearCompare\(\)/);
-  assert.match(workspaceSource, /publishTakeId === null/);
+  assert.match(workspaceSource, /event\.defaultPrevented/);
 });
 
 test('player and takes expose trim preview plus A/B compare surfaces', () => {

@@ -1,0 +1,438 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-11T11:40:50.666Z",
+  "title": "Design System: Overtone",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15.00% 0.00661 106.52)",
+          "oklch(26.43% 0.00661 106.52)",
+          "oklch(37.86% 0.00661 106.52)",
+          "oklch(49.29% 0.00661 106.52)",
+          "oklch(60.71% 0.00661 106.52)",
+          "oklch(72.14% 0.00661 106.52)",
+          "oklch(83.57% 0.00661 106.52)",
+          "oklch(95.00% 0.00661 106.52)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Working surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.00954 124.87)",
+          "oklch(26.43% 0.00954 124.87)",
+          "oklch(37.86% 0.00954 124.87)",
+          "oklch(49.29% 0.00954 124.87)",
+          "oklch(60.71% 0.00954 124.87)",
+          "oklch(72.14% 0.00954 124.87)",
+          "oklch(83.57% 0.00954 124.87)",
+          "oklch(95.00% 0.00954 124.87)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01626 124.81)",
+          "oklch(26.43% 0.01626 124.81)",
+          "oklch(37.86% 0.01626 124.81)",
+          "oklch(49.29% 0.01626 124.81)",
+          "oklch(60.71% 0.01626 124.81)",
+          "oklch(72.14% 0.01626 124.81)",
+          "oklch(83.57% 0.01626 124.81)",
+          "oklch(95.00% 0.01626 124.81)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Divider",
+        "tonalRamp": [
+          "oklch(15.00% 0.01360 115.86)",
+          "oklch(26.43% 0.01360 115.86)",
+          "oklch(37.86% 0.01360 115.86)",
+          "oklch(49.29% 0.01360 115.86)",
+          "oklch(60.71% 0.01360 115.86)",
+          "oklch(72.14% 0.01360 115.86)",
+          "oklch(83.57% 0.01360 115.86)",
+          "oklch(95.00% 0.01360 115.86)"
+        ]
+      },
+      "blue": {
+        "role": "primary",
+        "displayName": "Ultramarine",
+        "tonalRamp": [
+          "oklch(15.00% 0.22908 269.99)",
+          "oklch(26.43% 0.22908 269.99)",
+          "oklch(37.86% 0.22908 269.99)",
+          "oklch(49.29% 0.22908 269.99)",
+          "oklch(60.71% 0.22908 269.99)",
+          "oklch(72.14% 0.22908 269.99)",
+          "oklch(83.57% 0.22908 269.99)",
+          "oklch(95.00% 0.22908 269.99)"
+        ]
+      },
+      "blue-soft": {
+        "role": "primary",
+        "displayName": "Soft ultramarine",
+        "tonalRamp": [
+          "oklch(15.00% 0.02460 275.91)",
+          "oklch(26.43% 0.02460 275.91)",
+          "oklch(37.86% 0.02460 275.91)",
+          "oklch(49.29% 0.02460 275.91)",
+          "oklch(60.71% 0.02460 275.91)",
+          "oklch(72.14% 0.02460 275.91)",
+          "oklch(83.57% 0.02460 275.91)",
+          "oklch(95.00% 0.02460 275.91)"
+        ]
+      },
+      "lime": {
+        "role": "secondary",
+        "displayName": "Lime",
+        "tonalRamp": [
+          "oklch(15.00% 0.12455 120.22)",
+          "oklch(26.43% 0.12455 120.22)",
+          "oklch(37.86% 0.12455 120.22)",
+          "oklch(49.29% 0.12455 120.22)",
+          "oklch(60.71% 0.12455 120.22)",
+          "oklch(72.14% 0.12455 120.22)",
+          "oklch(83.57% 0.12455 120.22)",
+          "oklch(95.00% 0.12455 120.22)"
+        ]
+      },
+      "selected": {
+        "role": "neutral",
+        "displayName": "Selected surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.01234 121.70)",
+          "oklch(26.43% 0.01234 121.70)",
+          "oklch(37.86% 0.01234 121.70)",
+          "oklch(49.29% 0.01234 121.70)",
+          "oklch(60.71% 0.01234 121.70)",
+          "oklch(72.14% 0.01234 121.70)",
+          "oklch(83.57% 0.01234 121.70)",
+          "oklch(95.00% 0.01234 121.70)"
+        ]
+      },
+      "paper-dark": {
+        "role": "neutral",
+        "displayName": "Paper · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.00837 153.20)",
+          "oklch(26.43% 0.00837 153.20)",
+          "oklch(37.86% 0.00837 153.20)",
+          "oklch(49.29% 0.00837 153.20)",
+          "oklch(60.71% 0.00837 153.20)",
+          "oklch(72.14% 0.00837 153.20)",
+          "oklch(83.57% 0.00837 153.20)",
+          "oklch(95.00% 0.00837 153.20)"
+        ]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Working surface · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.01034 151.39)",
+          "oklch(26.43% 0.01034 151.39)",
+          "oklch(37.86% 0.01034 151.39)",
+          "oklch(49.29% 0.01034 151.39)",
+          "oklch(60.71% 0.01034 151.39)",
+          "oklch(72.14% 0.01034 151.39)",
+          "oklch(83.57% 0.01034 151.39)",
+          "oklch(95.00% 0.01034 151.39)"
+        ]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Ink · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.00932 113.16)",
+          "oklch(26.43% 0.00932 113.16)",
+          "oklch(37.86% 0.00932 113.16)",
+          "oklch(49.29% 0.00932 113.16)",
+          "oklch(60.71% 0.00932 113.16)",
+          "oklch(72.14% 0.00932 113.16)",
+          "oklch(83.57% 0.00932 113.16)",
+          "oklch(95.00% 0.00932 113.16)"
+        ]
+      },
+      "muted-dark": {
+        "role": "neutral",
+        "displayName": "Muted ink · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.02023 133.12)",
+          "oklch(26.43% 0.02023 133.12)",
+          "oklch(37.86% 0.02023 133.12)",
+          "oklch(49.29% 0.02023 133.12)",
+          "oklch(60.71% 0.02023 133.12)",
+          "oklch(72.14% 0.02023 133.12)",
+          "oklch(83.57% 0.02023 133.12)",
+          "oklch(95.00% 0.02023 133.12)"
+        ]
+      },
+      "line-dark": {
+        "role": "neutral",
+        "displayName": "Divider · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.01647 141.71)",
+          "oklch(26.43% 0.01647 141.71)",
+          "oklch(37.86% 0.01647 141.71)",
+          "oklch(49.29% 0.01647 141.71)",
+          "oklch(60.71% 0.01647 141.71)",
+          "oklch(72.14% 0.01647 141.71)",
+          "oklch(83.57% 0.01647 141.71)",
+          "oklch(95.00% 0.01647 141.71)"
+        ]
+      },
+      "blue-dark": {
+        "role": "primary",
+        "displayName": "Ultramarine · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.22679 270.81)",
+          "oklch(26.43% 0.22679 270.81)",
+          "oklch(37.86% 0.22679 270.81)",
+          "oklch(49.29% 0.22679 270.81)",
+          "oklch(60.71% 0.22679 270.81)",
+          "oklch(72.14% 0.22679 270.81)",
+          "oklch(83.57% 0.22679 270.81)",
+          "oklch(95.00% 0.22679 270.81)"
+        ]
+      },
+      "blue-soft-dark": {
+        "role": "primary",
+        "displayName": "Soft ultramarine · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.04130 263.82)",
+          "oklch(26.43% 0.04130 263.82)",
+          "oklch(37.86% 0.04130 263.82)",
+          "oklch(49.29% 0.04130 263.82)",
+          "oklch(60.71% 0.04130 263.82)",
+          "oklch(72.14% 0.04130 263.82)",
+          "oklch(83.57% 0.04130 263.82)",
+          "oklch(95.00% 0.04130 263.82)"
+        ]
+      },
+      "selected-dark": {
+        "role": "neutral",
+        "displayName": "Selected surface · dark",
+        "tonalRamp": [
+          "oklch(15.00% 0.02409 137.90)",
+          "oklch(26.43% 0.02409 137.90)",
+          "oklch(37.86% 0.02409 137.90)",
+          "oklch(49.29% 0.02409 137.90)",
+          "oklch(60.71% 0.02409 137.90)",
+          "oklch(72.14% 0.02409 137.90)",
+          "oklch(83.57% 0.02409 137.90)",
+          "oklch(95.00% 0.02409 137.90)"
+        ]
+      },
+      "transport": {
+        "role": "neutral",
+        "displayName": "Listening strip",
+        "tonalRamp": [
+          "oklch(15.00% 0.01453 136.70)",
+          "oklch(26.43% 0.01453 136.70)",
+          "oklch(37.86% 0.01453 136.70)",
+          "oklch(49.29% 0.01453 136.70)",
+          "oklch(60.71% 0.01453 136.70)",
+          "oklch(72.14% 0.01453 136.70)",
+          "oklch(83.57% 0.01453 136.70)",
+          "oklch(95.00% 0.01453 136.70)"
+        ]
+      },
+      "transport-text": {
+        "role": "neutral",
+        "displayName": "Listening text",
+        "tonalRamp": [
+          "oklch(15.00% 0.01204 116.80)",
+          "oklch(26.43% 0.01204 116.80)",
+          "oklch(37.86% 0.01204 116.80)",
+          "oklch(49.29% 0.01204 116.80)",
+          "oklch(60.71% 0.01204 116.80)",
+          "oklch(72.14% 0.01204 116.80)",
+          "oklch(83.57% 0.01204 116.80)",
+          "oklch(95.00% 0.01204 116.80)"
+        ]
+      },
+      "transport-muted": {
+        "role": "neutral",
+        "displayName": "Listening secondary text",
+        "tonalRamp": [
+          "oklch(15.00% 0.02157 127.41)",
+          "oklch(26.43% 0.02157 127.41)",
+          "oklch(37.86% 0.02157 127.41)",
+          "oklch(49.29% 0.02157 127.41)",
+          "oklch(60.71% 0.02157 127.41)",
+          "oklch(72.14% 0.02157 127.41)",
+          "oklch(83.57% 0.02157 127.41)",
+          "oklch(95.00% 0.02157 127.41)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Archivo wordmark",
+        "purpose": "Bundled Archivo Black, registered as Overtone Display; wordmark only."
+      },
+      "prompt": {
+        "displayName": "Idea text",
+        "purpose": "The larger creative entry role."
+      },
+      "coordinate": {
+        "displayName": "Score coordinates",
+        "purpose": "Compact intent values with Kit mono."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-light",
+        "value": "0 12px 32px #23271912",
+        "purpose": "Preferences and suggestion menus in light mode."
+      },
+      {
+        "name": "floating-dark",
+        "value": "0 12px 32px #0004",
+        "purpose": "Preferences and suggestion menus in dark mode."
+      },
+      {
+        "name": "intent-marker",
+        "value": "0 3px 10px #0d165140",
+        "purpose": "Lift the movable point from the blue field."
+      }
+    ],
+    "motion": [
+      {
+        "name": "waiting-pulse",
+        "value": "ot-pulse 1.8s ease-in-out infinite",
+        "purpose": "Waiting dot; at midpoint opacity .3 and scale .6. Disabled under reduced motion."
+      },
+      {
+        "name": "interpretation-entry",
+        "value": "ot-proposal-in .25s ease-out",
+        "purpose": "Opacity .45 and translateY(5px) to rest. Disabled under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-min",
+        "value": "1500px"
+      },
+      {
+        "name": "compact-max",
+        "value": "1200px"
+      },
+      {
+        "name": "stack-max",
+        "value": "920px"
+      },
+      {
+        "name": "mobile-max",
+        "value": "580px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The generation strip's single Apply/Generate action; dimensions are minimums.",
+      "html": "<button class=\"ds-primary\">Apply direction</button>",
+      "css": ".ds-primary{background:var(--nimi-action-primary-bg, #242621);color:var(--nimi-action-primary-text, #fff);min-height:46px;min-width:160px;border:0;border-radius:9px;box-shadow:none;font-family:var(--nimi-font-sans, sans-serif)}.ds-primary:hover{background:var(--nimi-action-primary-bg-hover, #41463a)}.ds-primary:focus-visible{outline:2px solid var(--nimi-field-focus, #3546df);outline-offset:3px}"
+    },
+    {
+      "name": "Ghost tool",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet supporting action using Kit ghost tone.",
+      "html": "<button class=\"ds-ghost\">Sound notes</button>",
+      "css": ".ds-ghost{background:transparent;color:var(--ot-ink, #242621);border:0;border-radius:8px;box-shadow:none;font-family:var(--nimi-font-sans, sans-serif);font-size:12px}.ds-ghost:hover{background:var(--nimi-action-ghost-hover, #e7e9e0)}.ds-ghost:focus-visible{outline:2px solid var(--nimi-field-focus, #3546df);outline-offset:3px}"
+    },
+    {
+      "name": "Transport secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary-transport",
+      "description": "Secondary action within the persistent dark listening strip.",
+      "html": "<button class=\"ds-secondary\">Compare</button>",
+      "css": ".ds-secondary{background:#394031;color:#f6f8ef;border:0;font-family:var(--nimi-font-sans, sans-serif);font-size:10px;min-height:26px}.ds-secondary:hover{background:#47523f}.ds-secondary:focus-visible{outline:2px solid var(--nimi-field-focus, #3546df);outline-offset:3px}"
+    },
+    {
+      "name": "Idea input",
+      "kind": "input",
+      "refersTo": "prompt-input",
+      "description": "Large idea-entry text on a flat bordered working surface.",
+      "html": "<div class=\"ds-prompt\"><textarea class=\"ds-prompt-text\" rows=\"2\" aria-label=\"Musical idea\" placeholder=\"Describe a scene or a feeling…\"></textarea></div>",
+      "css": ".ds-prompt{background:var(--ot-surface, #fff);border:1px solid var(--ot-line, #dddfd5);border-radius:14px;overflow:hidden}.ds-prompt:focus-within{border-color:var(--ot-blue, #3546df)}.ds-prompt-text{width:100%;background:transparent;color:var(--ot-ink, #242621);border:0;resize:vertical;font-family:var(--nimi-font-sans, sans-serif);font-size:17px;line-height:1.6;min-height:80px;max-height:180px;padding:15px 18px 6px}.ds-prompt-text::placeholder{color:var(--ot-muted, #62665c);opacity:1}.ds-prompt-text:focus-visible{outline:2px solid var(--nimi-field-focus, #3546df);outline-offset:3px}"
+    },
+    {
+      "name": "Interpretation choice",
+      "kind": "custom",
+      "refersTo": "direction-choice",
+      "description": "One focused item from the interpretation choice group; selection is distinct from applying.",
+      "html": "<div class=\"ds-index\" role=\"group\" aria-label=\"Interpretations\"><button class=\"ds-choice\" aria-pressed=\"true\"><span class=\"ds-letter\">A</span><span class=\"ds-name\"><strong>Example interpretation</strong><span>Example genre</span></span></button></div>",
+      "css": ".ds-choice{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:14px 12px;min-height:69px;background:var(--ot-ink, #242621);color:var(--ot-surface, #fff);border:1px solid transparent;border-radius:10px;box-shadow:none;font-family:var(--nimi-font-sans, sans-serif)}.ds-choice:hover{background:var(--ot-ink, #242621)}.ds-choice:focus-visible{outline:2px solid var(--nimi-field-focus, #3546df);outline-offset:3px}.ds-letter{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--ot-lime, #ddf594);color:#242621;font-size:11px;font-weight:600}.ds-name{display:grid;gap:6px;min-width:0}.ds-name strong{font-size:13px;font-weight:650;line-height:1.5;overflow-wrap:anywhere}.ds-name>span{font-size:11px;line-height:1.5;opacity:.85}"
+    },
+    {
+      "name": "Descriptor tag",
+      "kind": "chip",
+      "refersTo": "detail-tag",
+      "description": "A noninteractive mood or tempo descriptor.",
+      "html": "<span class=\"ds-tag\">Example mood</span>",
+      "css": ".ds-tag{display:inline-block;padding:3px 7px;border-radius:3px;background:var(--ot-selected, #edf0e7);color:var(--ot-muted, #62665c);font-family:var(--nimi-font-sans, sans-serif);font-size:10px}"
+    },
+    {
+      "name": "Notebook surface",
+      "kind": "card",
+      "refersTo": "notebook",
+      "description": "Flat container for the disclosed sound notes and lyrics.",
+      "html": "<section class=\"ds-notebook\"><h3>Sound notes</h3><p>Notes and lyrics appear here when opened.</p></section>",
+      "css": ".ds-notebook{display:grid;gap:26px;padding:24px;background:var(--ot-surface, #fff);color:var(--ot-ink, #242621);border:1px solid var(--ot-line, #dddfd5);border-radius:12px;font-family:var(--nimi-font-sans, sans-serif)}.ds-notebook h3{margin:0;font-size:16px;font-weight:650}.ds-notebook p{margin:0;font-size:12px;line-height:1.8;color:var(--ot-muted, #62665c)}"
+    },
+    {
+      "name": "Intent marker",
+      "kind": "custom",
+      "refersTo": "intent-field",
+      "description": "Representative field and marker anatomy; the app computes its full line geometry from live intent.",
+      "html": "<div class=\"ds-field\"><span class=\"ds-field-label\">Energy / surprise</span><svg class=\"ds-rules\" viewBox=\"0 0 800 300\" aria-hidden=\"true\"><path d=\"M40 150H760M400 30V270\"/></svg><button class=\"ds-point\" aria-label=\"Intent control point\"><span class=\"ds-cross\"></span></button></div>",
+      "css": ".ds-field{position:relative;min-height:198px;border-radius:14px;overflow:hidden;background:var(--ot-blue, #3546df);color:#f7f8ff;font-family:var(--nimi-font-sans, sans-serif)}.ds-field-label{position:absolute;left:20px;top:17px;font-size:12px;font-weight:650}.ds-rules{width:100%;height:198px;fill:none;stroke:#bccbff;stroke-width:.6;opacity:.4}.ds-point{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:30px;height:30px;min-height:30px;padding:0;border:3px solid #f6ffce;border-radius:50%;background:var(--ot-lime, #ddf594);box-shadow:0 3px 10px #0d165140;cursor:grab}.ds-point:hover{background:#eafaaf}.ds-point:active{cursor:grabbing}.ds-point:focus-visible{outline:2px solid #f6ffce;outline-offset:5px}.ds-cross{position:relative;width:8px;height:8px}.ds-cross::before,.ds-cross::after{content:\"\";position:absolute;background:#283020}.ds-cross::before{width:8px;height:1px;left:0;top:3px}.ds-cross::after{width:1px;height:8px;left:3px;top:0}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The living score",
+    "overview": "Musical exploration feels like a playable graphic score: off-white working surfaces, ink lettering, a saturated ultramarine intent field, and a lime marker. Flat planes and deliberate spacing support a curious, direct instrument. The Archivo Black wordmark gives it a compact, forceful signature.\n\nThis records the implemented visual system. Product authority remains under `.nimi/spec`; Kit continues to supply protected control, focus, overlay, and accessibility behavior. The approved redesign replaces the former copper/glass identity.",
+    "keyCharacteristics": [
+      "Flat working planes with precise dividers.",
+      "Ultramarine for the intent field; lime for the movable marker and listening controls.",
+      "Compact labels around generous creative content.",
+      "Code geometry for intent; decoded audio for recording waveforms."
+    ],
+    "rules": [],
+    "dos": [
+      "Do use the current light/dark role tokens and keep Kit behavior intact.",
+      "Do distinguish a focused interpretation, an applied direction, and a recording.",
+      "Do keep labels readable and allow English and Chinese content to wrap.",
+      "Do retain pointer, keyboard, and range-input access to the intent controls."
+    ],
+    "donts": [
+      "Don't restore the replaced copper/glass identity or add ambient card shadows.",
+      "Don't present the procedural score as an audio waveform or a generated recording.",
+      "Don't repeat the Apply action beside the interpretation detail; the generation strip owns that next action."
+    ]
+  }
+}

@@ -9,15 +9,15 @@ units:
   - id: definition.overtone.runtime.binding-f002
     kind: definition
     title: Text generation binding
-    meaning: Feature F-002 binds text assistance to NimiLocalAppClient.ai.text.generateCandidate with bounded system and user messages, with SongBrief fields and LyricsDocument.text as expected outputs.
+    meaning: Writing assistance uses the protected text.streamTurn subscription and its cancel operation; complete text candidates feed author-visible briefs and lyrics.
   - id: definition.overtone.runtime.binding-f003
     kind: definition
     title: Music generation binding
-    meaning: Feature F-003 binds prompt and lyrics to the admitted protected Local App music-generate Scenario Job through the SDK adapter and Kit music runner; a completed Runtime audio artifact is read and decoded before becoming a SongTake.
+    meaning: Feature F-003 binds prompt, lyrics and an admitted optional duration budget to the admitted protected Local App music-generate Scenario Job through the SDK adapter and Kit music runner; a completed Runtime audio artifact is read and decoded before becoming a SongTake.
   - id: definition.overtone.runtime.binding-f005
     kind: definition
     title: Music iteration binding
-    meaning: Feature F-005 remains unavailable because the protected music operation accepts only prompt and lyrics, without reference-audio, extend, or remix inputs; those iteration controls dispatch no Runtime operation.
+    meaning: Feature F-005 remains unavailable because the protected music operation accepts prompt, lyrics and an optional duration budget, without reference-audio, extend, or remix inputs; those iteration controls dispatch no Runtime operation.
   - id: definition.overtone.runtime.binding-f007
     kind: definition
     title: Realm media binding
@@ -50,7 +50,7 @@ units:
     kind: rule
     title: Protected text candidate binding
     modality: must
-    statement: Run brief and lyrics assistance through NimiLocalAppClient.ai.text.generateCandidate using bounded system and user messages plus optional temperature and maxTokens; derive availability from App AIConfig without reading or inventing connector or model identifiers.
+    statement: Run writing assistance through protected NimiLocalAppClient.ai.text.streamTurn with bounded system and user content. Aggregate deltas only to a completed candidate, apply a 90-second app waiting deadline, and call the subscription cancel operation on cancellation, timeout or project close. Never present partial or failed text as a finished proposal; preserve manual edits and typed failures.
     condition: When brief or lyrics assistance is dispatched.
     failure: Withhold dispatch and surface a typed text-capability unavailable or not-configured state.
     relations:
@@ -66,7 +66,7 @@ units:
     kind: rule
     title: Protected music generation
     modality: must
-    statement: Submit music generation only through the SDK protected Local App Scenario Job adapter and Kit runRuntimeMusicGenerate with prompt and lyrics; no generic Runtime client, private SDK, raw IPC, or unsupported duration, instrumental, or reference input is admitted.
+    statement: Submit music generation only through the SDK protected Local App Scenario Job adapter and Kit runRuntimeMusicGenerate with prompt, lyrics, and the admitted optional durationSeconds budget from 1 through 180; no generic Runtime client, private SDK, raw IPC, instrumental, or reference input is admitted.
     condition: When submitting music generation.
     failure: Preserve the draft and display the typed failure without creating a SongTake.
     relations:

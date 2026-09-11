@@ -28,9 +28,9 @@ units:
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r003
     kind: rule
-    title: Nimi accent with Overtone product tokens
+    title: Overtone visual system on Kit
     modality: must
-    statement: Initialize NimiThemeProvider with accentPack equal to nimi-accent, import Kit UI, light-theme, and nimi-accent styles, and express Overtone branding only through bounded app-owned product variables and layout CSS.
+    statement: Initialize NimiThemeProvider with the Kit base and allow the user-authorized Overtone visual system to define its own palette, typography, flat materials and composition through app-owned CSS and theme slots; preserve Kit accessibility and protected shell behavior.
     condition: When initializing renderer theme and styles.
     failure: Fail theme validation and render only after the admitted Kit base and bounded Overtone product styles are active.
     relations:
@@ -60,7 +60,7 @@ units:
     kind: rule
     title: Shared UI primitives
     modality: must
-    statement: Use Surface for panel containers, OverlayShell for publish, StatusBadge for status and readiness, InlineAlert for typed warnings, and Kit controls for their covered interactions without parallel button, badge, overlay, or surface implementations.
+    statement: Use Kit fields, buttons, dialogs, alerts and accessible interactions within the admitted Overtone visual system. Do not keep an unavailable publication form as a placeholder.
     condition: When rendering the corresponding workspace UI.
     failure: Fail UI review and replace the duplicate primitive with the admitted Kit component.
     relations:
@@ -68,9 +68,9 @@ units:
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r007
     kind: rule
-    title: Bounded local CSS
+    title: App-owned presentation with shared behavior
     modality: must_not
-    statement: Fork Kit component behavior, accessibility, focus management, material surfaces, or general design tokens through app-local CSS; Overtone-specific layout, content treatment, and bounded brand-variable mapping remain app owned.
+    statement: Fork Kit accessibility, focus management or platform behavior; leave product CSS outside the style gate, exceed 48 KiB of UTF-8 product CSS under src/overtone, target private Kit classes, or style unscoped native controls. The admitted Overtone visual system may redefine app tokens, layout and content treatment.
     condition: Always.
     failure: Fail style-boundary validation and remove the duplicate Kit behavior or general token override.
     relations:
@@ -78,9 +78,9 @@ units:
         target: definition.overtone.kit.allowlist
   - id: rule.overtone.kit.r008
     kind: rule
-    title: Canonical workspace Kit
+    title: Public Kit and SDK dependencies
     modality: must
-    statement: Consume the canonical workspace-linked @nimiplatform/kit package and update package.json plus pnpm-lock.yaml together when its dependency declaration changes; never vendor or inline a fork.
+    statement: Consume published registry @nimiplatform/kit and SDK exports and keep package declarations and lockfile aligned. Do not introduce app-level workspace overrides, local cohort links, local package tarballs or vendored forks; retain the official production preflight and use a matching published App Tools cohort for release.
     condition: When consuming or changing the Kit dependency.
     failure: Fail dependency validation and block the divergent Kit source or incomplete lockfile update.
     relations:

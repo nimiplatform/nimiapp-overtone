@@ -5,12 +5,12 @@ units:
   - id: definition.overtone.workflow.iteration-loop
     kind: definition
     title: Creation iteration loop
-    meaning: The fixed Overtone creation loop in which the author moves through Brief, Lyrics, Generate, Compare, Iterate, and Publish, using takes and references to refine a selected master for Realm publishing.
+    meaning: Explore a scene or emotion through AI-proposed musical directions, explicitly choose and edit a brief and lyrics, generate audible takes, listen and compare, and create new interpretations from take text. Realm publication remains separately gated.
   - id: rule.overtone.workflow.r001
     kind: rule
     title: Readiness gate
     modality: must
-    statement: Before interaction, resolve a fresh ReadinessSnapshot from the protected Local App session and App AIConfig; when the session is unavailable, render an explanatory unavailable state with retry; when the session is ready, render the workspace with text assistance enabled only when text.generate is configured and with music and Realm entry points explicitly unavailable under the current App Access contract.
+    statement: Resolve readiness from the protected Local App session and App AIConfig. An unavailable session shows explanation and retry. A ready session enables manual creation and separately gates text and music by their configured capability contracts; Realm publication remains unavailable until admitted.
     condition: Before the workspace becomes interactive and on every readiness retry.
     failure: Keep interaction or music generation disabled as applicable and display the typed unavailable or readiness warning state.
     relations:
@@ -20,9 +20,9 @@ units:
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r002
     kind: rule
-    title: Fixed stage order
+    title: Exploration before generation
     modality: must
-    statement: "Run the available loop in this order: brief authors an idea with optional protected text assistance and lyrics are assistant-generated or author-written; render Generate, Iterate, and Publish as explicit unavailable stages until their required protected App Access operations are admitted, and never synthesize takes to advance the loop."
+    statement: Accept an idea with optional AI direction proposals, explicitly apply or manually author a brief and lyrics, and generate only after those inputs and music intent are ready. Comparing existing audio and editing drafts do not depend on new generation. Reference-audio transformations and Realm publication remain unavailable on the current contract.
     condition: Always.
     failure: Block the out-of-order stage or invalid iteration entry and keep the user at the first unmet prerequisite.
     relations:
@@ -90,7 +90,7 @@ units:
     kind: rule
     title: Take selection
     modality: must
-    statement: Set selectedTakeId to the chosen takeId without mutating the SongTake, and derive playback, iteration-source selection, and publish target from selectedTakeId.
+    statement: Set selectedTakeId without modifying the take and derive playback and textual iteration sources from it.
     condition: When the author selects a take.
     failure: Reject selection that mutates the take or cannot establish the selectedTakeId, and retain the prior selection.
     relations:
@@ -118,12 +118,10 @@ units:
     kind: rule
     title: Publish gating
     modality: must
-    statement: Block publish at the call site while the protected Local App Realm contract lacks media resource upload and post creation; after those operations are admitted, also require selectedTakeId to identify a non-discarded take with decoded audio, ready Realm posture, and confirmed provenance.
-    condition: Before any publish call.
-    failure: Do not invoke Realm upload or post creation, and surface the first unmet typed publish prerequisite.
+    statement: Hide publish actions and forms while protected Realm publication is unavailable. Offer actual original-audio and trimmed-WAV export as the supported output path.
+    condition: When offering output actions.
+    failure: Expose no unavailable publication action or Realm request; disable export until its required audio and trim are valid.
     relations:
-      - type: applies_to
-        target: definition.overtone.data-model.publish-draft
       - type: applies_to
         target: definition.overtone.data-model.readiness-snapshot
       - type: applies_to
@@ -132,6 +130,8 @@ units:
         target: definition.overtone.data-model.song-take
       - type: applies_to
         target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.realm.publish-surface
       - type: applies_to
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r010
@@ -143,18 +143,18 @@ units:
     failure: Keep publish unavailable and create no upload or post.
     relations:
       - type: applies_to
-        target: definition.overtone.data-model.publish-draft
-      - type: applies_to
         target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.realm.publish-surface
       - type: applies_to
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r011
     kind: rule
     title: Project reset
     modality: must
-    statement: Close Project clears SongProject, all decoded audio buffers, and every active job subscription, then returns the workspace to its empty-state entry point; reversal occurs only when the user starts a new session.
-    condition: When the user invokes Close Project.
-    failure: Keep the workspace non-interactive until all session state, buffers, and subscriptions are cleared, then display the empty state.
+    statement: New Exploration, after confirmation when work exists, clears the current SongProject, decoded audio buffers and owned job subscriptions and opens a fresh blank project in the same playground. Late results from the discarded project cannot populate the new one.
+    condition: When the author confirms New Exploration.
+    failure: Withhold the fresh project until the prior session state, buffers and owned subscriptions are cleared; ignore late results from that prior session.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job
@@ -162,5 +162,19 @@ units:
         target: definition.overtone.data-model.song-project
       - type: applies_to
         target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r012
+    kind: rule
+    title: From audition to full song
+    modality: must
+    statement: Let the author lock a selected take's prompt and lyric snapshots into a separate app-owned FullSongDraft, choose a 90, 120, or 180 second generation target, request a complete six-to-eight-section lyrical arrangement through protected text generation, edit each section, and explicitly submit the visible song through the same protected music runner. Preserve the exploration draft, source audio, manual changes during asynchronous writing, and the complete writing draft across reloads. Record the source relationship as textual inspiration only, carry the chosen duration budget to Runtime, and show decoded actual duration; audio below 75 percent of the chosen target is kept and labeled a short result rather than successful full-song completion. Let both the source audition and its generated song versions return to the existing arrangement without replacing it; explicitly distinguish starting another song from an unrelated recording.
+    condition: When completing a selected musical direction as a song.
+    failure: Preserve both drafts and source takes, reject incomplete arrangements before rendering, show the real failure or short-result notice, and never loop, concatenate, fabricate, or claim melody-preserving continuation.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
       - type: applies_to
         target: definition.overtone.workflow.iteration-loop

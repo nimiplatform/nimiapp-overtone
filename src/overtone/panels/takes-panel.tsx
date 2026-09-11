@@ -1,313 +1,101 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActionMenu,
-  AppCardSurface,
-  Button,
-  DashedAddButton,
-  EmptyState,
-  IconButton,
-  NimiText,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  StatusBadge,
-  Surface,
-  TextField,
-  type NimiMenuItem,
-} from '@nimiplatform/kit/ui';
+import { RecoverableResults } from './recoverable-results.js';
+import { useState } from 'react';
+import { ActionMenu, Button, IconButton, NimiText, Popover, PopoverContent, PopoverTrigger, TextField, type NimiMenuItem } from '@nimiplatform/kit/ui';
 import { GenerationStatusList, type GenerationStatusListProps } from '@nimiplatform/kit/features/generation/ui';
 import { useTranslation } from 'react-i18next';
-import { useOvertoneActions, useOvertoneState } from '../store.js';
+import { useOvertoneActions, useOvertonePlayback, useOvertoneState, useAudioSnapshot } from '../store.js';
 import type { SongTake } from '../types.js';
 import { Waveform } from './waveform.js';
+import { OvertoneIcon } from './icons.js';
+import { formatAudioTime } from '../exploration.js';
+import { useExploration } from '../exploration-context.js';
+import { belongsToSongDraft, songFallsShort } from '../full-song.js';
 
-const JOB_STATUS_LABEL_KEY: Record<string, string> = {
-  pending: 'Overtone.runtime.status.queued',
-  running: 'Overtone.runtime.status.running',
-  completed: 'Overtone.runtime.status.completed',
-  failed: 'Overtone.runtime.status.failed',
-  canceled: 'Overtone.runtime.status.canceled',
-  timeout: 'Overtone.runtime.status.timeout',
-};
-
-interface TakesPanelProps {
-  onPublish: (takeId: string) => void;
-}
-
-export function TakesPanel({ onPublish }: TakesPanelProps) {
+// @nimi-authority: rule.overtone.ia.r004
+export function TakesPanel() {
   const { t } = useTranslation();
   const state = useOvertoneState();
   const { clearCompare } = useOvertoneActions();
+  const playback = useOvertonePlayback();
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const project = state.project;
-
-  const handleFocusGenerate = useCallback(() => {
-    const panel = document.getElementById('overtone-generate-panel');
-    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const field = document.getElementById('overtone-style-tags');
-    if (field instanceof HTMLElement) field.focus({ preventScroll: true });
-  }, []);
-
-  if (!project) return null;
-
-  const visibleTakes = project.takes.filter((take) => !take.discarded).sort((a, b) => b.createdAt - a.createdAt);
-  const hasCompare = project.comparedTakeIds[0] || project.comparedTakeIds[1];
-  const compareA = visibleTakes.find((take) => take.takeId === project.comparedTakeIds[0]) ?? null;
-  const compareB = visibleTakes.find((take) => take.takeId === project.comparedTakeIds[1]) ?? null;
-
-  if (visibleTakes.length === 0 && Object.keys(state.activeJobs).length === 0) {
-    return (
-      <div className="overtone-empty">
-        <EmptyState
-          title={<NimiText as="span" role="helper">{t('Overtone.takes.empty')}</NimiText>}
-        />
-      </div>
-    );
-  }
-
-  const jobItems: GenerationStatusListProps['items'] = Object.values(state.activeJobs).map((job) => ({
-    runId: job.jobId,
-    status: job.status,
-    label: job.progressLabel || t('Overtone.takes.generating'),
-    error: job.errorMessage,
-  }));
-
-  const getJobStatusLabel = (status: string) => {
-    const key = JOB_STATUS_LABEL_KEY[status];
-    return key ? t(key) : status;
-  };
-
-  return (
-    <div className="overtone-takes-stack">
-      <div className="overtone-section__heading">
-        <NimiText as="h2" role="section-title">{t('Overtone.takes.title', { count: visibleTakes.length })}</NimiText>
-        {hasCompare ? (
-          <Button type="button" tone="secondary" size="sm" onClick={clearCompare}>
-            {t('Overtone.takes.exitCompare')}
-          </Button>
-        ) : null}
-      </div>
-
-      {compareA && compareB ? (
-        <Surface tone="panel" padding="md" className="overtone-compare">
-          <div className="overtone-section__heading">
-            <NimiText as="h3" role="card-title">{t('Overtone.takes.compareTitle')}</NimiText>
-            <StatusBadge tone="info">{t('Overtone.takes.compareCount', { count: 2 })}</StatusBadge>
-          </div>
-          <div className="overtone-compare__grid">
-            <CompareTakePanel slot="A" take={compareA} buffer={state.audioBuffers[compareA.takeId] ?? null} />
-            <CompareTakePanel slot="B" take={compareB} buffer={state.audioBuffers[compareB.takeId] ?? null} />
-          </div>
-        </Surface>
-      ) : hasCompare ? (
-        <Surface tone="card" padding="sm" className="overtone-compare">
-          <NimiText role="helper">{t('Overtone.takes.comparePartial')}</NimiText>
-        </Surface>
-      ) : null}
-
-      {jobItems.length > 0 ? (
-        <GenerationStatusList
-          items={jobItems}
-          getStatusLabel={getJobStatusLabel}
-        />
-      ) : null}
-
-      <div className="overtone-take-grid">
-        {visibleTakes.map((take) => (
-          <TakeCard
-            key={take.takeId}
-            take={take}
-            isSelected={take.takeId === project.selectedTakeId}
-            buffer={state.audioBuffers[take.takeId]}
-            onPublish={onPublish}
-          />
-        ))}
-        <DashedAddButton
-          shape="tile"
-          label={t('Overtone.takes.generateAnother')}
-          onClick={handleFocusGenerate}
-        />
-      </div>
+  const takes = [...project?.takes ?? []].filter(take=>!take.discarded).sort((a,b)=>b.createdAt-a.createdAt);
+  const shown = favoritesOnly ? takes.filter(take=>take.favorite) : takes;
+  const compared = project?.comparedTakeIds.map(id=>takes.find(take=>take.takeId===id) ?? null) ?? [null,null];
+  const jobItems: GenerationStatusListProps['items'] = Object.values(state.activeJobs).map(job=>({runId:job.jobId,status:job.status,label:t('Overtone.takes.generating')}));
+  return <div className="overtone-takes-stack">
+    <div className="ot-shelf-heading"><div><h2>{t('Overtone.studio.recordings')}</h2><span>{t('Overtone.studio.recordingCount',{count:takes.length})}</span></div>
+      <IconButton className="ot-tool-button" size="sm" tone="ghost" active={favoritesOnly} aria-label={t('Overtone.studio.favoritesOnly')} aria-pressed={favoritesOnly}
+        icon={<OvertoneIcon name="heart" size={18} />} onClick={()=>setFavoritesOnly(!favoritesOnly)} /></div>
+    {compared.some(Boolean) ? <section className="ot-compare-dock" aria-label={t('Overtone.takes.compareTitle')}>
+      <div className="ot-compare-heading"><strong>{t('Overtone.takes.compareTitle')}</strong><Button tone="ghost" size="sm" className="ot-tool-button" onClick={clearCompare}>{t('Overtone.takes.exitCompare')}</Button></div>
+      <div className="overtone-compare__grid">{compared.map((take,index)=><Button key={index} tone="ghost" className="ot-compare-switch" disabled={!take}
+        active={take?.takeId===playback.playingTakeId} title={take ? `${take.title} · ${t('Overtone.studio.compareHint')}` : t('Overtone.studio.chooseCompare')} onClick={()=>{if(take)playback.requestTake(take.takeId,true);}}>
+        <span className="ot-compare-switch__content"><strong>{index===0?'A':'B'}</strong><span className="ot-compare-identity">
+          <span className="ot-compare-title">{take?.title||t('Overtone.studio.chooseCompare')}</span>
+          {take ? <span className="ot-compare-number">{t('Overtone.studio.recordingNumber', { number: String(takes.length-takes.indexOf(take)).padStart(2,'0') })}</span> : null}
+        </span><OvertoneIcon name="play" size={14}/></span>
+      </Button>)}</div>
+    </section> : <p className="ot-shelf-hint">{t('Overtone.studio.compareIntro')}</p>}
+    {jobItems.length ? <div className="ot-generation-status"><GenerationStatusList items={jobItems} getStatusLabel={status=>t(`Overtone.runtime.status.${status==='pending'?'queued':status}`)} /></div> : null}
+    <RecoverableResults /><div className="ot-take-list">
+      {shown.map((take,index)=><TakeRow key={take.takeId} take={take} ordinal={takes.length-takes.indexOf(take)} isSelected={take.takeId===project?.selectedTakeId} />)}
+      {!shown.length ? <div className="ot-shelf-empty"><OvertoneIcon name="music" size={35}/><h3>{t(favoritesOnly?'Overtone.studio.noFavorites':'Overtone.studio.firstSound')}</h3><p>{t(favoritesOnly?'Overtone.studio.noFavoritesHint':'Overtone.studio.firstSoundHint')}</p>{favoritesOnly?<Button tone="secondary" size="sm" onClick={()=>setFavoritesOnly(false)}>{t('Overtone.studio.showAll')}</Button>:null}</div> : null}
     </div>
-  );
+  </div>;
 }
 
-function TakeCard({ take, isSelected, buffer, onPublish }: {
-  take: SongTake;
-  isSelected: boolean;
-  buffer: ArrayBuffer | undefined;
-  onPublish: (takeId: string) => void;
-}) {
-  const { i18n, t } = useTranslation();
-  const state = useOvertoneState();
-  const { selectTake, favoriteTake, renameTake, discardTake, setCompareSlot } = useOvertoneActions();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(take.title);
-
-  const parentTitle = take.parentTakeId
-    ? state.project?.takes.find((entry) => entry.takeId === take.parentTakeId)?.title || take.parentTakeId
-    : null;
-
-  const beginRename = useCallback(() => {
-    setDraft(take.title);
-    setEditing(true);
-  }, [take.title]);
-
-  const menuItems: NimiMenuItem[] = [
-    { id: 'rename', label: t('Overtone.takes.rename'), onSelect: beginRename },
-    { id: 'compare-a', label: t('Overtone.takes.setCompareA'), onSelect: () => setCompareSlot(0, take.takeId) },
-    { id: 'compare-b', label: t('Overtone.takes.setCompareB'), onSelect: () => setCompareSlot(1, take.takeId) },
-  ];
-  if (isSelected) {
-    menuItems.push({ id: 'publish', label: t('Overtone.takes.publish'), onSelect: () => onPublish(take.takeId) });
+function TakeRow({take,ordinal,isSelected}:{take:SongTake;ordinal:number;isSelected:boolean}) {
+  const {t}=useTranslation();
+  const state=useOvertoneState();
+  const playback=useOvertonePlayback();
+  const creative=useExploration();
+  const {selectTake,favoriteTake,renameTake,discardTake,setCompareSlot}=useOvertoneActions();
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState(take.title);
+  const slots=state.project?.comparedTakeIds ?? [null,null];
+  const parent=state.project?.takes.find(entry=>entry.takeId===take.parentTakeId);
+  const playing=playback.playingTakeId===take.takeId;
+  function compare(slot:0|1) {
+    const other=slot===0?1:0;
+    if(slots[other]===take.takeId)setCompareSlot(other,null);
+    setCompareSlot(slot,slots[slot]===take.takeId?null:take.takeId);
   }
-  menuItems.push({ id: 'discard', label: t('Overtone.takes.discard'), tone: 'danger', onSelect: () => discardTake(take.takeId) });
-
-  const handleMenuSelect = (onSelect?: () => void) => {
-    setMenuOpen(false);
-    onSelect?.();
-  };
-
-  return (
-    <AppCardSurface
-      as="div"
-      kind="operational-solid"
-      interactive
-      active={isSelected}
-      className="overtone-take-card"
-      onClick={() => selectTake(take.takeId)}
-    >
-      <TakeWaveformPreview buffer={buffer ?? null} />
-      <div className="overtone-row overtone-row--between">
-        <div className="overtone-take-card__heading">
-          <Button type="button" tone="ghost" size="sm" className="overtone-ellipsis"
-            aria-pressed={isSelected}
-            onClick={(event) => { event.stopPropagation(); selectTake(take.takeId); }}>
-            {take.title}
-          </Button>
-          <NimiText as="p" role="caption">
-            {new Date(take.createdAt).toLocaleTimeString(i18n.language)}
-          </NimiText>
-        </div>
-        <StatusBadge tone="info">{t(`Overtone.common.takeOrigins.${take.origin}`)}</StatusBadge>
-      </div>
-      {parentTitle ? (
-        <NimiText as="p" role="caption">
-          {'↳ '}
-          {t('Overtone.takes.fromParent', { title: parentTitle })}
-        </NimiText>
-      ) : null}
-      {editing ? (
-        <span className="overtone-rename-row" onClick={(event) => event.stopPropagation()}>
-          <TextField
-            className="overtone-rename-field"
-            aria-label={t('Overtone.takes.rename')}
-            type="text"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            autoFocus
-          />
-          <Button
-            type="button"
-            tone="primary"
-            size="sm"
-            onClick={() => { renameTake(take.takeId, draft.trim() || take.title); setEditing(false); }}
-          >
-            {t('Overtone.takes.save')}
-          </Button>
-          <Button type="button" tone="secondary" size="sm" onClick={() => setEditing(false)}>
-            {t('Overtone.takes.cancel')}
-          </Button>
-        </span>
-      ) : (
-        <div className="overtone-row overtone-row--between" onClick={(event) => event.stopPropagation()}>
-          <Button
-            type="button"
-            tone={take.favorite ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => favoriteTake(take.takeId)}
-          >
-            {take.favorite ? t('Overtone.takes.favoriteActive') : t('Overtone.takes.favoriteInactive')}
-          </Button>
-          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-            <PopoverTrigger asChild>
-              <IconButton
-                tone="secondary"
-                size="sm"
-                icon={<OverflowIcon />}
-                aria-label={t('Overtone.takes.moreActions')}
-              />
-            </PopoverTrigger>
-            <PopoverContent align="end" className="border-none bg-transparent p-0 shadow-none">
-              <ActionMenu
-                items={menuItems.map((item) => ({ ...item, onSelect: () => handleMenuSelect(item.onSelect) }))}
-                ariaLabel={t('Overtone.takes.moreActions')}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      )}
-    </AppCardSurface>
-  );
+  const menu:NimiMenuItem[]=[
+    {id:'rename',label:t('Overtone.takes.rename'),onSelect:()=>{setDraft(take.title);setEditing(true);}},
+    {id:'discard',label:t('Overtone.takes.discard'),tone:'danger',onSelect:()=>discardTake(take.takeId)},
+  ];
+  return <article className="ot-take-row" data-selected={isSelected} data-playing={playing}>
+    <div className="ot-take-row__head">
+      <Button className="ot-take-play" tone={playing?'primary':'ghost'} aria-label={t(playing?'Overtone.player.pause':'Overtone.playground.playTake',{title:take.title})}
+        onClick={()=>playing?playback.togglePlayback():playback.requestTake(take.takeId)}><OvertoneIcon name={playing?'pause':'play'} size={19}/></Button>
+      <div className="ot-take-info"><Button tone="ghost" className="ot-take-title" aria-pressed={isSelected} onClick={()=>selectTake(take.takeId)}>{take.title}</Button>
+        <span>{String(ordinal).padStart(2,'0')}<span> / </span>{formatAudioTime(take.durationSeconds??0)}<span> · </span>{t(take.creationMode === 'song'
+          ? songFallsShort(take.durationSeconds ?? 0, take.targetDurationSeconds ?? 120) ? 'Overtone.song.shortResult' : 'Overtone.song.longResult'
+          : 'Overtone.song.sketch')}</span></div>
+      <Popover open={menuOpen} onOpenChange={setMenuOpen}><PopoverTrigger asChild><IconButton className="ot-more-button" size="sm" tone="ghost" icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/></svg>} aria-label={t('Overtone.takes.moreActions')}/></PopoverTrigger>
+        <PopoverContent align="end" className="ot-take-menu"><ActionMenu ariaLabel={t('Overtone.takes.moreActions')} items={menu.map(item=>({...item,onSelect:()=>{setMenuOpen(false);item.onSelect?.();}}))}/></PopoverContent></Popover>
+    </div>
+    {editing?<form className="ot-rename-form" onSubmit={event=>{event.preventDefault();renameTake(take.takeId,draft.trim()||take.title);setEditing(false);}}>
+      <TextField autoFocus aria-label={t('Overtone.takes.rename')} value={draft} maxLength={80} onChange={event=>setDraft(event.target.value)}/>
+      <Button type="submit" tone="primary" size="sm">{t('Overtone.takes.save')}</Button><Button type="button" tone="ghost" size="sm" onClick={()=>setEditing(false)}>{t('Overtone.takes.cancel')}</Button>
+    </form>:null}
+    <div className="ot-take-row__sound"><TakeWaveformPreview artifactId={take.artifactId}/>
+      <div className="ot-take-shortcuts"><Button size="sm" tone="ghost" className="ot-compare-slot" active={slots[0]===take.takeId} aria-pressed={slots[0]===take.takeId} aria-label={t('Overtone.takes.setCompareA')} onClick={()=>compare(0)}>A</Button>
+        <Button size="sm" tone="ghost" className="ot-compare-slot" active={slots[1]===take.takeId} aria-pressed={slots[1]===take.takeId} aria-label={t('Overtone.takes.setCompareB')} onClick={()=>compare(1)}>B</Button>
+        <IconButton size="sm" tone="ghost" className="ot-favorite" active={take.favorite} aria-label={t(take.favorite?'Overtone.takes.favoriteActive':'Overtone.takes.favoriteInactive')} aria-pressed={take.favorite} onClick={()=>favoriteTake(take.takeId)} icon={<OvertoneIcon name="heart" size={15}/>}/></div>
+    </div>
+    {parent?<p className="ot-take-parent"><OvertoneIcon name="branch" size={12}/>{t('Overtone.takes.fromParent',{title:parent.title})}</p>:null}
+    {isSelected ? <Button className="ot-finish-song" tone="secondary" size="sm" disabled={creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0}
+      trailingIcon={<OvertoneIcon name="arrow" size={14}/>} onClick={() => creative.startSong(take)}>
+      {t(belongsToSongDraft(take, state.project?.fullSong) ? 'Overtone.song.resume' : state.project?.fullSong ? 'Overtone.song.startAnother' : 'Overtone.song.start')}</Button> : null}
+  </article>;
 }
 
-function OverflowIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <circle cx="5" cy="12" r="2" />
-      <circle cx="12" cy="12" r="2" />
-      <circle cx="19" cy="12" r="2" />
-    </svg>
-  );
-}
-
-function TakeWaveformPreview({ buffer }: { buffer: ArrayBuffer | null }) {
-  const [decoded, setDecoded] = useState<AudioBuffer | null>(null);
-
-  useEffect(() => {
-    if (!buffer) {
-      setDecoded(null);
-      return;
-    }
-    const ctx = new AudioContext();
-    let cancelled = false;
-    ctx.decodeAudioData(buffer.slice(0))
-      .then((value) => { if (!cancelled) setDecoded(value); })
-      .catch(() => { if (!cancelled) setDecoded(null); });
-    return () => {
-      cancelled = true;
-      void ctx.close();
-    };
-  }, [buffer]);
-
-  return (
-    <Waveform
-      buffer={decoded}
-      currentTime={0}
-      duration={decoded?.duration ?? 0}
-      trimStart={null}
-      trimEnd={null}
-      onSeek={() => {}}
-      variant="mini"
-    />
-  );
-}
-
-function CompareTakePanel({ slot, take, buffer }: { slot: 'A' | 'B'; take: { title: string; origin: string; durationSeconds?: number; artifactMimeType: string; createdAt: number }; buffer: ArrayBuffer | null }) {
-  const { i18n, t } = useTranslation();
-  return (
-    <Surface tone="card" padding="sm" className="overtone-compare__item">
-      <div className="overtone-row overtone-row--between">
-        <NimiText as="span" role="overline">
-          {t(slot === 'A' ? 'Overtone.takes.compareSlotA' : 'Overtone.takes.compareSlotB')}
-        </NimiText>
-        <StatusBadge tone="info">{t(`Overtone.common.takeOrigins.${take.origin}`, { defaultValue: take.origin })}</StatusBadge>
-      </div>
-      <TakeWaveformPreview buffer={buffer} />
-      <NimiText as="p" role="card-title">{take.title}</NimiText>
-      <NimiText as="p" role="caption">
-        {take.durationSeconds ? `${Math.round(take.durationSeconds)}s · ` : ''}{take.artifactMimeType} · {new Date(take.createdAt).toLocaleTimeString(i18n.language)}
-      </NimiText>
-    </Surface>
-  );
+function TakeWaveformPreview({artifactId}:{artifactId:string}) {
+  const {t}=useTranslation();
+  const media = useAudioSnapshot(artifactId);
+  if (!media) return <span className="ot-waveform-status">{t('Overtone.playground.waveformOnListen')}</span>;
+  return <Waveform peaks={media.peaks} currentTime={0} duration={0} trimStart={null} trimEnd={null} onSeek={()=>{}} variant="mini"/>;
 }

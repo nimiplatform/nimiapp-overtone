@@ -9,8 +9,6 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     runtimeStatus: 'checking',
     textCapabilityAvailable: false,
     musicCapabilityAvailable: false,
-    realmConfigured: false,
-    realmAuthenticated: false,
   };
 
   try {
