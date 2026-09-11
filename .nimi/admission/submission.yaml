@@ -1,6 +1,6 @@
 app_id: nimi.overtone
 display_name: Nimi Overtone
-version: 0.1.5
+version: 0.1.6
 profile: standalone
 npm_package_name: nimiapp-overtone
 cargo_package_name: nimiapp-overtone-shell
@@ -15,7 +15,7 @@ storage_policy:
   kind: app-owned-os-storage
   os_storage_disclosure:
     - path_pattern: <Electron userData>/Local Storage/**
-      purpose: Project metadata, song draft references and language preference. Generated audio remains in Runtime artifacts. Retained after Nimi uninstall.
+      purpose: Recoverable project drafts (brief, lyrics and take references), language, theme and volume preferences. Audio bytes are not stored here; take references point to Runtime artifacts. This storage is retained when the app is uninstalled from Nimi.
       expected_size_band: Typically KiB to a few MiB of JSON, subject to browser storage quota.
 support_manifest:
   diagnostics_bundle_fields:

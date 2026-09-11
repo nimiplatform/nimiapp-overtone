@@ -1,6 +1,6 @@
 app_id: nimi.overtone
 display_name: Nimi Overtone
-version: 0.1.5
+version: 0.1.6
 profile: standalone
 manifest_role: submitted-input
 app_access:
@@ -8,3 +8,21 @@ app_access:
 local_development:
   electron:
     renderer_origin: http://127.0.0.1:1507
+metadata:
+  summary: 整理音乐创作项目、歌词与音频候选，比较和管理创作版本。
+  icon: assets/app-icon.png
+  readme: APP_GUIDE.md
+  release_notes: RELEASE_NOTES.md
+  author: Nimi Overtone
+  homepage_url: https://github.com/nimiplatform/nimiapp-overtone
+  support_url: https://github.com/nimiplatform/nimiapp-overtone/issues
+capability_contract_refs:
+  - text.generate
+  - music.generate
+required_standardized_feature_refs: []
+storage_policy:
+  kind: app-owned-os-storage
+  os_storage_disclosure:
+    - path_pattern: <Electron userData>/Local Storage/**
+      purpose: Recoverable project drafts (brief, lyrics and take references), language, theme and volume preferences. Audio bytes are not stored here; take references point to Runtime artifacts. This storage is retained when the app is uninstalled from Nimi.
+      expected_size_band: Typically KiB to a few MiB of JSON, subject to browser storage quota.

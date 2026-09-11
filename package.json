@@ -1,6 +1,6 @@
 {
   "name": "nimiapp-overtone",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.34.5",
@@ -45,9 +45,10 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.6",
     "yaml": "^2.9.0",
-    "@nimiplatform/app-tools": "^0.3.0",
+    "@nimiplatform/app-tools": "^0.4.0",
     "@nimiplatform/nimi-coding": "0.6.2"
   },
   "main": "dist-electron/main.js",
-  "author": "Nimi Overtone"
+  "author": "Nimi Overtone",
+  "license": "MIT"
 }
