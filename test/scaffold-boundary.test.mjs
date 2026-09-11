@@ -6,14 +6,13 @@ const runtimePlatformSource = readFileSync(new URL('../src/shell/auth/runtime-pl
 const localAppClientSource = readFileSync(new URL('../src/shell/auth/local-app-client.ts', import.meta.url), 'utf8');
 const authGateSource = readFileSync(new URL('../src/shell/auth/auth-gate.tsx', import.meta.url), 'utf8');
 const productSource = readFileSync(new URL('../src/shell/routes/product-area.tsx', import.meta.url), 'utf8');
-const demoSource = readFileSync(new URL('../src/shell/routes/demo-surfaces.tsx', import.meta.url), 'utf8');
 const rendererMainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 const electronMainSource = readFileSync(new URL('../src-electron/main.ts', import.meta.url), 'utf8');
 const electronPreloadSource = readFileSync(new URL('../src-electron/preload.cts', import.meta.url), 'utf8');
 const manifest = readFileSync(new URL('../nimi.app.yaml', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const admission = readFileSync(new URL('../ADMISSION.md', import.meta.url), 'utf8');
-const appSource = [runtimePlatformSource, localAppClientSource, authGateSource, productSource, demoSource].join('\n');
+const appSource = [runtimePlatformSource, localAppClientSource, authGateSource, productSource].join('\n');
 
 test('renderer consumes only the host-protected Local App client', () => {
   assert.match(localAppClientSource, /createNimiClient/);

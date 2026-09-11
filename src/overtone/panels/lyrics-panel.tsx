@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Button, InlineAlert, nimiToast, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { Button, InlineAlert, NimiText, nimiToast, StatusBadge, Surface, TextareaField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
@@ -51,7 +51,7 @@ export function LyricsPanel() {
   return (
     <Surface tone="panel" padding="md" className="overtone-section">
       <div className="overtone-section__heading">
-        <h2>{t('Overtone.lyrics.title')}</h2>
+        <NimiText as="h2" role="section-title">{t('Overtone.lyrics.title')}</NimiText>
         {lyrics ? <StatusBadge tone="info">{t(`Overtone.lyrics.sources.${lyrics.source}`)}</StatusBadge> : null}
       </div>
 
@@ -73,10 +73,10 @@ export function LyricsPanel() {
         <InlineAlert tone="info">{t('Overtone.lyrics.briefRequired')}</InlineAlert>
       ) : null}
 
-      <textarea
-        className="nimi-input"
+      <TextareaField
         rows={10}
-        style={{ fontFamily: 'monospace', lineHeight: 1.65 }}
+        textareaClassName="overtone-lyrics-textarea"
+        aria-label={t('Overtone.lyrics.title')}
         value={lyrics?.text ?? ''}
         onChange={handleChange}
         placeholder={t('Overtone.lyrics.placeholder')}

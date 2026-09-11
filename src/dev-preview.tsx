@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { NimiThemeProvider, TooltipProvider } from '@nimiplatform/kit/ui';
+import { resolveInitialOvertoneScheme } from './overtone/theme-scheme.js';
 import './styles.css';
 import { WorkspacePage } from './overtone/workspace-page.js';
 
@@ -16,7 +17,7 @@ function DevPreview() {
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <NimiThemeProvider accentPack="nimi-accent">
+    <NimiThemeProvider accentPack="nimi-accent" defaultScheme={resolveInitialOvertoneScheme()}>
       <TooltipProvider>
         <DevPreview />
       </TooltipProvider>

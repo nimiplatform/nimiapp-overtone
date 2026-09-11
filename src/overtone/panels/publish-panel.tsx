@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { Button, InlineAlert, nimiToast, OverlayShell, StatusBadge, Surface } from '@nimiplatform/kit/ui';
+import { Button, Checkbox, FieldShell, InlineAlert, NimiText, nimiToast, OverlayShell, StatusBadge, Surface, TextareaField, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import type { PublishDraft } from '../types.js';
@@ -19,15 +19,6 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
   const draft = project?.draftPost ?? null;
   const audioBuffer = take ? state.audioBuffers[take.takeId] : undefined;
   const realmPublishProxyAvailable = false;
-
-  useEffect(() => {
-    if (!open) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   useEffect(() => {
     if (state.publishStatus === 'done' && state.publishedPostId) {
@@ -58,11 +49,11 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
       open={open}
       onClose={onClose}
       kind="dialog"
-      panelClassName="overtone-publish-modal"
+      size="md"
       contentClassName="overtone-section"
-      title={<h2>{t('Overtone.publish.title')}</h2>}
+      title={t('Overtone.publish.title')}
       footer={(
-        <div className="overtone-row" style={{ justifyContent: 'space-between', width: '100%' }}>
+        <div className="overtone-row overtone-row--between overtone-publish-footer">
           <Button type="button" tone="secondary" onClick={onClose}>{t('Overtone.publish.cancel')}</Button>
           <Button type="button" tone="primary" onClick={handlePublish} disabled={!canPublish || isPublishing}>
             {isPublishing
@@ -73,8 +64,8 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
       )}
     >
       <Surface tone="card" padding="md" className="overtone-section">
-        <div className="overtone-row" style={{ justifyContent: 'space-between' }}>
-          <strong>{take.title}</strong>
+        <div className="overtone-row overtone-row--between">
+          <NimiText as="p" role="card-title" className="overtone-ellipsis">{take.title}</NimiText>
           <StatusBadge tone="info">{t(`Overtone.common.takeOrigins.${take.origin}`)}</StatusBadge>
         </div>
       </Surface>
@@ -85,28 +76,42 @@ export function PublishModal({ open, takeId, onClose }: PublishModalProps) {
         </InlineAlert>
       ) : null}
 
-      <DraftField id="title" label={t('Overtone.publish.fields.title')} value={draft.title} onChange={(value) => setDraft({ ...draft, title: value })} />
-      <DraftTextarea id="description" label={t('Overtone.publish.fields.description')} value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} />
-      <DraftField
-        id="tags"
-        label={t('Overtone.publish.fields.tags')}
-        value={draft.tags.join(', ')}
-        onChange={(value) => setDraft({ ...draft, tags: parseTags(value) })}
-      />
+      <FieldShell label={t('Overtone.publish.fields.title')}>
+        <TextField
+          id="overtone-publish-title"
+          type="text"
+          value={draft.title}
+          onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+        />
+      </FieldShell>
+      <FieldShell label={t('Overtone.publish.fields.description')}>
+        <TextareaField
+          id="overtone-publish-description"
+          rows={3}
+          value={draft.description}
+          onChange={(event) => setDraft({ ...draft, description: event.target.value })}
+        />
+      </FieldShell>
+      <FieldShell label={t('Overtone.publish.fields.tags')}>
+        <TextField
+          id="overtone-publish-tags"
+          type="text"
+          value={draft.tags.join(', ')}
+          onChange={(event) => setDraft({ ...draft, tags: parseTags(event.target.value) })}
+        />
+      </FieldShell>
 
       <Surface tone="card" padding="md" className="overtone-section">
-        <p className="overtone-take-card__meta">
+        <NimiText as="p" role="caption">
           {t('Overtone.publish.sourceMode')} <strong>{t(`Overtone.common.sourceModes.${draft.sourceMode}`)}</strong>
-        </p>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <input
-            type="checkbox"
+        </NimiText>
+        <label className="overtone-checkbox-row">
+          <Checkbox
             checked={draft.provenanceConfirmed}
             onChange={(event) => setProvenance(event.target.checked)}
+            aria-label={t('Overtone.publish.provenanceConfirm')}
           />
-          <span style={{ fontSize: 13, color: 'var(--nimi-text-secondary)' }}>
-            {t('Overtone.publish.provenanceConfirm')}
-          </span>
+          <NimiText as="span" role="body">{t('Overtone.publish.provenanceConfirm')}</NimiText>
         </label>
       </Surface>
     </OverlayShell>
@@ -118,26 +123,6 @@ function parseTags(value: string): string[] {
     .split(',')
     .map((tag) => tag.trim())
     .filter((tag) => tag.length > 0);
-}
-
-function DraftField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
-  const fieldId = `overtone-publish-${id}`;
-  return (
-    <div className="overtone-field">
-      <label htmlFor={fieldId}>{label}</label>
-      <input id={fieldId} className="nimi-input" type="text" value={value} onChange={(event) => onChange(event.target.value)} />
-    </div>
-  );
-}
-
-function DraftTextarea({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (value: string) => void }) {
-  const fieldId = `overtone-publish-${id}`;
-  return (
-    <div className="overtone-field">
-      <label htmlFor={fieldId}>{label}</label>
-      <textarea id={fieldId} className="nimi-input" rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
-    </div>
-  );
 }
 
 export type { PublishDraft };

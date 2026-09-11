@@ -36,9 +36,9 @@ export function AIConfigPanel() {
     <Button type="button" tone="secondary" size="sm" onClick={() => setOpen(true)} disabled={readiness.runtimeStatus !== 'ready'}>
       {t('Overtone.configuration.title')}
     </Button>
-    <OverlayShell open={open} onClose={() => setOpen(false)} kind="dialog"
-      panelClassName="overtone-publish-modal" contentClassName="overtone-section"
-      title={<h2>{t('Overtone.configuration.title')}</h2>}>
+    <OverlayShell open={open} onClose={() => setOpen(false)} kind="dialog" size="lg"
+      contentClassName="overtone-section"
+      title={t('Overtone.configuration.title')}>
       <ModelConfigAIConfigSurface context={CONTEXT} capabilityContracts={['text.generate', 'music.generate']}
         capabilities={snapshot ? snapshot.config?.capabilities ?? null : undefined}
         revision={snapshot?.revision} effectiveSelections={snapshot?.effectiveSelections}

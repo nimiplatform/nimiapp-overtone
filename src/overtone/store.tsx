@@ -1,7 +1,7 @@
 // Renderer-local store. Pure React context + useReducer; no external state library.
 // Authority: .nimi/spec/overtone/canonical/data-model.authority.yaml.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type Dispatch, type ReactNode } from 'react';
 import {
   ORIGIN_TO_SOURCE_MODE,
   makeId,
@@ -210,9 +210,22 @@ function reducer(state: OvertoneState, action: Action): OvertoneState {
   }
 }
 
+// Ephemeral playback bridge: the player panel registers its transport controls
+// here so workspace-level keyboard shortcuts act on playback state directly
+// (no window CustomEvents). Never persisted.
+export interface OvertonePlaybackController {
+  togglePlayback: () => void;
+  seekBy: (deltaSec: number) => void;
+}
+
 interface OvertoneContextValue {
   state: OvertoneState;
   dispatch: Dispatch<Action>;
+  playback: {
+    registerController: (controller: OvertonePlaybackController | null) => void;
+    togglePlayback: () => void;
+    seekBy: (deltaSec: number) => void;
+  };
   actions: {
     setReadiness: (readiness: ReadinessSnapshot) => void;
     startProject: () => void;
@@ -241,10 +254,21 @@ const OvertoneContext = createContext<OvertoneContextValue | null>(null);
 
 export function OvertoneProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE, loadInitialState);
+  const playbackControllerRef = useRef<OvertonePlaybackController | null>(null);
 
   useEffect(() => {
     persistLocalDraft(state.project);
   }, [state.project]);
+
+  const registerPlaybackController = useCallback((controller: OvertonePlaybackController | null) => {
+    playbackControllerRef.current = controller;
+  }, []);
+  const togglePlayback = useCallback(() => {
+    playbackControllerRef.current?.togglePlayback();
+  }, []);
+  const seekBy = useCallback((deltaSec: number) => {
+    playbackControllerRef.current?.seekBy(deltaSec);
+  }, []);
 
   const setReadiness = useCallback((readiness: ReadinessSnapshot) => dispatch({ type: 'readiness/set', readiness }), []);
   const startProject = useCallback(() => dispatch({ type: 'project/start' }), []);
@@ -298,6 +322,11 @@ export function OvertoneProvider({ children }: { children: ReactNode }) {
   const value = useMemo<OvertoneContextValue>(() => ({
     state,
     dispatch,
+    playback: {
+      registerController: registerPlaybackController,
+      togglePlayback,
+      seekBy,
+    },
     actions: {
       setReadiness,
       startProject,
@@ -322,6 +351,9 @@ export function OvertoneProvider({ children }: { children: ReactNode }) {
     },
   }), [
     state,
+    registerPlaybackController,
+    togglePlayback,
+    seekBy,
     setReadiness,
     startProject,
     resetProject,
@@ -398,4 +430,8 @@ export function useOvertoneState(): OvertoneState {
 
 export function useOvertoneActions(): OvertoneContextValue['actions'] {
   return useOvertone().actions;
+}
+
+export function useOvertonePlayback(): OvertoneContextValue['playback'] {
+  return useOvertone().playback;
 }

@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, ConfirmDialog, InlineAlert, NimiToaster, SegmentedControl } from '@nimiplatform/kit/ui';
-import { OvertoneProvider, useOvertoneActions, useOvertoneState } from './store.js';
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  InlineAlert,
+  NimiText,
+  NimiToaster,
+  SegmentedControl,
+  Surface,
+  useNimiTheme,
+  type NimiThemeScheme,
+} from '@nimiplatform/kit/ui';
+import { OvertoneProvider, useOvertoneActions, useOvertonePlayback, useOvertoneState } from './store.js';
 import { OvertoneEmptyState } from './panels/empty-state.js';
 import { BriefPanel } from './panels/brief-panel.js';
 import { LyricsPanel } from './panels/lyrics-panel.js';
@@ -12,6 +23,8 @@ import { TakesPanel } from './panels/takes-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
 import { PublishModal } from './panels/publish-panel.js';
 import { probeReadiness } from './readiness.js';
+import { usePlaybackShortcuts } from './use-playback-shortcuts.js';
+import { persistOvertoneScheme } from './theme-scheme.js';
 import {
   OVERTONE_LOCALES,
   applyOvertoneDocumentLocale,
@@ -35,6 +48,7 @@ function WorkspaceInner() {
   const { t } = useTranslation();
   const state = useOvertoneState();
   const { setReadiness, startProject, resetProject, publishDraftFromTake, clearCompare } = useOvertoneActions();
+  const playback = useOvertonePlayback();
   const [reloadKey, setReloadKey] = useState(0);
   const [publishTakeId, setPublishTakeId] = useState<string | null>(null);
   const [projectAction, setProjectAction] = useState<'discard' | 'restart' | null>(null);
@@ -68,6 +82,12 @@ function WorkspaceInner() {
     setPublishTakeId(null);
   }, []);
 
+  usePlaybackShortcuts({
+    enabled: projectAction === null && publishTakeId === null && !!state.project,
+    onTogglePlayback: playback.togglePlayback,
+    onSeekDelta: playback.seekBy,
+  });
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (projectAction !== null) return;
@@ -78,18 +98,6 @@ function WorkspaceInner() {
       if (event.key === 'Escape' && publishTakeId === null && hasCompare) {
         event.preventDefault();
         clearCompare();
-        return;
-      }
-      if (event.key === ' ') {
-        event.preventDefault();
-        window.dispatchEvent(new CustomEvent('overtone-toggle-playback'));
-        return;
-      }
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        event.preventDefault();
-        const delta = event.shiftKey ? 15 : 5;
-        const sign = event.key === 'ArrowLeft' ? -1 : 1;
-        window.dispatchEvent(new CustomEvent('overtone-seek-delta', { detail: delta * sign }));
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
@@ -105,14 +113,17 @@ function WorkspaceInner() {
   if (state.readiness.runtimeStatus === 'unavailable') {
     return (
       <OvertoneScreen>
-        <div className="overtone-empty" data-testid="overtone-runtime-unavailable">
-          <div>
-            <h2>{t('Overtone.workspace.runtimeUnavailableTitle')}</h2>
-            <p>{state.readiness.runtimeErrorMessage || t('Overtone.workspace.runtimeUnavailableFallback')}</p>
-            <Button type="button" tone="primary" onClick={() => setReloadKey((value) => value + 1)}>
-              {t('Overtone.workspace.retryRuntimeCheck')}
-            </Button>
-          </div>
+        <div className="overtone-empty">
+          <EmptyState
+            data-testid="overtone-runtime-unavailable"
+            title={<NimiText as="span" role="section-title">{t('Overtone.workspace.runtimeUnavailableTitle')}</NimiText>}
+            description={state.readiness.runtimeErrorMessage || t('Overtone.workspace.runtimeUnavailableFallback')}
+            action={(
+              <Button type="button" tone="primary" onClick={() => setReloadKey((value) => value + 1)}>
+                {t('Overtone.workspace.retryRuntimeCheck')}
+              </Button>
+            )}
+          />
         </div>
       </OvertoneScreen>
     );
@@ -131,11 +142,17 @@ function WorkspaceInner() {
   return (
     <OvertoneScreen>
       <div className="overtone-workspace" data-testid="overtone-workspace">
-        <section className="overtone-compose" aria-label={t('Overtone.workspace.composeAria')}>
-          <div className="overtone-row" style={{ justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--nimi-text-muted)' }}>
-              {t('Overtone.workspace.songProject')}
-            </span>
+        <Surface
+          as="section"
+          material="glass-regular"
+          tone="panel"
+          elevation="base"
+          padding="none"
+          className="overtone-compose"
+          aria-label={t('Overtone.workspace.composeAria')}
+        >
+          <div className="overtone-row overtone-row--between">
+            <NimiText role="overline">{t('Overtone.workspace.songProject')}</NimiText>
             <Button type="button" tone="secondary" size="sm" onClick={() => setProjectAction('discard')}>
               {t('Overtone.workspace.discardProject')}
             </Button>
@@ -145,17 +162,23 @@ function WorkspaceInner() {
           <LyricsPanel />
           <GeneratePanel />
           {hasTakes ? <IterationPanel /> : null}
-        </section>
+        </Surface>
         <section className="overtone-output" aria-label={t('Overtone.workspace.takesAria')}>
-          <div className="overtone-takes">
+          <Surface
+            material="glass-regular"
+            tone="panel"
+            elevation="base"
+            padding="none"
+            className="overtone-takes"
+          >
             {hasTakes || Object.keys(state.activeJobs).length > 0 ? <TakesPanel onPublish={handlePublish} /> : (
               <div className="overtone-empty">
-                <div>
-                  <p>{t('Overtone.workspace.noTakesCompose')}</p>
-                </div>
+                <EmptyState
+                  title={<NimiText as="span" role="helper">{t('Overtone.workspace.noTakesCompose')}</NimiText>}
+                />
               </div>
             )}
-          </div>
+          </Surface>
           <PlayerPanel />
         </section>
         <PublishModal open={publishTakeId !== null} takeId={publishTakeId} onClose={closePublish} />
@@ -182,10 +205,36 @@ function OvertoneScreen({ children }: { children: ReactNode }) {
     <div className="overtone-screen">
       <div className="overtone-language-bar">
         <AIConfigPanel />
+        <SchemeToggle />
         <LanguageSwitcher />
       </div>
       {children}
     </div>
+  );
+}
+
+function SchemeToggle() {
+  const { t } = useTranslation();
+  const { scheme, setScheme } = useNimiTheme();
+  const schemeItems = useMemo(() => ([
+    { value: 'light', label: t('Overtone.scheme.light') },
+    { value: 'dark', label: t('Overtone.scheme.dark') },
+  ]), [t]);
+
+  const handleSchemeChange = useCallback((value: string) => {
+    const nextScheme: NimiThemeScheme = value === 'dark' ? 'dark' : 'light';
+    setScheme(nextScheme);
+    persistOvertoneScheme(nextScheme);
+  }, [setScheme]);
+
+  return (
+    <SegmentedControl
+      items={schemeItems}
+      value={scheme}
+      onValueChange={handleSchemeChange}
+      ariaLabel={t('Overtone.scheme.ariaLabel')}
+      size="sm"
+    />
   );
 }
 
@@ -244,7 +293,7 @@ function ReadinessBanner() {
   if (messages.length === 0) return null;
   return (
     <InlineAlert tone="warning">
-      <ul style={{ margin: 0, paddingLeft: 16 }}>
+      <ul className="overtone-readiness-list">
         {messages.map((message) => (
           <li key={message}>{message}</li>
         ))}

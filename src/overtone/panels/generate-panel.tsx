@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScenarioJobStatus } from '@nimiplatform/sdk/runtime/generated';
-import { Button, InlineAlert, Surface, TextField } from '@nimiplatform/kit/ui';
+import { Button, FieldShell, InlineAlert, NimiText, Surface, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
 import { generateRuntimeMusic } from '../runtime-workflow.js';
@@ -78,16 +78,15 @@ export function GeneratePanel() {
   }
 
   return (
-    <Surface tone="panel" padding="md" className="overtone-section" data-testid="overtone-music-generation">
-      <div className="overtone-section__heading"><h2>{t('Overtone.generate.title')}</h2></div>
+    <Surface tone="panel" padding="md" className="overtone-section" id="overtone-generate-panel" data-testid="overtone-music-generation">
+      <div className="overtone-section__heading"><NimiText as="h2" role="section-title">{t('Overtone.generate.title')}</NimiText></div>
       {!canGenerate && !generating ? <InlineAlert tone="warning">{t('Overtone.generate.requiredInput')}</InlineAlert> : null}
       {error ? <InlineAlert tone="warning">{error}</InlineAlert> : null}
-      <div className="overtone-field">
-        <label htmlFor="overtone-style-tags">{t('Overtone.generate.styleTags')}</label>
+      <FieldShell label={t('Overtone.generate.styleTags')}>
         <TextField id="overtone-style-tags" value={styleTags} disabled={generating}
           onChange={(event) => setStyleTags(event.target.value)}
           placeholder={t('Overtone.generate.stylePlaceholder')} />
-      </div>
+      </FieldShell>
       <div className="overtone-row">
         <Button type="button" tone="primary" onClick={() => void generate()} disabled={!canGenerate || generating}>
           {generating ? t('Overtone.generate.submitting') : t('Overtone.generate.submit')}

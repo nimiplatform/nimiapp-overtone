@@ -6,6 +6,7 @@ import {
   DEFAULT_DEV_RENDERER_ENTRY_IMPORT_RETRY_DELAYS_MS,
   createRendererEntryModuleLoader,
 } from '@nimiplatform/kit/shell/renderer/bootstrap';
+import { resolveInitialOvertoneScheme } from './overtone/theme-scheme.js';
 import './styles.css';
 
 // Install the Kit-owned standard shell bridge before the protected Local App
@@ -23,7 +24,7 @@ const App = lazy(async () => {
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <NimiThemeProvider accentPack="nimi-accent">
+    <NimiThemeProvider accentPack="nimi-accent" defaultScheme={resolveInitialOvertoneScheme()}>
       <TooltipProvider>
         <Suspense fallback={null}>
           <App />

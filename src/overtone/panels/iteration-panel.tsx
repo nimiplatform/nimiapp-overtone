@@ -1,4 +1,4 @@
-import { InlineAlert, Surface } from '@nimiplatform/kit/ui';
+import { InlineAlert, NimiText, Surface } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 
 export function IterationPanel() {
@@ -6,7 +6,7 @@ export function IterationPanel() {
   return (
     <Surface tone="panel" padding="md" className="overtone-section">
       <div className="overtone-section__heading">
-        <h2>{t('Overtone.iteration.title')}</h2>
+        <NimiText as="h2" role="section-title">{t('Overtone.iteration.title')}</NimiText>
       </div>
       <InlineAlert tone="warning">
         {t('Overtone.iteration.appAccessUnavailable')}
