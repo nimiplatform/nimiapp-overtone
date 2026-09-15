@@ -27,7 +27,7 @@ export async function generateRuntimeText(input: RuntimeTextGenerationInput): Pr
         signal.throwIfAborted();
         if (event.type === 'delta') text += event.text;
         else if (event.type === 'failed') throw Object.assign(new Error(event.reasonCode), { reasonCode: event.reasonCode, actionHint: event.actionHint });
-        else {
+        else if (event.type === 'completed') {
           if (event.finishReason !== 'stop' || !text.trim()) throw new Error('OVERTONE_TEXT_INCOMPLETE');
           return text.trim();
         }
