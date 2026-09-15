@@ -10,7 +10,7 @@ import type { FullSongDraft, SongSection } from '../types.js';
 export function SongComposer() {
   const { t } = useTranslation();
   const { project, readiness } = useOvertoneState();
-  const { setFullSong } = useOvertoneActions();
+  const { setFullSong, setAISettingsOpen } = useOvertoneActions();
   const playback = useOvertonePlayback();
   const creative = useExploration();
   const [selectedSection, setSelectedSection] = useState(0);
@@ -44,7 +44,7 @@ export function SongComposer() {
     </div>
     {sections.length ? <>
       <div className="ot-song-score-heading"><h2>{t(creative.songCandidate ? 'Overtone.song.candidate' : 'Overtone.song.structure')}</h2>
-        <Button tone="ghost" size="sm" disabled={readOnly || !readiness.textCapabilityAvailable} onClick={() => void creative.arrangeSong()}>{t('Overtone.song.rearrange')}</Button></div>
+        <Button tone="ghost" size="sm" disabled={readOnly} onClick={() => { if (!readiness.textCapabilityAvailable) { setAISettingsOpen(true); return; } void creative.arrangeSong(); }}>{t('Overtone.song.rearrange')}</Button></div>
       <div className="ot-song-score" role="group" aria-label={t('Overtone.song.sections')}>
         {sections.map((entry, entryIndex) => <Button key={entryIndex} tone="ghost" className="ot-song-section" aria-pressed={index === entryIndex}
           data-selected={index === entryIndex} onClick={() => setSelectedSection(entryIndex)}><span>{String(entryIndex + 1).padStart(2, '0')}</span><strong>{sectionName(entryIndex)}</strong></Button>)}

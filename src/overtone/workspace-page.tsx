@@ -4,7 +4,6 @@ import {
   Button,
   ConfirmDialog,
   EmptyState,
-  InlineAlert,
   NimiText,
   NimiToaster,
   Popover,
@@ -151,7 +150,6 @@ function WorkspaceInner() {
         <div className="ot-workspace-content">
         <section className="ot-creation" aria-label={t('Overtone.workspace.composeAria')}>
           <div className="ot-creation-scroll">
-            <ReadinessBanner />
             {state.project?.fullSong ? <div className="ot-stage-switch"><SegmentedControl value={creative.stage}
               ariaLabel={t('Overtone.song.stageLabel')} items={[{ value: 'explore', label: t('Overtone.song.exploreStage'), disabled: creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0 }, { value: 'song', label: t('Overtone.song.songStage'), disabled: creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0 }]}
               onValueChange={value => { if (!creative.arranging && !creative.musicBusy && !Object.keys(state.activeJobs).length) creative.setStage(value as 'explore' | 'song'); }}/></div> : null}
@@ -277,30 +275,5 @@ function LanguageSwitcher() {
       ariaLabel={t('Overtone.language.ariaLabel')}
       size="sm"
     />
-  );
-}
-
-function ReadinessBanner() {
-  const { t } = useTranslation();
-  const { readiness } = useOvertoneState();
-  if (readiness.runtimeStatus === 'checking') return <NimiText role="helper">{t('Overtone.workspace.readiness.checking')}</NimiText>;
-  if (readiness.runtimeStatus === 'ready' && readiness.musicCapabilityAvailable && readiness.textCapabilityAvailable) return null;
-  const messages: string[] = [];
-
-  if (!readiness.musicCapabilityAvailable) {
-    messages.push(t('Overtone.workspace.readiness.musicUnavailable'));
-  }
-  if (!readiness.textCapabilityAvailable) {
-    messages.push(t('Overtone.workspace.readiness.textUnavailable'));
-  }
-  if (messages.length === 0) return null;
-  return (
-    <InlineAlert tone="warning">
-      <ul className="overtone-readiness-list">
-        {messages.map((message) => (
-          <li key={message}>{message}</li>
-        ))}
-      </ul>
-    </InlineAlert>
   );
 }

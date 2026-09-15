@@ -22,7 +22,7 @@ const JOB_STATUS: Partial<Record<ScenarioJobStatus, GenerationJob['status']>> = 
 export function GeneratePanel() {
   const { t } = useTranslation();
   const { project, readiness } = useOvertoneState();
-  const { addTake, selectTake, setJob, removeJob, rememberResult } = useOvertoneActions();
+  const { addTake, selectTake, setJob, removeJob, rememberResult, setAISettingsOpen } = useOvertoneActions();
   const creative = useExploration();
   const intent = useMusicIntent();
   const cache = useAudioCache();
@@ -115,13 +115,17 @@ export function GeneratePanel() {
 
   if (song) return <section className="overtone-generate ot-song-generate" data-testid="overtone-music-generation">
     <div className="ot-generation-draft"><p className="overtone-generate__target">{generating ? t('Overtone.song.renderingTarget', { title: submittedTitle }) : t('Overtone.song.generationTarget', { title: song.title })}</p>
-      <NimiText role="helper">{t(generating ? 'Overtone.song.renderingHint' : !song.sections.length && !readiness.textCapabilityAvailable ? 'Overtone.song.textSetup' : song.sections.length && !songValid ? 'Overtone.song.incompleteDraft' : !readiness.musicCapabilityAvailable ? 'Overtone.playground.musicSetup' : 'Overtone.song.durationHint')}</NimiText>
+      {generating || song.sections.length ? <NimiText role="helper">{t(generating ? 'Overtone.song.renderingHint' : !songValid ? 'Overtone.song.incompleteDraft' : 'Overtone.song.durationHint')}</NimiText> : null}
       {notice ? <p className="ot-song-result-notice" role="status">{notice}</p> : null}
       {errorMessage ? <InlineAlert tone="warning">{errorMessage}{errorDetail ? <details><summary>{t('Overtone.playground.errorDetails')}</summary>{errorDetail}</details> : null}</InlineAlert> : null}
     </div>
     <div className="overtone-row"><Button tone={hasRecoverable ? 'secondary' : 'primary'} className="ot-generate-button" data-next-action={!song.sections.length ? 'arrange-song' : 'generate-song'}
-      loading={generating || creative.arranging} disabled={generating || creative.arranging || (!song.sections.length ? !readiness.textCapabilityAvailable : !canGenerate)}
-      onClick={() => { if (!song.sections.length) void creative.arrangeSong(); else void generate(); }} leadingIcon={<OvertoneIcon name="music"/>}>
+      loading={generating || creative.arranging} disabled={generating || creative.arranging || (!!song.sections.length && !canGenerate && readiness.musicCapabilityAvailable)}
+      onClick={() => {
+        if (!song.sections.length) { if (!readiness.textCapabilityAvailable) { setAISettingsOpen(true); return; } void creative.arrangeSong(); return; }
+        if (!readiness.musicCapabilityAvailable) { setAISettingsOpen(true); return; }
+        void generate();
+      }} leadingIcon={<OvertoneIcon name="music"/>}>
       {t(generating ? 'Overtone.song.rendering' : creative.arranging ? 'Overtone.song.arranging' : !song.sections.length ? 'Overtone.song.arrange' : 'Overtone.song.generate')}
     </Button>{creative.arranging ? <Button tone="secondary" onClick={creative.cancelSongArrangement}>{t('Overtone.text.cancel')}</Button> : null}{generating ? <Button tone="secondary" onClick={() => { active.current?.abort(); setError(t('Overtone.generate.cancelRequested')); }}>{t('Overtone.generate.cancel')}</Button> : null}</div>
   </section>;
@@ -133,7 +137,8 @@ export function GeneratePanel() {
         : brief ? <p className="overtone-generate__target">{t('Overtone.playground.generationTarget', { title: generating ? submittedTitle : brief.title || t('Overtone.playground.ownDirection') })}</p> : null}
       {nextExplore ? <div className="ot-generation-note"><NimiText role="helper">{t('Overtone.studio.unappliedShort')}</NimiText>
         <Button tone="ghost" size="sm" onClick={creative.restoreAppliedIdea}>{t('Overtone.playground.keepDirection')}</Button></div>
-        : !nextApply && !canGenerate && !generating ? <NimiText role="helper">{t(!readiness.musicCapabilityAvailable ? 'Overtone.playground.musicSetup' : !brief?.description.trim() ? 'Overtone.playground.needDirection' : !lyrics ? 'Overtone.playground.needLyrics' : 'Overtone.playground.invalidInput')}</NimiText> : null}
+        : !nextApply && !canGenerate && !generating && (!brief?.description.trim() || !lyrics || readiness.musicCapabilityAvailable)
+          ? <NimiText role="helper">{t(!brief?.description.trim() ? 'Overtone.playground.needDirection' : !lyrics ? 'Overtone.playground.needLyrics' : 'Overtone.playground.invalidInput')}</NimiText> : null}
       {errorMessage ? <InlineAlert tone="warning">{errorMessage}{errorDetail ? <details><summary>{t('Overtone.playground.errorDetails')}</summary>{errorDetail}</details> : null}</InlineAlert> : null}
       <div className="ot-generation-tools"><Button className="ot-tool-button" tone="ghost" size="sm" aria-expanded={creative.notesOpen} aria-controls="ot-notebook" leadingIcon={<OvertoneIcon name="notes" size={15} />} onClick={() => creative.setNotesOpen(!creative.notesOpen)}>{t('Overtone.studio.editDraft')}</Button>
       <details className="overtone-style-details"><summary>{t('Overtone.generate.styleTags')}</summary><FieldShell label={t('Overtone.generate.styleTags')}>
@@ -142,17 +147,21 @@ export function GeneratePanel() {
           maxLength={400} placeholder={t('Overtone.generate.stylePlaceholder')} />
       </FieldShell></details>
       </div></div>
-      <div className="overtone-row">
-        <Button type="button" tone={hasRecoverable && !nextExplore && !nextApply ? 'secondary' : 'primary'} className="ot-generate-button" data-next-action={nextExplore ? 'explore' : nextApply ? 'apply' : 'generate'} loading={generating || (nextExplore && creative.exploring)}
-          onClick={() => { if (nextExplore) void creative.explore(); else if (nextApply) creative.chooseDirection(creative.focusedDirection); else void generate(); }}
-          disabled={generating || (nextExplore ? creative.exploring || !creative.idea.trim() || !readiness.textCapabilityAvailable : nextApply ? creative.exploring : !canGenerate)}>
-          <OvertoneIcon name={nextExplore ? 'spark' : nextApply ? 'arrow' : 'music'} />
-          {t(generating ? 'Overtone.generate.submitting' : nextExplore ? 'Overtone.playground.explore' : nextApply ? 'Overtone.studio.applyNext' : 'Overtone.generate.submit')}
+      {nextExplore ? null : <div className="overtone-row">
+        <Button type="button" tone={hasRecoverable && !nextApply ? 'secondary' : 'primary'} className="ot-generate-button" data-next-action={nextApply ? 'apply' : 'generate'} loading={generating}
+          onClick={() => {
+            if (nextApply) { creative.chooseDirection(creative.focusedDirection); return; }
+            if (!readiness.musicCapabilityAvailable) { setAISettingsOpen(true); return; }
+            void generate();
+          }}
+          disabled={generating || (nextApply ? creative.exploring : !canGenerate && readiness.musicCapabilityAvailable)}>
+          <OvertoneIcon name={nextApply ? 'arrow' : 'music'} />
+          {t(generating ? 'Overtone.generate.submitting' : nextApply ? 'Overtone.studio.applyNext' : 'Overtone.generate.submit')}
         </Button>
         {generating ? <Button type="button" tone="secondary" onClick={() => { active.current?.abort(); setError(t('Overtone.generate.cancelRequested')); }}>
           {t('Overtone.generate.cancel')}
         </Button> : null}
-      </div>
+      </div>}
     </section>
   );
 }

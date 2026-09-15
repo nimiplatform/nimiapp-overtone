@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, FieldShell, InlineAlert, NimiText, Popover, PopoverContent, PopoverTrigger, TextareaField, TextField } from '@nimiplatform/kit/ui';
+import { Button, FieldShell, InlineAlert, Popover, PopoverContent, PopoverTrigger, TextareaField, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 import { useExploration } from '../exploration-context.js';
@@ -9,6 +9,7 @@ import { OvertoneIcon } from './icons.js';
 export function BriefPanel() {
   const { t } = useTranslation();
   const { readiness } = useOvertoneState();
+  const { setAISettingsOpen } = useOvertoneActions();
   const creative = useExploration();
   const [sparksOpen, setSparksOpen] = useState(false);
   function surpriseMe() {
@@ -35,16 +36,15 @@ export function BriefPanel() {
           </Popover>
           <Button className="ot-tool-button" tone="ghost" size="sm" onClick={surpriseMe} disabled={creative.exploring} leadingIcon={<OvertoneIcon name="shuffle" size={15} />}>{t('Overtone.studio.shuffle')}</Button>
         </div>
-        <Button className="ot-explore-button" tone={creative.ideaDirty && !creative.proposalsCurrent ? 'secondary' : 'primary'} loading={creative.exploring}
-          disabled={!creative.idea.trim() || creative.exploring || !readiness.textCapabilityAvailable}
-          trailingIcon={<OvertoneIcon name="arrow" size={17} />} onClick={() => void creative.explore()}>
+        <Button className="ot-explore-button" tone="primary" loading={creative.exploring}
+          disabled={!creative.idea.trim() || creative.exploring}
+          trailingIcon={<OvertoneIcon name="arrow" size={17} />} onClick={() => { if (!readiness.textCapabilityAvailable) { setAISettingsOpen(true); return; } void creative.explore(); }}>
           {t(creative.exploring ? 'Overtone.playground.exploring' : 'Overtone.playground.explore')}
         </Button>
       </div>
     </div>
     {creative.error ? <InlineAlert tone="warning">{creative.error}</InlineAlert> : null}
     {creative.exploring ? <div className="ot-waiting" role="status" tabIndex={-1}><span className="ot-pulse" /><span>{t('Overtone.studio.exploringHint')}</span><Button tone="ghost" size="sm" onClick={creative.cancelExploration}>{t('Overtone.playground.stopExploring')}</Button></div> : null}
-    {!readiness.textCapabilityAvailable ? <NimiText role="helper">{t('Overtone.playground.textSetup')}</NimiText> : null}
   </section>;
 }
 

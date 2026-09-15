@@ -9,9 +9,11 @@ export interface SongProject {
 }
 export interface OvertoneState {
   project: SongProject | null; readiness: ReadinessSnapshot; activeJobs: Record<string, GenerationJob>;
+  aiSettingsOpen: boolean;
 }
 type Action =
   | { type: 'readiness/set'; readiness: ReadinessSnapshot }
+  | { type: 'aiSettings/setOpen'; open: boolean }
   | { type: 'project/start'; idea?: string }
   | { type: 'brief/set'; brief: SongBrief | null }
   | { type: 'lyrics/set'; text: string; source: LyricsDocument['source'] }
@@ -28,6 +30,7 @@ type Action =
   | { type: 'job/remove'; jobId: string };
 const INITIAL_STATE: OvertoneState = {
   project: null, readiness: { runtimeStatus: 'checking', textCapabilityAvailable: false, musicCapabilityAvailable: false }, activeJobs: {},
+  aiSettingsOpen: false,
 };
 const LOCAL_DRAFT_STORAGE_KEY = 'nimi.overtone:workspace.v1';
 function withProject(state: OvertoneState, update: (project: SongProject) => SongProject): OvertoneState {
@@ -37,6 +40,7 @@ function withProject(state: OvertoneState, update: (project: SongProject) => Son
 export function overtoneReducer(state: OvertoneState, action: Action): OvertoneState {
   switch (action.type) {
     case 'readiness/set': return { ...state, readiness: action.readiness };
+    case 'aiSettings/setOpen': return { ...state, aiSettingsOpen: action.open };
     case 'project/start': return { ...state, activeJobs: {}, project: {
       projectId: makeId('proj'), createdAt: Date.now(), brief: action.idea ? { title: '', genre: '', mood: '', tempo: '', description: action.idea.slice(0,1500) } : null,
       lyrics: null, takes: [], selectedTakeId: null, comparedTakeIds: [null,null],
@@ -72,6 +76,7 @@ const CacheContext = createContext<MusicAudioCache | null>(null);
 function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCache, stateRef: React.RefObject<OvertoneState>) {
   return useMemo(() => ({
     setReadiness: (readiness: ReadinessSnapshot) => dispatch({ type: 'readiness/set', readiness }),
+    setAISettingsOpen: (open: boolean) => dispatch({ type: 'aiSettings/setOpen', open }),
     startProject: (idea?: string) => { cache.clear(); dispatch({ type: 'project/start', idea }); },
     setBrief: (brief: SongBrief | null) => dispatch({ type: 'brief/set', brief }),
     setLyrics: (text: string, source: LyricsDocument['source']) => dispatch({ type: 'lyrics/set', text, source }),

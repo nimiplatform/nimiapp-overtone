@@ -12,7 +12,7 @@ const LYRICS_SYSTEM = 'You are a songwriting collaborator. Write 4-12 short sing
 export function LyricsPanel() {
   const { t, i18n } = useTranslation();
   const { project, readiness } = useOvertoneState();
-  const { setLyrics } = useOvertoneActions();
+  const { setLyrics, setAISettingsOpen } = useOvertoneActions();
   const lyrics = project?.lyrics;
   const brief = project?.brief;
   const [generating, setGenerating] = useState(false);
@@ -48,7 +48,7 @@ export function LyricsPanel() {
     <div className="overtone-field-stack">
       <div className="overtone-row overtone-row--between"><NimiText role="caption">{t('Overtone.playground.lyricsHint')}</NimiText>
         {generating ? <Button tone="secondary" size="sm" onClick={() => { request.current?.abort(); invocation.current += 1; setGenerating(false); setError(t('Overtone.text.canceled')); }}>{t('Overtone.text.cancel')}</Button> : null}
-        <Button tone="secondary" size="sm" disabled={generating || !readiness.textCapabilityAvailable || !brief?.description} onClick={() => void generate()}>
+        <Button tone="secondary" size="sm" disabled={generating || !brief?.description} onClick={() => { if (!readiness.textCapabilityAvailable) { setAISettingsOpen(true); return; } void generate(); }}>
           {t(generating ? 'Overtone.lyrics.writing' : lyrics?.text ? 'Overtone.lyrics.regenerate' : 'Overtone.lyrics.generate')}
         </Button></div>
       <TextareaField rows={7} maxLength={6000} aria-label={t('Overtone.lyrics.title')} value={lyrics?.text ?? ''}
