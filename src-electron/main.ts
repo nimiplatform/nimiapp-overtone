@@ -51,7 +51,7 @@ app.on('window-all-closed', () => {
 async function createMainWindow(): Promise<void> {
   const window = new BrowserWindow({
     width: 1180,
-    height: 780,
+    height: 900,
     minWidth: 360,
     minHeight: 560,
     title: 'Nimi Overtone',

@@ -73,7 +73,7 @@ export const overtoneI18nResources = {
           "applyNext": "Use this direction",
           "applyTarget": "Next direction: {{title}}",
           "unappliedShort": "New idea, not applied yet. Choose a direction first.",
-          "emptyPlayer": "Make a recording to start listening",
+          "emptyPlayer": "Generate, then pick a recording on the right.",
           "title": "Give your curiosity a sound.",
           "subtitle": "A small idea. An unexpected way out.",
           "headerPurpose": "The music playground",
@@ -104,7 +104,7 @@ export const overtoneI18nResources = {
           "compareIntro": "Tap A and B beside two recordings to compare.",
           "compareHint": "Switch at the current position. A shorter recording starts at the beginning.",
           "chooseCompare": "Choose a recording",
-          "preferences": "Make yourself at home",
+          "preferences": "Preferences",
           "connected": "Nimi connected",
           "newSession": "New exploration",
           "recordingNumber": "Recording {{number}}",
@@ -153,7 +153,7 @@ export const overtoneI18nResources = {
           "audition": "Listen",
           "playing": "Playing",
           "playTake": "Listen to {{title}}",
-          "waitingAudio": "Choose a recording to listen",
+          "waitingAudio": "It's still quiet here.",
           "speed": "Playback speed",
           "loop": "Loop selection",
           "exportOriginal": "Download original",
@@ -303,7 +303,7 @@ export const overtoneI18nResources = {
           "chinese": "中文"
         },
         "scheme": {
-          "ariaLabel": "Color scheme",
+          "ariaLabel": "Appearance",
           "light": "Light",
           "dark": "Dark"
         },
@@ -483,7 +483,7 @@ export const overtoneI18nResources = {
           "applyNext": "采用这个方向",
           "applyTarget": "准备采用：{{title}}",
           "unappliedShort": "新灵感还没应用，先选一个方向。",
-          "emptyPlayer": "生成一段音乐，就能开始聆听",
+          "emptyPlayer": "生成后，在右侧选一段来听。",
           "title": "给好奇心，一个声音。",
           "subtitle": "一个小念头，一次意料之外。",
           "headerPurpose": "音乐游乐场",
@@ -514,7 +514,7 @@ export const overtoneI18nResources = {
           "compareIntro": "在两段录音旁点 A、B，听听它们的不同。",
           "compareHint": "沿用当前位置切换，较短的录音将从头播放。",
           "chooseCompare": "选择一段录音",
-          "preferences": "调整到你的习惯",
+          "preferences": "偏好设置",
           "connected": "Nimi 已连接",
           "newSession": "新的探索",
           "recordingNumber": "录音 {{number}}",
@@ -563,7 +563,7 @@ export const overtoneI18nResources = {
           "audition": "试听",
           "playing": "正在播放",
           "playTake": "试听 {{title}}",
-          "waitingAudio": "选择一个版本，开始聆听",
+          "waitingAudio": "这里还安静着。",
           "speed": "试听速度",
           "loop": "循环播放选段",
           "exportOriginal": "下载原音频",
@@ -713,7 +713,7 @@ export const overtoneI18nResources = {
           "chinese": "中文"
         },
         "scheme": {
-          "ariaLabel": "颜色模式",
+          "ariaLabel": "外观",
           "light": "浅色",
           "dark": "深色"
         },

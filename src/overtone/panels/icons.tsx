@@ -1,4 +1,4 @@
-export function OvertoneIcon({ name, size = 18 }: { name: 'spark' | 'shuffle' | 'arrow' | 'branch' | 'download' | 'music' | 'close' | 'loop' | 'settings' | 'plus' | 'notes' | 'heart' | 'play' | 'pause' | 'chevron' | 'volume'; size?: number }) {
+export function OvertoneIcon({ name, size = 18 }: { name: 'spark' | 'shuffle' | 'arrow' | 'branch' | 'download' | 'music' | 'close' | 'loop' | 'settings' | 'plus' | 'notes' | 'heart' | 'play' | 'pause' | 'chevron' | 'volume' | 'sun' | 'chat'; size?: number }) {
   const paths = {
     spark: 'M12 3l2.7 6.3L21 12l-6.3 2.7L12 21l-2.7-6.3L3 12l6.3-2.7L12 3Z',
     shuffle: 'M3 6h3c5 0 7 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 3.5-2 5-5m2-3c1.5-2 3-4 5-4h3m-4-4 4 4-4 4',
@@ -16,6 +16,8 @@ export function OvertoneIcon({ name, size = 18 }: { name: 'spark' | 'shuffle' | 
     pause: 'M8 5v14M16 5v14',
     chevron: 'm9 5 7 7-7 7',
     volume: 'M4 9h4l5-4v14l-5-4H4V9Zm12-1c3 2 3 6 0 8m3-11c5 4 5 10 0 14',
+    sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 3v1.5M12 19.5V21M4.2 4.2l1 1M18.8 18.8l1 1M3 12h1.5M19.5 12H21M4.2 19.8l1-1M18.8 5.2l1-1',
+    chat: 'M4 5h16v11H9l-5 4V5Z',
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
 }

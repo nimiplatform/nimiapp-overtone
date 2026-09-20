@@ -24,7 +24,21 @@ export function DirectionsPanel() {
             </span>
           </Button>)}
         </div> : <div className="ot-empty-score">
-          <svg viewBox="0 0 180 70" aria-hidden="true"><path d="M5 36H42M42 36C60 36 68 10 86 10H175M42 36H175M42 36C60 36 68 62 86 62H175" fill="none" stroke="currentColor" strokeWidth="1.5" /><circle cx="42" cy="36" r="5" /><circle cx="172" cy="10" r="3" /><circle cx="172" cy="36" r="3" /><circle cx="172" cy="62" r="3" /></svg>
+          <svg viewBox="0 0 200 100" aria-hidden="true">
+            <g fill="none" stroke="currentColor" strokeLinecap="round">
+              <g strokeWidth="1" opacity=".32"><path d="M42 45C84 40 98 8 136 8H170" /><path d="M42 55C84 60 98 92 136 92H170" /></g>
+              <g strokeWidth="1.5">
+                <path d="M4 50H24" />
+                <path d="M43 50C82 50 92 20 132 20H170" />
+                <path d="M43 50C74 47 96 53 128 50H170" />
+                <path d="M43 50C82 50 92 80 132 80H170" />
+              </g>
+            </g>
+            <circle cx="34" cy="50" r="10.5" fill="var(--ot-lime)" stroke="#f6ffce" strokeWidth="2.5" />
+            <path d="M29.5 50h9M34 45.5v9" stroke="#283020" strokeWidth="1.4" strokeLinecap="round" />
+            <g fill="var(--ot-surface)" stroke="currentColor" strokeWidth="1.1"><circle cx="181" cy="20" r="9.5" /><circle cx="181" cy="50" r="9.5" /><circle cx="181" cy="80" r="9.5" /></g>
+            <g fill="currentColor" fontSize="9.5" fontWeight="600" textAnchor="middle" dominantBaseline="central"><text x="181" y="20">A</text><text x="181" y="50">B</text><text x="181" y="80">C</text></g>
+          </svg>
           <p>{t('Overtone.studio.beforeDirectionsHint')}</p>
           <span>{t('Overtone.studio.noTheory')}</span>
         </div>}

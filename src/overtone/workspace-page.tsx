@@ -205,7 +205,16 @@ function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onC
           <AIConfigPanel />
           <Popover open={preferencesOpen} onOpenChange={setPreferencesOpen}>
             <PopoverTrigger asChild><Button className="ot-settings-button" tone="ghost" size="sm" aria-label={t('Overtone.studio.preferences')}><OvertoneIcon name="settings" size={19} /></Button></PopoverTrigger>
-            <PopoverContent align="end" className="ot-preferences"><h2>{t('Overtone.studio.preferences')}</h2><div><span>{t('Overtone.scheme.ariaLabel')}</span><SchemeToggle /></div><div><span>{t('Overtone.language.ariaLabel')}</span><LanguageSwitcher /></div></PopoverContent>
+            <PopoverContent align="end" className="ot-preferences">
+              <div className="ot-preferences__row">
+                <span className="ot-preferences__label"><OvertoneIcon name="sun" size={14} />{t('Overtone.scheme.ariaLabel')}</span>
+                <SchemeToggle />
+              </div>
+              <div className="ot-preferences__row">
+                <span className="ot-preferences__label"><OvertoneIcon name="chat" size={14} />{t('Overtone.language.ariaLabel')}</span>
+                <LanguageSwitcher />
+              </div>
+            </PopoverContent>
           </Popover>
         </div>
       </header>
