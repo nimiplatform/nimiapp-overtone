@@ -48,9 +48,9 @@ units:
     kind: rule
     title: Reverse-chronological take list
     modality: must
-    statement: Render Output takes newest first, with each entry showing editable title, origin badge, mini waveform when decoded, selection bound to selectedTakeId, favorite and discard affordances, and A/B compare-slot affordances.
+    statement: Render Output takes newest first, with each entry showing editable title, origin badge, mini waveform when prepared from canonical frames, selection bound to selectedTakeId, favorite and discard affordances, and A/B compare-slot affordances. Offer explicit recording import in this area and distinguish imported and locally rendered recordings from AI-generated takes.
     condition: When the Output zone contains takes.
-    failure: Do not present an incomplete or incorrectly ordered take entry; render a typed unavailable artifact affordance where decoded waveform data is absent.
+    failure: Do not present an incomplete or incorrectly ordered take entry; render an unavailable or not-yet-prepared affordance where waveform data is absent.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.song-project
@@ -74,7 +74,7 @@ units:
     kind: rule
     title: Selected-take transport
     modality: must
-    statement: Render Transport with play and pause bound to the selected take's decoded buffer, current time and duration in m:ss / m:ss form, and a clickable waveform that seeks within the selected take; admit adjacent P0 set-in, set-out, and clear trim controls, but no advanced multi-region trims. Start each selected take with its own trim bounds, keep trim labels legible on the transport surface, and lay transport outside the narrow-window content scroller so focused controls remain visible.
+    statement: Render Transport with play and pause bound to the selected take's protected media handle, current time and measured canonical duration in m:ss / m:ss form, and a clickable waveform that seeks within the selected take; admit adjacent P0 set-in, set-out, and clear trim controls, but no advanced multi-region trims. Start each selected take with its own trim bounds, keep trim labels legible on the transport surface, and lay transport outside the narrow-window content scroller so focused controls remain visible.
     condition: When the Transport zone is rendered for a selected take.
     failure: Disable unavailable playback or seek controls with a typed artifact state and omit out-of-scope trim controls.
     relations:

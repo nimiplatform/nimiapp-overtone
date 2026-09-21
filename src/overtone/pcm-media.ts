@@ -6,29 +6,57 @@ import { waitForAbort } from './media-cache.js';
 
 type MediaClient = Pick<NimiLocalAppClient, 'storage'>;
 
+export type ProjectPcm = CanonicalWav & { readonly dispose: () => Promise<void> };
+
 // @nimi-authority: rule.overtone.data-model.r005
-export async function openProjectPcm(client: MediaClient, audio: ProjectAudio, signal: AbortSignal): Promise<CanonicalWav> {
-  const wav = await inspectCanonicalWav({ sizeBytes: audio.sizeBytes, read: async (offset, length, readSignal) => {
-    const deadline = AbortSignal.any([...(readSignal ? [readSignal] : []), AbortSignal.timeout(30_000)]);
-    const operation = async () => {
-    deadline.throwIfAborted();
-    const response = await client.storage.assets.read({ relativePath: audio.relativePath, offset, length });
-    if (response.asset.sha256 !== audio.sha256 || response.asset.sizeBytes !== audio.sizeBytes || response.asset.mediaType !== audio.mimeType
-      || response.range.offset !== offset || response.range.length !== length || response.range.totalSize !== audio.sizeBytes) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
-    const bytes = new Uint8Array(length); let received = 0;
-    for await (const part of response.body) {
-      deadline.throwIfAborted();
-      if (received + part.byteLength > bytes.length) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
-      bytes.set(part, received); received += part.byteLength;
-    }
-    deadline.throwIfAborted();
-    if (received !== length) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
-    return bytes;
-    };
-    return waitForAbort(operation(), deadline);
-  } }, signal);
-  if (wav.info.sampleRateHz !== audio.sampleRateHz || wav.info.channels !== audio.channels || wav.info.frameCount !== audio.frameCount) throw new Error('OVERTONE_AUDIO_FACTS_CHANGED');
-  return wav;
+export async function openProjectPcm(client: MediaClient, audio: ProjectAudio, signal: AbortSignal): Promise<ProjectPcm> {
+  let iterator: AsyncIterator<Uint8Array> | undefined;
+  let cursor = 0; let remainder: Uint8Array = new Uint8Array(0); let disposed = false;
+  const closeStream = async () => {
+    const current = iterator; iterator = undefined; remainder = new Uint8Array(0);
+    if (current?.return) await waitForAbort(Promise.resolve(current.return()), AbortSignal.timeout(30_000));
+  };
+  const dispose = async () => { if (disposed) return; disposed = true; signal.removeEventListener('abort', abort); await closeStream(); };
+  const abort = () => { void dispose().catch(() => undefined); };
+  signal.addEventListener('abort', abort, { once: true });
+  try {
+    const wav = await inspectCanonicalWav({ sizeBytes: audio.sizeBytes, read: async (offset, length, readSignal) => {
+      const deadline = AbortSignal.any([signal, ...(readSignal ? [readSignal] : []), AbortSignal.timeout(30_000)]);
+      const operation = async () => {
+        deadline.throwIfAborted(); if (disposed) throw new Error('OVERTONE_PCM_CLOSED');
+        if (!iterator || cursor !== offset) {
+          await closeStream(); deadline.throwIfAborted();
+          // One protected stream pins and verifies the source. Sequential Kit
+          // windows consume it with backpressure instead of rehashing the whole song.
+          const response = await client.storage.assets.read({ relativePath: audio.relativePath, offset, length: audio.sizeBytes - offset });
+          const opened = response.body[Symbol.asyncIterator]();
+          if (disposed || deadline.aborted) { void opened.return?.(); deadline.throwIfAborted(); throw new Error('OVERTONE_PCM_CLOSED'); }
+          if (response.asset.sha256 !== audio.sha256 || response.asset.sizeBytes !== audio.sizeBytes || response.asset.mediaType !== audio.mimeType
+            || response.range.offset !== offset || response.range.length !== audio.sizeBytes - offset || response.range.totalSize !== audio.sizeBytes) {
+            void opened.return?.(); throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+          }
+          iterator = opened; cursor = offset;
+        }
+        const bytes = new Uint8Array(length); let received = 0;
+        while (received < length) {
+          deadline.throwIfAborted();
+          if (!remainder.length) {
+            const next = await iterator!.next(); deadline.throwIfAborted();
+            if (next.done || !next.value.length || next.value.length > 1024 * 1024) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+            remainder = next.value;
+          }
+          const count = Math.min(length - received, remainder.length);
+          bytes.set(remainder.subarray(0, count), received); remainder = remainder.subarray(count);
+          received += count; cursor += count;
+        }
+        if (cursor === audio.sizeBytes) await closeStream();
+        return bytes;
+      };
+      return waitForAbort(operation(), deadline);
+    } }, signal);
+    if (wav.info.sampleRateHz !== audio.sampleRateHz || wav.info.channels !== audio.channels || wav.info.frameCount !== audio.frameCount) throw new Error('OVERTONE_AUDIO_FACTS_CHANGED');
+    return { ...wav, dispose };
+  } catch (error) { await dispose(); throw error; }
 }
 
 export function projectPcmWorker() {
@@ -40,8 +68,8 @@ export async function projectWaveform(client: MediaClient, audio: ProjectAudio, 
   const wav = await openProjectPcm(client, audio, signal); const worker = projectPcmWorker();
   try {
     const peaks = await buildPcmWaveform(wav, Math.min(256, wav.info.frameCount), { signal, worker, onProgress });
-    return { wav, peaks: [...peaks.min].map((low, index) => Math.max(Math.abs(low), Math.abs(peaks.max[index]!))) };
-  } finally { worker.close(); }
+    return { info: wav.info, peaks: [...peaks.min].map((low, index) => Math.max(Math.abs(low), Math.abs(peaks.max[index]!))) };
+  } finally { worker.close(); await wav.dispose(); }
 }
 
 export interface ProjectMixTrack {
@@ -61,15 +89,17 @@ export async function renderProjectMix(input: {
 }): Promise<{ audio: ProjectAudio; peak: number; overRangeSamples: number }> {
   const { client, output, signal } = input;
   if (!input.tracks.length || input.tracks.length > 8) throw new Error('OVERTONE_MIX_TRACK_LIMIT');
-  const tracks: { source: CanonicalWav; placement: ProjectMixTrack }[] = [];
+  const tracks: { source: ProjectPcm; placement: ProjectMixTrack }[] = [];
+  try {
   for (const placement of input.tracks) {
     if (![placement.startFrame, placement.sourceStartFrame, placement.sourceEndFrame].every(n => Number.isSafeInteger(n) && n >= 0)
       || placement.sourceEndFrame <= placement.sourceStartFrame || placement.sourceEndFrame > placement.audio.frameCount
       || !Number.isFinite(placement.gain) || Math.abs(placement.gain) > 16) throw new Error('OVERTONE_MIX_RANGE_INVALID');
     const source = await openProjectPcm(client, placement.audio, signal);
-    if (source.info.sampleRateHz !== output.sampleRateHz || source.info.channels !== output.channels) throw new Error('OVERTONE_MIX_DOMAIN_MISMATCH');
     tracks.push({ source, placement });
+    if (source.info.sampleRateHz !== output.sampleRateHz || source.info.channels !== output.channels) throw new Error('OVERTONE_MIX_DOMAIN_MISMATCH');
   }
+  } catch (error) { await Promise.all(tracks.map(track => track.source.dispose())); throw error; }
   const worker = projectPcmWorker(); let peak = 0; let overRangeSamples = 0;
   async function* blocks() {
     for (let start = 0; start < output.frameCount; start += PCM_BLOCK_FRAMES) {
@@ -96,7 +126,7 @@ export async function renderProjectMix(input: {
     committed = asset.relativePath;
     signal.throwIfAborted();
     const audio: ProjectAudio = { ...owned(asset), ...output, durationMs: Math.floor(output.frameCount * 1000 / output.sampleRateHz) };
-    await openProjectPcm(client, audio, signal);
+    const verified = await openProjectPcm(client, audio, signal); await verified.dispose();
     return { audio, peak, overRangeSamples };
   } catch (error) {
     if (committed) {
@@ -104,7 +134,7 @@ export async function renderProjectMix(input: {
       catch (cleanup) { throw new Error(`${String(error)}; incomplete local render cleanup: ${String(cleanup)}`); }
     }
     throw error;
-  } finally { worker.close(); }
+  } finally { worker.close(); await Promise.all(tracks.map(track => track.source.dispose())); }
 }
 
 function owned(asset: Awaited<ReturnType<NimiLocalAppClient['storage']['assets']['write']>>): OwnedAsset {

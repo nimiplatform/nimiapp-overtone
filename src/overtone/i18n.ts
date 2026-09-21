@@ -10,6 +10,13 @@ export const overtoneI18nResources = {
   "en": {
     "translation": {
       "Overtone": {
+        "recording": {
+          "import": "Import a song or recording", "hint": "MP3, WAV or FLAC · up to 10 minutes and 512 MiB. Keep the original and an editable audio copy.",
+          "imported": "Imported recording", "localRender": "Local mix", "abandon": "Abandon import",
+          "abandoning": "Abandoning import. Audio preparation may take up to a minute to finish.",
+          "failed": "This recording could not be imported. The file on your device is unchanged.",
+          "stages": { "copying": "Saving the original…", "preparing": "Preparing the audio…", "checking": "Checking the audio and building its waveform…", "saving": "Saving this recording to the project…" }
+        },
         "score": {
           "title": "Scores and new arrangements",
           "intro": "Keep a score, try a melody change, then ask for a new recording. The original stays available.",
@@ -531,6 +538,13 @@ export const overtoneI18nResources = {
   "zh": {
     "translation": {
       "Overtone": {
+        "recording": {
+          "import": "导入歌曲或录音", "hint": "MP3、WAV 或 FLAC · 最长10分钟、最大512 MiB。保留原文件与可编辑的音频副本。",
+          "imported": "导入录音", "localRender": "本地混音", "abandon": "放弃导入",
+          "abandoning": "正在放弃导入；音频准备可能需要最多一分钟结束。",
+          "failed": "这份录音未能导入。设备上的原文件未改变。",
+          "stages": { "copying": "正在保存原文件…", "preparing": "正在准备音频…", "checking": "正在检查音频并建立波形…", "saving": "正在把录音保存到项目…" }
+        },
         "score": {
           "title": "乐谱与改编",
           "intro": "保留一份谱，试着改变旋律，再生成新的录音。原谱始终保留。",

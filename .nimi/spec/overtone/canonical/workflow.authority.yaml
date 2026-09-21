@@ -50,7 +50,7 @@ units:
     kind: rule
     title: Music generation from the author draft
     modality: must
-    statement: Require a brief, lyrics, and the App music intent before explicit submission; compose the prompt from the brief and optional style tags and create a new take only from completed and decoded Runtime audio.
+    statement: Require an App music intent and author inputs satisfying the selected Runtime musicInput profile before explicit submission. Compose a textual prompt from the brief and optional style tags, or use the explicitly selected immutable score document with a bounded generation budget; require lyrics only when the selected profile requires them. Create a new take only from completed Runtime output with adopted and validated canonical audio, and never infer supported inputs from model labels.
     condition: When the author requests a new generated take.
     failure: Preserve the author draft, show the missing configuration or typed execution failure, and create no substitute take.
     relations:
@@ -152,7 +152,7 @@ units:
     kind: rule
     title: Project reset
     modality: must
-    statement: New Exploration, after confirmation when work exists, changes the active project, clears decoded playback buffers and cancels owned invocations and observations, then opens a fresh blank project in the same playground. Preserve durable assets and late recoverable results on their original project instead of attaching them to the new one. This is not an implicit deletion of saved media.
+    statement: New Exploration, after confirmation when work exists, changes the active project, clears transient media caches and playback handles and cancels owned invocations and observations, then opens a fresh blank project in the same playground. Preserve durable assets and late recoverable results on their original project instead of attaching them to the new one. This is not an implicit deletion of saved media.
     condition: When the author confirms New Exploration.
     failure: Keep the prior project or display the actual save or cancellation failure; never show old results as part of the new exploration.
     relations:
@@ -164,6 +164,20 @@ units:
         target: definition.overtone.data-model.take-artifact
       - type: applies_to
         target: definition.overtone.workflow.iteration-loop
+  - id: rule.overtone.workflow.r013-import-recording
+    kind: rule
+    title: Preserve original recordings and one canonical editing source
+    modality: must
+    statement: An explicit recording import accepts a local MP3, WAV or FLAC file up to 512 MiB, streams a preserved copy into protected App assets, asks the existing Runtime artifact upload operation for canonical-pcm-v1 preparation, adopts its complete WAV and measured audio facts, and validates bounded PCM windows and a waveform before saving an imported-recording version to the initiating project. Runtime alone checks actual format and the 600-second decoded limit; the App never decodes a second editing timeline or invents a Job, lyrics, musical description, original singer identity or target voice from a filename. Failed pre-version import cleans only its own newly created App copies and leaves the device original unchanged; a project-save failure retains the valid assets for existing save retry. Abandoning import stops local copying and subsequent adoption, but the current unary preparation request may settle under its 60-second bound before cleanup and is never falsely described as an interrupted codec process. Imported audio without textual author intent does not enter prompt-only reinterpretation or full-song expansion as if its audio had been analyzed.
+    condition: When the author imports an existing song or recording.
+    failure: Reject invalid file, unready protected session, unsupported input, incomplete preparation, changed facts, cancellation or failed persistence without fabricating a generated version or overwriting another project.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact
   - id: rule.overtone.workflow.r012
     kind: rule
     title: From audition to full song

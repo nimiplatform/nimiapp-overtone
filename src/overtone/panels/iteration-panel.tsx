@@ -11,7 +11,7 @@ export function IterationPanel() {
   const { setAISettingsOpen } = useOvertoneActions();
   const creative = useExploration();
   const selected = project?.takes.find((take) => take.takeId === project.selectedTakeId && !take.discarded);
-  if (!selected) return null;
+  if (!selected || !selected.promptSnapshot.trim()) return null;
   return <section className="overtone-whatif">
     <div className="overtone-section__heading"><h2><OvertoneIcon name="branch" />{t('Overtone.playground.whatIf')}</h2></div>
     <NimiText role="helper">{t('Overtone.playground.whatIfSource', { title: selected.title })}</NimiText>

@@ -57,7 +57,7 @@ The publisher then submits the immutable Release to [Nimi App Registry](https://
 
 候选版本尚未发布；生产构建仍需已发布依赖与合同预检，本次不执行发布或部署。打包、安装、启动与 Registry 准入分别验收，本地构建通过不代表安装或准入通过。运行中的开发会话需要保留时，可在独立源目录执行生产构建，避免改写开发载体。
 
-PCM 续作的完整 Kit 0.12.0 候选包保存在 .nimi/local/music-media-cohort-2026-09-21，其余 SDK/App Tools/native 沿用上述匹配包。当前有效 archive 及 integrity 以 pnpm-workspace.yaml 与 lockfile 为准。
+当前 SDK 0.16.0／Kit 0.12.0 完整候选包保存在 .nimi/local/music-stream-cohort-2026-09-22，包含连续PCM读取与提前关闭资产流修复；App Tools/native 沿用上述匹配包。当前有效 archive 及 integrity 以 pnpm-workspace.yaml 与 lockfile 为准。
 
 ### 审计修复行为
 
@@ -74,3 +74,5 @@ PCM 续作的完整 Kit 0.12.0 候选包保存在 .nimi/local/music-media-cohort
 谱面核心固定 abcjs 6.7.0 与 @tonejs/midi 2.0.28。真实 YuE2/SheetSage2 ABC 的四个单声部派生结果保留了独立 MIDI 解析得到的音高、起点和时值；原谱保留，省略声部、MIDI 量化和控制器等损失必须显式呈现。ABC 转 MIDI、再选择 MIDI 旋律轨转为 ABC 已经通过真实界面保存；保存前显示转换损失。abcjs MIDI 导出不会完整保留途中拍号、速度和调号，不能宣称通用无损转换。本地合成音仅用于比较旋律草稿，不是 AI 人声或最终编配试听。MuScriptor 原生 MIDI、复杂多声部编辑和主观演唱精度仍未验收。
 
 2026-09-22 续测：受保护媒体 URL 实际播放到末尾；通过真实裁剪控件保存3.000–7.999秒 WAV，239952帧，逐字节等于源文件对应帧。两份实际 YuE2 音频经浏览器 Worker 与 protected assets 流式混合，全部1919872个声道样本符合各0.5增益之和；取消中途写入未留下成功资产。这些结果不证明原生文件管理器的“打开位置”交互、完整混音界面、整首重唱或音色质量。此前浏览器 download 属性未成功处理受保护播放 URL，现已硬切到保存资产与正式 reveal，不绕过导航约束。
+
+“导入歌曲或录音”已通过真实 MP3 输入验收：191.6355秒、48kHz双声道，保留3071616B原文件及73588090B规范音频，项目重开和尾段播放通过。导入版本没有伪造Job、歌词或文字方向。音频准备期间点击放弃后不新增版本，并清理本次App副本；当前unary准备接口只能在返回后停止采纳，不能从App中断codec。连续受保护流配合Kit每源1MiB预读，将同一整曲的完整波形处理测到约0.79秒；每个DSP块仍不超过16384帧。十分钟上限是Runtime准入界限，不代表十分钟重唱已经通过。

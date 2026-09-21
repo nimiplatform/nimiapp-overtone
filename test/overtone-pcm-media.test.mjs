@@ -25,8 +25,8 @@ test('project PCM reads pin owned asset facts and use explicit byte ranges', asy
   const wav = await openProjectPcm(client, value.audio, new AbortController().signal);
   const samples = await readPcmFrames(wav, 1, 2);
   assert.equal(samples.length, 4); assert.ok(Math.abs(samples[0] + 0.2) < 1e-7);
-  assert.deepEqual(value.requests.at(-1), { relativePath: value.audio.relativePath, offset: 66, length: 16 });
-  assert.ok(value.requests.every(request => request.length > 0 && request.length <= 131072));
+  assert.deepEqual(value.requests, [{ relativePath: value.audio.relativePath, offset: 0, length: 90 }]);
+  assert.ok(value.requests.every(request => request.length > 0 && request.length <= 1024 * 1024));
 });
 test('a changed asset digest or canonical frame count is rejected instead of redefining the editing source', async () => {
   const value = source(); const signal = new AbortController().signal;
@@ -34,4 +34,25 @@ test('a changed asset digest or canonical frame count is rejected instead of red
   await assert.rejects(openProjectPcm(changed, value.audio, signal), /OVERTONE_ARTIFACT_METADATA_CHANGED/);
   const client = { storage: { assets: { read: value.read } } };
   await assert.rejects(openProjectPcm(client, { ...value.audio, frameCount: 5 }, signal), /OVERTONE_AUDIO_FACTS_CHANGED/);
+});
+
+test('sequential PCM windows retain bounded stream chunks and dispose the held read when stopped early', async () => {
+  const info = { sampleRateHz: 8000, channels: 2, frameCount: 524288 };
+  const bytes = new Uint8Array(58 + info.frameCount * 8); bytes.set(canonicalWavHeader(info));
+  const audio = { ...info, relativePath: 'owned/long.wav', sizeBytes: bytes.length, mimeType: 'audio/wav', sha256: 'sha256:' + 'a'.repeat(64), durationMs: 65536 };
+  let opened = 0, closed = 0, delivered = 0;
+  const client = { storage: { assets: { read: async ({ offset, length }) => {
+    opened++;
+    return { asset: { ...audio, mediaType: 'audio/wav' }, range: { offset, length, totalSize: bytes.length },
+      body: (async function* () { try {
+        for (let at = offset; at < offset + length; at += 65536) {
+          const chunk = bytes.slice(at, Math.min(at + 65536, offset + length)); delivered += chunk.length; yield chunk;
+        }
+      } finally { closed++; } })() };
+  } } } };
+  const wav = await openProjectPcm(client, audio, new AbortController().signal);
+  for (let frame = 0; frame < 16384 * 12; frame += 16384) await readPcmFrames(wav, frame, 16384);
+  await wav.dispose();
+  assert.equal(opened, 2); assert.equal(closed, 2);
+  assert.ok(delivered <= 2 * 1024 * 1024, 'partial inspection does not fetch the whole four-MiB source');
 });

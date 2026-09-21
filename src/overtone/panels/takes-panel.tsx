@@ -10,6 +10,7 @@ import { OvertoneIcon } from './icons.js';
 import { formatAudioTime } from '../exploration.js';
 import { useExploration } from '../exploration-context.js';
 import { belongsToSongDraft, songFallsShort } from '../full-song.js';
+import { ImportRecording } from './import-recording.js';
 
 // @nimi-authority: rule.overtone.ia.r004
 export function TakesPanel() {
@@ -38,7 +39,7 @@ export function TakesPanel() {
       </Button>)}</div>
     </section> : <p className="ot-shelf-hint">{t('Overtone.studio.compareIntro')}</p>}
     {jobItems.length ? <div className="ot-generation-status"><GenerationStatusList items={jobItems} getStatusLabel={status=>t(`Overtone.runtime.status.${status==='pending'?'queued':status}`)} /></div> : null}
-    <RecoverableResults /><div className="ot-take-list">
+    <ImportRecording /><RecoverableResults /><div className="ot-take-list">
       {shown.map((take,index)=><TakeRow key={take.takeId} take={take} ordinal={takes.length-takes.indexOf(take)} isSelected={take.takeId===project?.selectedTakeId} />)}
       {!shown.length ? <div className="ot-shelf-empty"><OvertoneIcon name="music" size={35}/><h3>{t(favoritesOnly?'Overtone.studio.noFavorites':'Overtone.studio.firstSound')}</h3><p>{t(favoritesOnly?'Overtone.studio.noFavoritesHint':'Overtone.studio.firstSoundHint')}</p>{favoritesOnly?<Button tone="secondary" size="sm" onClick={()=>setFavoritesOnly(false)}>{t('Overtone.studio.showAll')}</Button>:null}</div> : null}
     </div>
@@ -71,7 +72,7 @@ function TakeRow({take,ordinal,isSelected}:{take:SongTake;ordinal:number;isSelec
       <Button className="ot-take-play" tone={playing?'primary':'ghost'} aria-label={t(playing?'Overtone.player.pause':'Overtone.playground.playTake',{title:take.title})}
         onClick={()=>playing?playback.togglePlayback():playback.requestTake(take.takeId)}><OvertoneIcon name={playing?'pause':'play'} size={19}/></Button>
       <div className="ot-take-info"><Button tone="ghost" className="ot-take-title" aria-pressed={isSelected} onClick={()=>selectTake(take.takeId)}>{take.title}</Button>
-        <span>{String(ordinal).padStart(2,'0')}<span> / </span>{formatAudioTime(take.durationSeconds??0)}<span> · </span>{t(take.creationMode === 'song'
+        <span>{String(ordinal).padStart(2,'0')}<span> / </span>{formatAudioTime(take.durationSeconds??0)}<span> · </span>{t(take.origin === 'imported-recording' ? 'Overtone.recording.imported' : take.origin === 'local-render' ? 'Overtone.recording.localRender' : take.creationMode === 'song'
           ? songFallsShort(take.durationSeconds ?? 0, take.targetDurationSeconds ?? 120) ? 'Overtone.song.shortResult' : 'Overtone.song.longResult'
           : 'Overtone.song.sketch')}</span></div>
       <Popover open={menuOpen} onOpenChange={setMenuOpen}><PopoverTrigger asChild><IconButton className="ot-more-button" size="sm" tone="ghost" icon={<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/></svg>} aria-label={t('Overtone.takes.moreActions')}/></PopoverTrigger>
@@ -92,7 +93,7 @@ function TakeRow({take,ordinal,isSelected}:{take:SongTake;ordinal:number;isSelec
       selectScore((take.scoreId || take.inputScoreId)!); const panel = document.querySelector<HTMLDetailsElement>('#ot-score-panel');
       if (panel) { panel.open = true; panel.scrollIntoView({ block: 'nearest' }); }
     }}>{t(take.scoreId ? 'Overtone.score.openGenerated' : 'Overtone.score.openInput')}</Button> : null}
-    {isSelected ? <Button className="ot-finish-song" tone="secondary" size="sm" disabled={creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0}
+    {isSelected && take.promptSnapshot.trim() ? <Button className="ot-finish-song" tone="secondary" size="sm" disabled={creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0}
       trailingIcon={<OvertoneIcon name="arrow" size={14}/>} onClick={() => creative.startSong(take)}>
       {t(belongsToSongDraft(take, state.project?.fullSong) ? 'Overtone.song.resume' : state.project?.fullSong ? 'Overtone.song.startAnother' : 'Overtone.song.start')}</Button> : null}
   </article>;
