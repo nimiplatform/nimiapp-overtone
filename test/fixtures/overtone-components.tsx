@@ -11,6 +11,6 @@ function Capture({ observe }: { observe: (value: unknown) => void }) {
     persistence: useOvertonePersistence(), cache: useAudioCache(), creative: useExploration() });
   return null;
 }
-export function ComponentHarness({ observe, storage }: { observe: (value: unknown) => void; storage: Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson'> }) {
-  return <OvertoneProvider storage={storage}><ExplorationProvider><Capture observe={observe}/><GeneratePanel/><PlayerPanel/><DraftSaveNotice/></ExplorationProvider></OvertoneProvider>;
+export function ComponentHarness({ observe, storage, openMedia }: { observe: (value: unknown) => void; storage: Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson'>; openMedia?: React.ComponentProps<typeof PlayerPanel>['openMedia'] }) {
+  return <OvertoneProvider storage={storage}><ExplorationProvider><Capture observe={observe}/><GeneratePanel/><PlayerPanel openMedia={openMedia}/><DraftSaveNotice/></ExplorationProvider></OvertoneProvider>;
 }

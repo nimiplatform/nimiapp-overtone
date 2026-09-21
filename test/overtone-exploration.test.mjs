@@ -3,7 +3,7 @@ import test from 'node:test';
 import { loadSource as load } from './load-source.mjs';
 const {parseMusicDirections,buildMusicPrompt,musicInputValid}=await load('../src/overtone/exploration.ts');
 const {normalizeGeneratedLyrics}=await load('../src/overtone/lyrics.ts');
-const {encodeTrimmedWav}=await load('../src/overtone/audio-export.ts');
+const {parseFullSong,fullSongDraftValid,fullSongInput,songFallsShort}=await load('../src/overtone/full-song.ts');
 const direction=(title)=>({title,genre:'Jazz',mood:'Curious',tempo:'80 BPM',description:'Warm bass and brushed percussion.',twist:'Music-box counterpoint.',lyrics:'[Verse]\nWe drift through the night\n[Chorus]\nEarth is a distant light'});
 test('directions require three distinct, complete, bounded AI proposals',()=>{
   const complete={directions:[direction('Moon'),direction('Orbit'),direction('Earth')]};
@@ -32,27 +32,7 @@ test('AI lyric headings use standalone tags without changing sung words',()=>{
   const result = parseMusicDirections(JSON.stringify({directions:[direction('Moon'),direction('Orbit'),direction('Earth')]}));
   assert.equal(result[0].lyrics, '[verse]\nWe drift through the night\n[chorus]\nEarth is a distant light');
 });
-test('trimmed WAV contains exactly the selected stereo frames and preserves source samples',()=>{
-  const left=new Float32Array([0,.25,.5,.75,1,-1,0,0]);
-  const right=new Float32Array([1,0,-.5,0,.5,0,0,0]);
-  const source={sampleRate:8,length:8,duration:1,numberOfChannels:2,getChannelData:(channel)=>channel===0?left:right};
-  const before=left.slice();
-  const result=encodeTrimmedWav(source,.25,.75);
-  const view=new DataView(result);
-  assert.equal(result.byteLength,44+4*2*2);
-  assert.equal(view.getUint16(22,true),2);
-  assert.equal(view.getUint32(24,true),8);
-  assert.equal(view.getUint32(40,true),16);
-  assert.equal(view.getInt16(44,true),16384);
-  assert.equal(view.getInt16(46,true),-16384);
-  assert.equal(view.getInt16(56,true),-32768);
-  assert.deepEqual(left,before);
-  assert.throws(()=>encodeTrimmedWav(source,.75,.25));
-  assert.throws(()=>encodeTrimmedWav(source,NaN,.5));
-});
 
-
-const {parseFullSong,fullSongDraftValid,fullSongInput,songFallsShort}=await load('../src/overtone/full-song.ts');
 test('full song requires a complete bounded lyrical arrangement',()=>{
  const sections=Array.from({length:6},(_,i)=>({kind:i%2?'chorus':'verse',name:'Verse '+i,arrangement:'Piano enters',lyrics:'One\nTwo\nThree\nFour'}));
  const result=parseFullSong(JSON.stringify({title:'A whole song',sections}));

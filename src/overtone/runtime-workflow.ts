@@ -3,6 +3,7 @@ import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeMusicGeneration, runRuntimeMusicGenerate, type RuntimeMusicGenerateResult } from '@nimiplatform/kit/features/generation/runtime';
 import { makeId, type OwnedAsset, type ProjectAudio, type RecoverableMusicResult, type ScoreDocument, type SongTake } from './types.js';
 import { MusicAudioCache, waitForAbort } from './media-cache.js';
+import { projectWaveform } from './pcm-media.js';
 
 export const TEXT_WAIT_TIMEOUT_MS = 90_000;
 export interface RuntimeTextGenerationInput {
@@ -179,7 +180,7 @@ export async function readOwnedAsset(client: Pick<NimiLocalAppClient, 'storage'>
 }
 export async function loadProjectAudio(input: { client: Pick<NimiLocalAppClient, 'storage'>; cache: MusicAudioCache; audio: ProjectAudio; signal: AbortSignal }) {
   return input.cache.load(input.audio.relativePath, async signal => {
-    const bytes = await readOwnedAsset(input.client, input.audio, signal, 128 * 1024 * 1024);
-    return Uint8Array.from(bytes).buffer;
-  }, input.signal, { mimeType: input.audio.mimeType, sizeBytes: input.audio.sizeBytes });
+    const { wav, peaks } = await projectWaveform(input.client, input.audio, signal);
+    return { info: wav.info, peaks, mimeType: input.audio.mimeType, sizeBytes: input.audio.sizeBytes, sha256: input.audio.sha256 };
+  }, input.signal, input.audio);
 }

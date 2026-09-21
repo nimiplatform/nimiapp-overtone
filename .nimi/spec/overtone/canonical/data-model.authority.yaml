@@ -21,7 +21,7 @@ units:
   - id: definition.overtone.data-model.take-artifact
     kind: definition
     title: Take artifact
-    meaning: An owned canonical audio App asset with relativePath, verified MIME, size and digest, sample rate, channels, frame count and duration. Renderer playback and bounded decoded waveform caches are keyed by this asset identity; cache bytes are transient and Runtime Job expiration does not delete adopted App media.
+    meaning: An owned canonical audio App asset with relativePath, verified MIME, size and digest, sample rate, channels, frame count and duration. Renderer playback and bounded format and waveform caches are keyed by this asset identity; cache bytes are transient and Runtime Job expiration does not delete adopted App media.
   - id: definition.overtone.data-model.generation-job
     kind: definition
     title: Generation job
@@ -100,8 +100,8 @@ units:
     kind: rule
     title: Owned audio playback and bounded cache
     modality: must
-    statement: Adopt every required Runtime music artifact through the protected App client, verify returned digest, MIME and size against the completed result, and validate playable audio before adding a version. Read saved assets through admitted media or streaming storage operations. Keep decoded audio and waveform caches transient with a 256 MiB resident budget and 128 MiB per-decoded-buffer bound; long files use bounded windows or the admitted media URL rather than requiring the full file in a JSON response. Browser playback decoding never defines editable frame coordinates. Cancel abandoned reads, bound waiting to 30 seconds, and serialize browser decoding; late canceled media never enters the cache.
-    condition: When resolving a completed runtime artifact.
+    statement: Adopt every required Runtime music artifact through the protected App client, verify returned digest, MIME and size against the completed result, and validate canonical audio facts and finite samples before adding a version. Read saved assets through admitted media or streamed range operations. Keep only format and waveform caches transient within 4 MiB, without a whole-song decoded PCM cache; use Kit bounded PCM frames for editing and its Worker for waveform and mixing, the admitted opaque App media URL for playback, and protected asset reveal to open a saved file location. Playback handle renewal preserves the current position and never invokes AI work. Browser playback decoding never defines editable frame coordinates. Cancel abandoned reads, bound each wait and media readiness to 30 seconds, and release Workers and handles on disposal; late canceled media never enters the cache.
+    condition: When resolving or playing an owned audio version.
     failure: Withhold SongTake creation, clear affected transient buffers, and surface a typed artifact error.
     relations:
       - type: applies_to

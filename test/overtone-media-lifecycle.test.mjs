@@ -4,99 +4,57 @@ import { loadSource } from './load-source.mjs';
 const { MusicAudioCache } = await loadSource('../src/overtone/media-cache.ts');
 const { overtoneReducer } = await loadSource('../src/overtone/store.tsx');
 const { generateRuntimeText, recoverRuntimeMusic, createMusicVersion } = await loadSource('../src/overtone/runtime-workflow.ts');
-const audio = () => ({duration:1,length:4,numberOfChannels:1,getChannelData:()=>Float32Array.of(0,.2,-.8,.1)});
+const audio = () => ({ info: { sampleRateHz: 8000, channels: 1, frameCount: 8000 }, peaks: [0.1, 0.8], mimeType: 'audio/wav', sizeBytes: 8, sha256: 'sha256:' + 'a'.repeat(64) });
 const signal = () => new AbortController().signal;
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-test('abandoned reads release the queue and canceled queued selections never read or decode', async () => {
-  const calls = []; let finishA;
-  const cache = new MusicAudioCache(48, async bytes => { calls.push(`decode:${new Uint8Array(bytes)[0]}`); return audio(); });
+test('abandoned preparation releases the queue and canceled queued selections never start', async () => {
+  const calls = []; let finishA; const cache = new MusicAudioCache(544);
   const a = new AbortController(), b = new AbortController();
-  const first = cache.load('a', () => { calls.push('read:a'); return new Promise(resolve => { finishA = resolve; }); }, a.signal);
-  const firstRejected = assert.rejects(first, { name: 'AbortError' });
-  await flush();
-  const second = cache.load('b', async () => { calls.push('read:b'); return Uint8Array.of(2).buffer; }, b.signal);
+  const first = cache.load('a', () => { calls.push('prepare:a'); return new Promise(resolve => { finishA = resolve; }); }, a.signal);
+  const firstRejected = assert.rejects(first, { name: 'AbortError' }); await flush();
+  const second = cache.load('b', async () => { calls.push('prepare:b'); return audio(); }, b.signal);
   const secondRejected = assert.rejects(second, { name: 'AbortError' });
   a.abort(); b.abort();
-  await cache.load('c', async () => { calls.push('read:c'); return Uint8Array.of(3).buffer; }, signal());
-  await Promise.all([firstRejected, secondRejected]);
-  assert.deepEqual(calls, ['read:a', 'read:c', 'decode:3']);
-  finishA(Uint8Array.of(1).buffer); await flush();
-  assert.equal(cache.getSnapshot('a'), undefined);
-  assert.deepEqual(calls, ['read:a', 'read:c', 'decode:3']);
-  cache.clear();
+  await cache.load('c', async () => { calls.push('prepare:c'); return audio(); }, signal());
+  await Promise.all([firstRejected, secondRejected]); finishA(audio()); await flush();
+  assert.deepEqual(calls, ['prepare:a', 'prepare:c']); assert.equal(cache.getSnapshot('a'), undefined); cache.clear();
 });
-
-test('canceling one coalesced consumer preserves the shared read for another', async () => {
-  let finish, workSignal, reads = 0, decodes = 0;
-  const cache = new MusicAudioCache(48, async () => { decodes++; return audio(); });
-  const controller = new AbortController();
-  const read = sharedSignal => { reads++; workSignal = sharedSignal; return new Promise(resolve => { finish = resolve; }); };
-  const first = cache.load('shared', read, controller.signal);
-  const rejected = assert.rejects(first, { name: 'AbortError' });
-  const second = cache.load('shared', read, signal());
-  await flush(); controller.abort(); await rejected;
-  assert.equal(workSignal.aborted, false);
-  finish(new ArrayBuffer(8)); await second;
-  assert.equal(reads, 1); assert.equal(decodes, 1); assert.ok(cache.getSnapshot('shared').audio);
-  cache.clear();
+test('canceling one coalesced consumer preserves the shared preparation for another', async () => {
+  let finish, workSignal, reads = 0; const cache = new MusicAudioCache(544); const controller = new AbortController();
+  const prepare = sharedSignal => { reads++; workSignal = sharedSignal; return new Promise(resolve => { finish = resolve; }); };
+  const first = cache.load('shared', prepare, controller.signal); const rejected = assert.rejects(first, { name: 'AbortError' });
+  const second = cache.load('shared', prepare, signal()); await flush(); controller.abort(); await rejected;
+  assert.equal(workSignal.aborted, false); finish(audio()); await second;
+  assert.equal(reads, 1); assert.ok(cache.getSnapshot('shared').audio); cache.clear();
 });
-
-test('a hung read times out and does not prevent the next independent artifact', async t => {
-  t.mock.timers.enable({ apis: ['setTimeout'] });
-  const cache = new MusicAudioCache(48, async () => audio());
-  const hung = cache.load('hung', () => new Promise(() => {}), signal());
-  const rejected = assert.rejects(hung, { name: 'TimeoutError' });
-  await flush();
-  const next = cache.load('next', async () => new ArrayBuffer(8), signal());
-  t.mock.timers.tick(30_000); await rejected; await next;
-  assert.equal(cache.getSnapshot('hung'), undefined); assert.ok(cache.getSnapshot('next').audio);
-  cache.clear();
+test('a hung preparation times out and does not prevent the next independent asset', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] }); const cache = new MusicAudioCache(544);
+  const hung = cache.load('hung', () => new Promise(() => {}), signal()); const rejected = assert.rejects(hung, { name: 'TimeoutError' }); await flush();
+  const next = cache.load('next', async () => audio(), signal()); t.mock.timers.tick(30_000); await rejected; await next;
+  assert.equal(cache.getSnapshot('hung'), undefined); assert.ok(cache.getSnapshot('next').audio); cache.clear();
 });
-
-test('discarding a hung artifact releases waiting consumers and the next read', async () => {
-  const cache = new MusicAudioCache(48, async () => audio());
-  const hung = cache.load('discarded', () => new Promise(() => {}), signal());
-  const rejected = assert.rejects(hung, { name: 'AbortError' });
-  await flush(); cache.remove('discarded'); await rejected;
-  await cache.load('next', async () => new ArrayBuffer(8), signal());
-  assert.ok(cache.getSnapshot('next').audio); cache.clear();
+test('discarding a hung asset releases waiting consumers and the next preparation', async () => {
+  const cache = new MusicAudioCache(544); const hung = cache.load('discarded', () => new Promise(() => {}), signal());
+  const rejected = assert.rejects(hung, { name: 'AbortError' }); await flush(); cache.remove('discarded'); await rejected;
+  await cache.load('next', async () => audio(), signal()); assert.ok(cache.getSnapshot('next').audio); cache.clear();
 });
-
-test('an already running browser decode stays serial while its canceled result is discarded', async () => {
-  let finishDecode; const calls = [];
-  const cache = new MusicAudioCache(48, bytes => {
-    const id = new Uint8Array(bytes)[0]; calls.push(`decode:${id}`);
-    return id === 1 ? new Promise(resolve => { finishDecode = resolve; }) : Promise.resolve(audio());
-  });
-  const firstController = new AbortController();
-  const first = cache.load('first', async () => Uint8Array.of(1).buffer, firstController.signal);
-  const rejected = assert.rejects(first, { name: 'AbortError' });
-  await flush(); firstController.abort(); await rejected;
-  const next = cache.load('next', async () => { calls.push('read:next'); return Uint8Array.of(2).buffer; }, signal());
-  await flush(); assert.deepEqual(calls, ['decode:1']);
-  finishDecode(audio()); await next;
-  assert.deepEqual(calls, ['decode:1', 'read:next', 'decode:2']);
-  assert.equal(cache.getSnapshot('first'), undefined); cache.clear();
+test('coalesced waveform consumers prepare once and metadata LRU stays bounded without PCM buffers', async () => {
+  let reads = 0; const cache = new MusicAudioCache(544);
+  const prepare = async () => { reads++; return audio(); };
+  const [a,b] = await Promise.all([cache.load('a',prepare,signal()),cache.load('a',prepare,signal())]);
+  assert.equal(a,b); assert.equal(reads,1); assert.equal('decoded' in a,false); assert.equal('bytes' in a,false);
+  cache.pin('a'); await cache.load('b',prepare,signal()); await cache.load('c',prepare,signal());
+  assert.equal(cache.residentBytes,544); assert.ok(cache.getSnapshot('a').audio); assert.equal(cache.getSnapshot('b'),undefined);
+  cache.clear(); assert.equal(cache.residentBytes,0);
 });
-
-test('coalesced playback and waveform consumers decode once; LRU audio is bounded and leaves peaks', async () => {
-  let decodes=0, reads=0;
-  const cache = new MusicAudioCache(48,async()=>{decodes++;return audio();});
-  const read = async()=>{reads++;return new ArrayBuffer(8);};
-  const [a,b] = await Promise.all([cache.load('a',read,signal()),cache.load('a',read,signal())]);
-  assert.equal(a,b);assert.equal(decodes,1);assert.equal(reads,1);
-  cache.pin('a');await cache.load('b',read,signal());await cache.load('c',read,signal());
-  assert.equal(cache.residentBytes,48);assert.ok(cache.getSnapshot('a').audio);assert.equal(cache.getSnapshot('b').audio,undefined);assert.equal(cache.getSnapshot('b').peaks.length,256);
-  cache.clear();assert.equal(cache.residentBytes,0);assert.equal(cache.getSnapshot('a'),undefined);
+test('clearing a project prevents late media from populating its cache', async () => {
+  let finish; const cache = new MusicAudioCache(544);
+  const pending = cache.load('late', () => new Promise(resolve => { finish = resolve; }), signal());
+  await Promise.resolve(); cache.clear(); finish(audio());
+  await assert.rejects(pending, { name:'AbortError' }); assert.equal(cache.residentBytes,0);
 });
-test('clearing a project prevents late media from populating its cache', async()=>{
-  let finish;const cache=new MusicAudioCache(48,async()=>audio());
-  const pending=cache.load('late',()=>new Promise(resolve=>{finish=resolve;}),signal());
-  await Promise.resolve();cache.clear();finish(new ArrayBuffer(8));
-  await assert.rejects(pending,{name:'AbortError'});assert.equal(cache.residentBytes,0);
-});
-test('a captured author action survives failed decoding; observation recovers the same Job and adopts owned media', async () => {
+test('a captured author action survives failed media preparation; observation recovers the same Job and adopts owned media', async () => {
   // Contract fault injection only; actual models and native App acceptance run separately.
   let state = { project: { schemaVersion: 2, projectId: 'project', createdAt: 1, brief: null, lyrics: null,
     takes: [], scores: [], selectedScoreId: null, selectedTakeId: null, comparedTakeIds: [null, null] }, readiness: { runtimeStatus: 'ready' }, activeJobs: {} };
@@ -104,7 +62,7 @@ test('a captured author action survives failed decoding; observation recovers th
     lyricsSnapshot: 'The real words', targetDurationSeconds: 20, creationMode: 'sketch', createdAt: 1 };
   state = overtoneReducer(state, { type: 'result/remember', result: reference, projectId: 'project' });
   const calls = []; let fail = true; const assets = new Map();
-  const cache = new MusicAudioCache(128, async () => { if (fail) throw Error('decode failed'); return { duration: .001, length: 8, numberOfChannels: 1, getChannelData: () => new Float32Array(8) }; });
+  const cache = { load: async () => { if (fail) throw Error('media preparation failed'); return audio(); }, remove() {} };
   const artifact = { artifactId: 'same-audio', mimeType: 'audio/wav', sizeBytes: 90, sha256: 'a'.repeat(64), bytes: [], durationMs: 1, sampleRateHz: 8000, channels: 1, frameCount: 8, width: 0, height: 0 };
   const job = { jobId: reference.jobId, scenarioType: 'music-generate', status: 'completed', progressPercent: 100, progressCurrentStep: 0,
     progressTotalSteps: 0, reasonCode: 'action-executed', reasonDetail: '', traceId: 'trace', createdAt: null, updatedAt: null, transcriptionText: '', artifacts: [artifact],
@@ -118,7 +76,7 @@ test('a captured author action survives failed decoding; observation recovers th
     remove: async path => { assets.delete(path); },
     read: async ({ relativePath }) => ({ asset: assets.get(relativePath), body: { async *[Symbol.asyncIterator]() { yield new Uint8Array(90); } } }),
   } } };
-  await assert.rejects(recoverRuntimeMusic({ client, cache, operation: reference, signal: signal() }), /decode failed/);
+  await assert.rejects(recoverRuntimeMusic({ client, cache, operation: reference, signal: signal() }), /media preparation failed/);
   assert.equal(state.project.recoverableResults.length, 1); assert.equal(state.project.takes.length, 0); assert.equal(assets.size, 0);
   fail = false;
   const result = await recoverRuntimeMusic({ client, cache, operation: reference, signal: signal() });
@@ -151,12 +109,12 @@ test('complete text preserves deltas and partial terminal output is never accept
 });
 
 test('discard invalidates an in-flight media load and cached metadata is still checked',async()=>{
- let finish;const cache=new MusicAudioCache(48,async()=>audio());
+ let finish;const cache=new MusicAudioCache(544);
  const pending=cache.load('discarded',()=>new Promise(resolve=>{finish=resolve;}),signal());
- await Promise.resolve();cache.remove('discarded');finish(new ArrayBuffer(8));
+ await Promise.resolve();cache.remove('discarded');finish(audio());
  await assert.rejects(pending,{name:'AbortError'});assert.equal(cache.getSnapshot('discarded'),undefined);
- await cache.load('checked',async()=>new ArrayBuffer(8),signal(),{mimeType:'audio/wav',sizeBytes:8});
- await assert.rejects(cache.load('checked',async()=>new ArrayBuffer(8),signal(),{mimeType:'audio/mpeg',sizeBytes:8}),/METADATA_CHANGED/);
+ await cache.load('checked',async()=>audio(),signal(),{mimeType:'audio/wav',sizeBytes:8,sha256:'sha256:'+'a'.repeat(64)});
+ await assert.rejects(cache.load('checked',async()=>audio(),signal(),{mimeType:'audio/mpeg',sizeBytes:8,sha256:'sha256:'+'a'.repeat(64)}),/METADATA_CHANGED/);
 });
 
 test('a late completed reference cannot populate a different project',()=>{

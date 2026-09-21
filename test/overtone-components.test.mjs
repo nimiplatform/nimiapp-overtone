@@ -17,19 +17,16 @@ globalThis.requestAnimationFrame = () => 1;
 globalThis.cancelAnimationFrame = () => {};
 dom.window.HTMLCanvasElement.prototype.getContext = () => null;
 dom.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
-globalThis.OfflineAudioContext = class {
-  async decodeAudioData() { return { duration: 20, length: 160, sampleRate: 8, numberOfChannels: 1, getChannelData: () => new Float32Array(160) }; }
-};
 const sources = [];
-globalThis.AudioContext = class {
-  currentTime = 0; state = 'running'; destination = {};
-  createGain() { return { gain: { value: 1 }, connect() {} }; }
-  createBufferSource() {
-    const source = { playbackRate: { value: 1, setValueAtTime() {} }, connect() {}, disconnect() {}, stop() {}, start(...args) { this.startArgs = args; } };
-    sources.push(source); return source;
-  }
-  async close() {}
+globalThis.Audio = class extends dom.window.EventTarget {
+  constructor() { super(); sources.push(this); }
+  currentTime = 0; duration = 20; readyState = 0; paused = true; src = '';
+  load() { this.readyState = 0; if (this.src) queueMicrotask(() => { this.readyState = 4; this.dispatchEvent(new dom.window.Event('loadedmetadata')); }); }
+  async play() { this.paused = false; this.dispatchEvent(new dom.window.Event('play')); }
+  pause() { this.paused = true; this.dispatchEvent(new dom.window.Event('pause')); }
+  removeAttribute(name) { if (name === 'src') this.src = ''; }
 };
+const openMedia = async path => ({ url: 'https://component-test.invalid/' + path, revoke: async () => {} });
 await i18next.use(initReactI18next).init({ lng: 'en', fallbackLng: 'en', resources: { en: { translation: {} } } });
 const { ComponentHarness } = await loadSource('./fixtures/overtone-components.tsx');
 let root, observed, writeFailure = false;
@@ -47,7 +44,7 @@ const storage = {
 const storedProject = () => JSON.stringify([...documents.entries()].find(([key]) => key.startsWith('workspace/projects/'))?.[1]);
 async function mount() {
   root = createRoot(document.getElementById('root'));
-  await act(async () => root.render(React.createElement(ComponentHarness, { storage, observe: value => { observed = value; } })));
+  await act(async () => root.render(React.createElement(ComponentHarness, { storage, openMedia, observe: value => { observed = value; } })));
 }
 async function unmount() { if (root) { await act(async () => root.unmount()); root = null; } }
 async function change(fn) { await act(async () => fn(observed)); }
@@ -65,9 +62,9 @@ test('switching cached takes starts and loops B over its visible default range, 
   await change(({ actions }) => actions.startProject());
   await change(async ({ cache, actions, state }) => {
     for (const id of ['a', 'b']) {
-      await cache.load(`media/${id}.wav`, async () => new ArrayBuffer(8), new AbortController().signal, { mimeType: 'audio/wav', sizeBytes: 8 });
+      await cache.load(`media/${id}.wav`, async () => ({ info: { sampleRateHz: 8000, channels: 1, frameCount: 160000 }, peaks: [0, 0.5], mimeType: 'audio/wav', sizeBytes: 8, sha256: 'sha256:'+'a'.repeat(64) }), new AbortController().signal);
       await actions.addTake(state.project.projectId, { takeId: id, title: id, jobId: id, clientSubmissionId: id, origin: 'runtime-result', capability: 'music.generate', termination: 'unknown',
-        audio: { relativePath: `media/${id}.wav`, mimeType: 'audio/wav', sizeBytes: 8, sha256: 'sha256:'+ 'a'.repeat(64), sampleRateHz: 8, channels: 1, frameCount: 160, durationMs: 20000 },
+        audio: { relativePath: `media/${id}.wav`, mimeType: 'audio/wav', sizeBytes: 8, sha256: 'sha256:'+ 'a'.repeat(64), sampleRateHz: 8000, channels: 1, frameCount: 160000, durationMs: 20000 },
         durationSeconds: 20, promptSnapshot: 'Test input', lyricsSnapshot: 'Test input', favorite: false, discarded: false, createdAt: 0 });
     }
     actions.selectTake('a');
@@ -76,10 +73,11 @@ test('switching cached takes starts and loops B over its visible default range, 
   await click('Overtone.player.trimEndDecreaseAria', 12);
   await click('Overtone.playground.loop');
   await change(({ playback }) => playback.requestTake('a'));
-  assert.deepEqual(sources.at(-1).startArgs, [0, 3]);
+  assert.equal(sources.at(-1).currentTime, 3); assert.equal(sources.at(-1).paused, false);
   await change(({ playback }) => playback.requestTake('b'));
-  assert.deepEqual(sources.at(-1).startArgs, [0, 0]);
-  assert.equal(sources.at(-1).loopStart, 0); assert.equal(sources.at(-1).loopEnd, 20);
+  assert.equal(sources.at(-1).currentTime, 0); assert.equal(sources.at(-1).paused, false);
+  await act(async () => { sources.at(-1).currentTime = 20; sources.at(-1).dispatchEvent(new dom.window.Event('ended')); });
+  assert.equal(sources.at(-1).currentTime, 0);
   assert.equal(document.querySelector('[aria-label="Overtone.player.trimStartAria"]').textContent, '0');
   assert.equal(document.querySelector('[aria-label="Overtone.player.trimEndAria"]').textContent, '20');
 });
