@@ -77,9 +77,10 @@ export function AIConfigPanel() {
       {t('Overtone.configuration.title')}{setupNeeded ? <span className="ot-ai-settings-dot" aria-hidden="true" /> : null}
     </Button>
     <OverlayShell open={open} onClose={() => setOpen(false)} kind="dialog" size="md"
+      footer={<Button tone="secondary" onClick={() => setOpen(false)}>{t('Overtone.configuration.close')}</Button>}
       contentClassName="overtone-section ot-ai-config-content"
       title={t('Overtone.configuration.dialogTitle')}>
-      <ModelConfigAIConfigSurface className="ot-ai-config" context={CONTEXT} capabilityContracts={['text.generate', 'music.generate']}
+      <ModelConfigAIConfigSurface className="ot-ai-config" context={CONTEXT} capabilityContracts={['text.generate', 'music.generate', 'music.transcribe']}
         capabilities={snapshot ? snapshot.config?.capabilities ?? null : undefined}
         revision={snapshot?.revision} effectiveSelections={snapshot?.effectiveSelections}
         listOptions={(query) => getNimiLocalAppClient().aiConfig.listOptions(query)}
@@ -160,9 +161,9 @@ export function AIConfigPanel() {
           confirmSelectionLabel: t('Overtone.configuration.confirmSelection'),
           unsupportedCapabilityLabel: t('Overtone.configuration.unsupported'),
           capabilityLabel: (contract, fallback) => contract === 'text.generate'
-            ? t('Overtone.configuration.text') : contract === 'music.generate' ? t('Overtone.configuration.music') : fallback,
+            ? t('Overtone.configuration.text') : contract === 'music.generate' ? t('Overtone.configuration.music') : contract === 'music.transcribe' ? t('Overtone.transcription.configurationLabel') : fallback,
           capabilityDescription: (contract, fallback) => contract === 'text.generate'
-            ? t('Overtone.configuration.textHint') : contract === 'music.generate' ? t('Overtone.configuration.musicHint') : fallback,
+            ? t('Overtone.configuration.textHint') : contract === 'music.generate' ? t('Overtone.configuration.musicHint') : contract === 'music.transcribe' ? t('Overtone.transcription.configurationHint') : fallback,
         }}
         language={i18n.resolvedLanguage || i18n.language} />
     </OverlayShell>

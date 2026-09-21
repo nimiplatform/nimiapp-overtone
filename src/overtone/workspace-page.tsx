@@ -82,10 +82,13 @@ function WorkspaceInner() {
 
   useEffect(() => {
     let cancelled = false;
-    probeReadiness()
-      .then((snapshot) => { if (!cancelled) setReadiness(snapshot); })
+    let revision = 0;
+    const refresh = () => {
+      const current = ++revision;
+      void probeReadiness()
+      .then((snapshot) => { if (!cancelled && current === revision) setReadiness(snapshot); })
       .catch((error) => {
-        if (!cancelled) {
+        if (!cancelled && current === revision) {
           setReadiness({
             runtimeStatus: 'unavailable',
             runtimeErrorMessage: error instanceof Error ? error.message : String(error),
@@ -94,7 +97,10 @@ function WorkspaceInner() {
           });
         }
       });
-    return () => { cancelled = true; };
+    };
+    const visible = () => { if (document.visibilityState === 'visible') refresh(); };
+    refresh(); window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', visible);
+    return () => { cancelled = true; window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible); };
   }, [reloadKey, setReadiness]);
 
   usePlaybackShortcuts({

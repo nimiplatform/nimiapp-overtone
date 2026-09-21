@@ -1,5 +1,6 @@
 import { createNimiClientId } from '@nimiplatform/sdk/types';
 import type { NimiMusicInputCapabilities } from '@nimiplatform/sdk/ai';
+import type { NimiMusicTranscriptionFormat, NimiMusicTranscriptionPart } from '@nimiplatform/sdk/app';
 
 // Renderer-side typed entities for Overtone. Authority:
 // .nimi/spec/overtone/canonical/data-model.authority.yaml
@@ -25,10 +26,39 @@ export interface ScoreDocument {
   readonly origin: 'generated-plan' | 'transcription-estimate' | 'imported' | 'author-edit' | 'explicit-conversion';
   readonly parentScoreId?: string;
   readonly sourceTakeId?: string;
+  readonly transcriptionId?: string;
+  readonly transcriptionPart?: NimiMusicTranscriptionPart;
   readonly truncated?: boolean;
   readonly title: string;
   readonly createdAt: number;
   readonly losses?: readonly string[];
+}
+
+export interface AudioFrameRange { readonly startFrame: number; readonly endFrame: number }
+export interface MusicTranscriptionDocument {
+  readonly transcriptionId: string;
+  readonly jobId: string;
+  readonly clientSubmissionId: string;
+  readonly sourceTakeId: string;
+  readonly sourceAudio: ProjectAudio;
+  readonly sourceRange: AudioFrameRange;
+  readonly scoreIds: readonly string[];
+  readonly timeline?: OwnedAsset;
+  readonly completeness: 'unknown' | 'complete' | 'truncated';
+  readonly createdAt: number;
+}
+export interface RecoverableMusicTranscription {
+  readonly clientSubmissionId: string;
+  readonly projectId: string;
+  readonly jobId?: string;
+  readonly sourceTakeId: string;
+  readonly sourceArtifactId: string;
+  readonly sourceAudio: ProjectAudio;
+  readonly sourceRange: AudioFrameRange;
+  readonly requestedFormats: readonly NimiMusicTranscriptionFormat[];
+  readonly requestedPart: NimiMusicTranscriptionPart;
+  readonly title: string;
+  readonly createdAt: number;
 }
 
 export interface SongBrief {
@@ -89,6 +119,7 @@ export type SongTake = SongVersionFields & (
 
 export interface GenerationJob {
   jobId: string;
+  capability?: 'music.generate' | 'music.transcribe';
   status: 'pending' | 'running' | 'completed' | 'failed' | 'canceled' | 'timeout';
 }
 
@@ -118,6 +149,8 @@ export interface ReadinessSnapshot {
   textCapabilityAvailable: boolean;
   musicCapabilityAvailable: boolean;
   musicInput?: NimiMusicInputCapabilities;
+  musicTranscriptionAvailable?: boolean;
+  musicTranscriptionInput?: NimiMusicInputCapabilities['transcription'];
 }
 
 export interface SongProject {
@@ -135,8 +168,27 @@ export interface SongProject {
   scoreBudgetSeconds?: number;
   fullSong?: FullSongDraft | null;
   recoverableResults?: RecoverableMusicResult[];
+  transcriptions?: MusicTranscriptionDocument[];
+  recoverableTranscriptions?: RecoverableMusicTranscription[];
 }
 
 export function makeId(prefix: string): string {
   return createNimiClientId(prefix);
+}
+
+export function sameProjectAudio(left: ProjectAudio, right: ProjectAudio): boolean {
+  return (['relativePath', 'mimeType', 'sizeBytes', 'sha256', 'sampleRateHz', 'channels', 'frameCount', 'durationMs'] as const).every(key => left[key] === right[key]);
+}
+
+export function scoreSourceTakeId(project: SongProject, scoreId: string): string | undefined {
+  const seen = new Set<string>();
+  let score = project.scores.find(item => item.scoreId === scoreId);
+  while (score && !seen.has(score.scoreId)) {
+    seen.add(score.scoreId);
+    const sourceTakeId = score.sourceTakeId;
+    if (sourceTakeId) return project.takes.find(take => take.takeId === sourceTakeId)?.takeId;
+    const parent = score.parentScoreId;
+    score = parent ? project.scores.find(item => item.scoreId === parent) : undefined;
+  }
+  return undefined;
 }

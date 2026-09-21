@@ -117,26 +117,7 @@ export async function recoverRuntimeMusic(input: {
 
 async function adoptMusicResult(input: { client: MusicClient; cache: MusicAudioCache; signal: AbortSignal },
   result: Extract<RuntimeMusicGenerateResult, { ok: true }>): Promise<AdoptedMusicResult> {
-  input.signal.throwIfAborted();
-  const adopted = new Map<string, OwnedAsset>();
-  const created: string[] = [];
-  try {
-    for (const artifact of result.output.artifacts) {
-      input.signal.throwIfAborted();
-      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${result.output.jobId}:${artifact.artifactId}`)));
-      const token = [...digest].map(b => b.toString(16).padStart(2, '0')).join('');
-      const prefix = `music/results/${token}/`;
-      const retained = await input.client.storage.assets.list({ prefix, pageSize: 2 });
-      if (retained.nextCursor || retained.assets.length > 1) throw new Error('OVERTONE_ASSET_COLLISION');
-      let asset = retained.assets[0];
-      if (!asset) {
-        asset = await input.client.storage.assets.adoptArtifact({ artifactId: artifact.artifactId, relativePath: `${prefix}result.asset`, overwrite: false });
-        created.push(asset.relativePath);
-      }
-      if (!asset.relativePath.startsWith(`${prefix}result.`) || asset.sha256 !== `sha256:${artifact.sha256.replace(/^sha256:/u, '')}`
-        || asset.sizeBytes !== artifact.sizeBytes || asset.mediaType !== artifact.mimeType) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
-      adopted.set(artifact.artifactId, { relativePath: asset.relativePath, mimeType: artifact.mimeType, sizeBytes: asset.sizeBytes, sha256: asset.sha256 });
-    }
+  return adoptMusicArtifacts(input, result.output.jobId, result.output.artifacts, async adopted => {
     const generation = result.output.generation;
     const mix = adopted.get(generation.mixArtifactId);
     if (!mix || mix.mimeType !== 'audio/wav') throw new Error('OVERTONE_RESULT_UNAVAILABLE');
@@ -152,10 +133,37 @@ async function adoptMusicResult(input: { client: MusicClient; cache: MusicAudioC
     }
     return { jobId: result.output.jobId, audio, score, termination: generation.termination,
       ...(generation.actualSeed !== undefined ? { actualSeed: generation.actualSeed } : {}), durationSeconds: audio.frameCount / audio.sampleRateHz };
+  });
+}
+
+export async function adoptMusicArtifacts<T>(input: { client: MusicClient; cache?: MusicAudioCache; signal: AbortSignal }, jobId: string,
+  artifacts: readonly { artifactId: string; mimeType: string; sizeBytes: number; sha256: string }[],
+  consume: (adopted: ReadonlyMap<string, OwnedAsset>) => Promise<T>): Promise<T> {
+  input.signal.throwIfAborted();
+  const adopted = new Map<string, OwnedAsset>();
+  const created: string[] = [];
+  try {
+    for (const artifact of artifacts) {
+      input.signal.throwIfAborted();
+      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${jobId}:${artifact.artifactId}`)));
+      const token = [...digest].map(b => b.toString(16).padStart(2, '0')).join('');
+      const prefix = `music/results/${token}/`;
+      const retained = await input.client.storage.assets.list({ prefix, pageSize: 2 });
+      if (retained.nextCursor || retained.assets.length > 1) throw new Error('OVERTONE_ASSET_COLLISION');
+      let asset = retained.assets[0];
+      if (!asset) {
+        asset = await input.client.storage.assets.adoptArtifact({ artifactId: artifact.artifactId, relativePath: `${prefix}result.asset`, overwrite: false });
+        created.push(asset.relativePath);
+      }
+      if (!asset.relativePath.startsWith(`${prefix}result.`) || asset.sha256 !== `sha256:${artifact.sha256.replace(/^sha256:/u, '')}`
+        || asset.sizeBytes !== artifact.sizeBytes || asset.mediaType !== artifact.mimeType) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+      adopted.set(artifact.artifactId, { relativePath: asset.relativePath, mimeType: artifact.mimeType, sizeBytes: asset.sizeBytes, sha256: asset.sha256 });
+    }
+    return await consume(adopted);
   } catch (error) {
     const failures: string[] = [];
     for (const path of created.reverse()) {
-      input.cache.remove(path);
+      input.cache?.remove(path);
       try { await input.client.storage.assets.remove(path); } catch (cause) { failures.push(String(cause)); }
     }
     if (failures.length) throw new Error(`${String(error)}; asset cleanup: ${failures.join('; ')}`);

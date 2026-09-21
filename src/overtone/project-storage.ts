@@ -1,6 +1,6 @@
 import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
 import type { JsonValue } from '@nimiplatform/sdk/types';
-import type { OwnedAsset, SongProject } from './types.js';
+import { sameProjectAudio, type OwnedAsset, type ProjectAudio, type SongProject } from './types.js';
 
 type Storage = Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson'>;
 const CURRENT = 'workspace/current.json';
@@ -27,7 +27,7 @@ export function parseSongProject(value: unknown): SongProject {
   if (p.schemaVersion !== 2 || !id(p.projectId) || !Number.isFinite(p.createdAt) || !Array.isArray(p.takes)
     || !Array.isArray(p.scores) || !Array.isArray(p.comparedTakeIds) || p.comparedTakeIds.length !== 2
     || (p.selectedTakeId !== null && !id(p.selectedTakeId)) || (p.selectedScoreId !== null && !id(p.selectedScoreId))
-    || Object.keys(p).some(k => !['schemaVersion', 'projectId', 'createdAt', 'brief', 'lyrics', 'takes', 'selectedTakeId', 'comparedTakeIds', 'scores', 'selectedScoreId', 'generationScoreId', 'scoreBudgetSeconds', 'fullSong', 'recoverableResults'].includes(k))
+    || Object.keys(p).some(k => !['schemaVersion', 'projectId', 'createdAt', 'brief', 'lyrics', 'takes', 'selectedTakeId', 'comparedTakeIds', 'scores', 'selectedScoreId', 'generationScoreId', 'scoreBudgetSeconds', 'fullSong', 'recoverableResults', 'transcriptions', 'recoverableTranscriptions'].includes(k))
     || (p.scoreBudgetSeconds !== undefined && ![20, 60, 120, 180].includes(Number(p.scoreBudgetSeconds)))) throw new Error('OVERTONE_PROJECT_INVALID');
   if (p.brief !== null) {
     const brief = record(p.brief);
@@ -75,6 +75,19 @@ export function parseSongProject(value: unknown): SongProject {
   if ((p.selectedTakeId && !takes.has(String(p.selectedTakeId))) || p.comparedTakeIds.some(v => v !== null && !takes.has(v))
     || (p.selectedScoreId && !scores.has(String(p.selectedScoreId)))
     || (p.generationScoreId && !scores.has(String(p.generationScoreId)))) throw new Error('OVERTONE_PROJECT_REFERENCE_INVALID');
+  const scoreRecords = p.scores.map(record);
+  for (const score of scoreRecords) {
+    if (score.sourceTakeId !== undefined && !takes.has(String(score.sourceTakeId))) throw new Error('OVERTONE_PROJECT_REFERENCE_INVALID');
+    const visited = new Set<unknown>(); let current: Record<string, unknown> | undefined = score;
+    while (current) {
+      if (visited.has(current.scoreId)) throw new Error('OVERTONE_PROJECT_REFERENCE_INVALID');
+      visited.add(current.scoreId);
+      if (current.parentScoreId === undefined) break;
+      const parent: unknown = current.parentScoreId;
+      current = scoreRecords.find(candidate => candidate.scoreId === parent);
+      if (!current) throw new Error('OVERTONE_PROJECT_REFERENCE_INVALID');
+    }
+  }
   const operations = p.recoverableResults ?? [];
   if (!Array.isArray(operations)) throw new Error('OVERTONE_PROJECT_INVALID');
   const submissions = new Set<string>();
@@ -89,7 +102,59 @@ export function parseSongProject(value: unknown): SongProject {
       || (op.inputScoreId !== undefined && !scores.has(String(op.inputScoreId)))) throw new Error('OVERTONE_PROJECT_OPERATION_INVALID');
     submissions.add(op.clientSubmissionId);
   }
+  validateProjectTranscriptions(p as unknown as SongProject, jobs, submissions);
   return p as unknown as SongProject;
+}
+
+// @nimi-authority: rule.overtone.transcription.r002
+function validateProjectTranscriptions(project: SongProject, jobs: Set<string>, submissions: Set<string>) {
+  const estimates = project.transcriptions ?? []; const pending = project.recoverableTranscriptions ?? [];
+  if (!Array.isArray(estimates) || !Array.isArray(pending)) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_INVALID');
+  const publicId = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9._:-]{1,128}$/u.test(value);
+  const source = (value: unknown) => {
+    const entry = record(value); const audio = record(entry.sourceAudio); requireAsset(audio); const range = record(entry.sourceRange);
+    const take = project.takes.find(item => item.takeId === entry.sourceTakeId);
+    if (!take || !sameProjectAudio(take.audio, audio as unknown as ProjectAudio) || audio.mimeType !== 'audio/wav'
+      || !Number.isSafeInteger(audio.sampleRateHz) || Number(audio.sampleRateHz) < 8000 || Number(audio.sampleRateHz) > 96000
+      || ![1,2].includes(Number(audio.channels)) || !Number.isSafeInteger(audio.frameCount) || Number(audio.frameCount) < 1
+      || Number(audio.frameCount) > Number(audio.sampleRateHz) * 600 || audio.durationMs !== Math.floor(Number(audio.frameCount) * 1000 / Number(audio.sampleRateHz))
+      || !Number.isSafeInteger(range.startFrame) || !Number.isSafeInteger(range.endFrame) || Number(range.startFrame) < 0
+      || Number(range.endFrame) > Number(audio.frameCount) || Number(range.startFrame) >= Number(range.endFrame)) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_SOURCE');
+    return entry;
+  };
+  const ids = new Set<string>();
+  for (const value of estimates) {
+    const entry = source(value);
+    if (!id(entry.transcriptionId) || ids.has(entry.transcriptionId) || !publicId(entry.jobId) || jobs.has(String(entry.jobId))
+      || !id(entry.clientSubmissionId) || submissions.has(entry.clientSubmissionId) || !Number.isFinite(entry.createdAt)
+      || !['unknown','complete','truncated'].includes(String(entry.completeness)) || !Array.isArray(entry.scoreIds) || !entry.scoreIds.length
+      || new Set(entry.scoreIds).size !== entry.scoreIds.length
+      || Object.keys(entry).some(key => !['transcriptionId','jobId','clientSubmissionId','sourceTakeId','sourceAudio','sourceRange','scoreIds','timeline','completeness','createdAt'].includes(key))) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_INVALID');
+    for (const scoreId of entry.scoreIds) {
+      const score = project.scores.find(item => item.scoreId === scoreId);
+      if (!score || score.origin !== 'transcription-estimate' || score.transcriptionId !== entry.transcriptionId || score.sourceTakeId !== entry.sourceTakeId
+        || !['vocal-melody','lead-sheet','full-arrangement'].includes(String(score.transcriptionPart))) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_REFERENCE');
+    }
+    if (entry.timeline !== undefined) {
+      const timeline = requireAsset(entry.timeline);
+      if (timeline.mimeType !== 'application/vnd.nimi.music-timeline+json' || timeline.sizeBytes > 16777216) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_INVALID');
+    }
+    ids.add(entry.transcriptionId); jobs.add(String(entry.jobId)); submissions.add(entry.clientSubmissionId);
+  }
+  for (const score of project.scores) {
+    if (score.origin === 'transcription-estimate' && !score.transcriptionId) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_REFERENCE');
+    if (score.transcriptionId && (!ids.has(score.transcriptionId) || !estimates.some(entry => entry.transcriptionId === score.transcriptionId && entry.scoreIds.includes(score.scoreId)))) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_REFERENCE');
+  }
+  for (const value of pending) {
+    const entry = source(value);
+    if (!id(entry.clientSubmissionId) || submissions.has(entry.clientSubmissionId) || entry.projectId !== project.projectId || !publicId(entry.sourceArtifactId)
+      || (entry.jobId !== undefined && !publicId(entry.jobId)) || typeof entry.title !== 'string' || !Number.isFinite(entry.createdAt)
+      || !['vocal-melody','lead-sheet','full-arrangement'].includes(String(entry.requestedPart)) || !Array.isArray(entry.requestedFormats)
+      || !entry.requestedFormats.includes('abc') || entry.requestedFormats.some(format => !['abc','timeline'].includes(String(format)))
+      || new Set(entry.requestedFormats).size !== entry.requestedFormats.length
+      || Object.keys(entry).some(key => !['clientSubmissionId','projectId','jobId','sourceTakeId','sourceArtifactId','sourceAudio','sourceRange','requestedFormats','requestedPart','title','createdAt'].includes(key))) throw new Error('OVERTONE_PROJECT_TRANSCRIPTION_OPERATION');
+    submissions.add(entry.clientSubmissionId);
+  }
 }
 
 export async function readProject(storage: Storage, projectId: string): Promise<SongProject> {

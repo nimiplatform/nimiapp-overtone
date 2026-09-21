@@ -24,6 +24,10 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
     const config = await client.aiConfig.get();
     const text = config.effectiveSelections.find(item => item.capabilityContract === 'text.generate');
     const music = config.effectiveSelections.find(item => item.capabilityContract === 'music.generate');
+    const transcription = config.effectiveSelections.find(item => item.capabilityContract === 'music.transcribe');
+    const transcriptionResource = transcription?.resource;
+    const musicTranscriptionInput = transcriptionResource?.oneofKind === 'local' ? transcriptionResource.local.musicInput?.transcription
+      : transcriptionResource?.oneofKind === 'cloud' ? transcriptionResource.cloud.target?.musicInput?.transcription : undefined;
     const resource = music?.resource;
     const musicInput = resource?.oneofKind === 'local' ? resource.local.musicInput : resource?.oneofKind === 'cloud' ? resource.cloud.target?.musicInput : undefined;
     return {
@@ -31,6 +35,8 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
       runtimeStatus: 'ready',
       textCapabilityAvailable: text?.state === 'ready',
       musicCapabilityAvailable: music?.state === 'ready',
+      musicTranscriptionAvailable: transcription?.state === 'ready',
+      ...(musicTranscriptionInput ? { musicTranscriptionInput } : {}),
       ...(musicInput ? { musicInput } : {}),
     };
   } catch (error) {

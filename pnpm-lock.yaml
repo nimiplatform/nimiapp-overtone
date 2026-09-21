@@ -5,21 +5,21 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@nimiplatform/sdk': file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz
-  '@nimiplatform/kit': file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz
-  '@nimiplatform/app-tools': file:.nimi/local/music-cohort-2026-09-21/nimiplatform-app-tools-0.8.0.tgz
-  '@nimiplatform/kit-protected-local-win32-x64': file:.nimi/local/music-cohort-2026-09-21/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz
+  '@nimiplatform/sdk': file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz
+  '@nimiplatform/kit': file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz
+  '@nimiplatform/app-tools': file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-app-tools-0.8.0.tgz
+  '@nimiplatform/kit-protected-local-win32-x64': file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz
 
 importers:
 
   .:
     dependencies:
       '@nimiplatform/kit':
-        specifier: file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz
-        version: file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz(@types/node@24.12.4)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(electron@42.8.1)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)
+        specifier: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz
+        version: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz(@types/node@24.12.4)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(electron@42.8.1)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)
       '@nimiplatform/sdk':
-        specifier: file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz
-        version: file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz(@grpc/grpc-js@1.14.4)
+        specifier: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz
+        version: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz(@grpc/grpc-js@1.14.4)
       '@tonejs/midi':
         specifier: 2.0.28
         version: 2.0.28
@@ -43,8 +43,8 @@ importers:
         specifier: ^20.3.0
         version: 20.3.0
       '@nimiplatform/app-tools':
-        specifier: file:.nimi/local/music-cohort-2026-09-21/nimiplatform-app-tools-0.8.0.tgz
-        version: file:.nimi/local/music-cohort-2026-09-21/nimiplatform-app-tools-0.8.0.tgz(vite@7.3.6(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
+        specifier: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-app-tools-0.8.0.tgz
+        version: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-app-tools-0.8.0.tgz(vite@7.3.6(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
       '@nimiplatform/nimi-coding':
         specifier: 0.6.3
         version: 0.6.3
@@ -797,8 +797,8 @@ packages:
     resolution: {integrity: sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg==}
     engines: {node: '>= 12.13.0'}
 
-  '@nimiplatform/app-tools@file:.nimi/local/music-cohort-2026-09-21/nimiplatform-app-tools-0.8.0.tgz':
-    resolution: {integrity: sha512-oS+ASUhZfDbt2hX/1PaLkqpAg4VOe1TX+8lEX4CkeKX0f0ACBqw5aCGjrVAO2eNKlj43d/NWx0j6GvWVnfvj/w==, tarball: file:.nimi/local/music-cohort-2026-09-21/nimiplatform-app-tools-0.8.0.tgz}
+  '@nimiplatform/app-tools@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-app-tools-0.8.0.tgz':
+    resolution: {integrity: sha512-5b/47YS6BiN5XWuRUyYkKlSixPFpe0W3zx/KBum/f/chlXbE9sni2ACNpzb/j4njq+wCzIV94eO3bNMoQFnnvA==, tarball: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-app-tools-0.8.0.tgz}
     version: 0.8.0
     engines: {node: '>=24.0.0'}
     hasBin: true
@@ -808,14 +808,14 @@ packages:
       vite:
         optional: true
 
-  '@nimiplatform/kit-protected-local-win32-x64@file:.nimi/local/music-cohort-2026-09-21/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz':
-    resolution: {integrity: sha512-jYwHnFzK9IvboiQV1Cb8RsWgeRhSmPZ8zQH5hxI8QwcBrKL2+/hOaAy+4fXg5Qg0jfFw0fild678EkH+LM5siw==, tarball: file:.nimi/local/music-cohort-2026-09-21/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz}
+  '@nimiplatform/kit-protected-local-win32-x64@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz':
+    resolution: {integrity: sha512-Wa1DRshVSkAAMSly9OrFqYXhCNqkpbHBLZO3+anHUD48Vac0LJBjeJVePbsx3bXcy/Kkwu962tNb8e/gueOQJw==, tarball: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz}
     version: 0.12.0
     cpu: [x64]
     os: [win32]
 
-  '@nimiplatform/kit@file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz':
-    resolution: {integrity: sha512-nMByuq6pFJxmtrQPuM5M9X0/DP2khwiKNsqH9A/7EWZam6NZ1iRyHXMiY5sTAkywqVCtpfm7PyQ/W1cLNX/Hag==, tarball: file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz}
+  '@nimiplatform/kit@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz':
+    resolution: {integrity: sha512-G+Tw5VoQGbGACkYqz2x7D7EHmF4WmUtzqDEnzbHW9w/aBetv/FE5/R2SIUoyvBNrRrxxLDsG4YRzfu/4eMcwBA==, tarball: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz}
     version: 0.12.0
     peerDependencies:
       electron: ^42.5.0
@@ -835,8 +835,8 @@ packages:
     engines: {node: '>=24.0.0', pnpm: '>=10.0.0'}
     hasBin: true
 
-  '@nimiplatform/sdk@file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz':
-    resolution: {integrity: sha512-a6JbX6TFKG4sAFf4AnpXu5tPPOzfssgKN7Dn4MR5glFrYlw8OQQEi0N7PMjTpdFAzX4wQsZ9KK9Q5SdVcdj5qA==, tarball: file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz}
+  '@nimiplatform/sdk@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz':
+    resolution: {integrity: sha512-Xn0l+C+z16Z+IkpQvv0tqz3mZsSlhgwHcdqaW+LQtxLN2IGZxYmhMzkfYQD2i+wlPo/l/h1Xz6u64X9E+m84FA==, tarball: file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz}
     version: 0.16.0
     peerDependencies:
       '@grpc/grpc-js': ^1.14.4
@@ -3199,7 +3199,7 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
 
-  '@nimiplatform/app-tools@file:.nimi/local/music-cohort-2026-09-21/nimiplatform-app-tools-0.8.0.tgz(vite@7.3.6(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))':
+  '@nimiplatform/app-tools@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-app-tools-0.8.0.tgz(vite@7.3.6(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))':
     dependencies:
       pngjs: 7.0.0
       semver: 7.8.5
@@ -3208,13 +3208,13 @@ snapshots:
     optionalDependencies:
       vite: 7.3.6(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
 
-  '@nimiplatform/kit-protected-local-win32-x64@file:.nimi/local/music-cohort-2026-09-21/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz':
+  '@nimiplatform/kit-protected-local-win32-x64@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz':
     optional: true
 
-  '@nimiplatform/kit@file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz(@types/node@24.12.4)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(electron@42.8.1)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)':
+  '@nimiplatform/kit@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-0.12.0.tgz(@types/node@24.12.4)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(electron@42.8.1)(react-dom@19.2.6(react@19.2.6))(react-i18next@16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3))(react@19.2.6)':
     dependencies:
       '@grpc/grpc-js': 1.14.4
-      '@nimiplatform/sdk': file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz(@grpc/grpc-js@1.14.4)
+      '@nimiplatform/sdk': file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz(@grpc/grpc-js@1.14.4)
       '@radix-ui/react-avatar': 1.2.6(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-dialog': 1.1.23(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-popover': 1.1.23(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -3239,7 +3239,7 @@ snapshots:
       wlipsync: 1.3.1
       zod: 4.5.4
     optionalDependencies:
-      '@nimiplatform/kit-protected-local-win32-x64': file:.nimi/local/music-cohort-2026-09-21/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz
+      '@nimiplatform/kit-protected-local-win32-x64': file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz
       electron: 42.8.1
       react-dom: 19.2.6(react@19.2.6)
       react-i18next: 16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
@@ -3255,7 +3255,7 @@ snapshots:
       typescript: 5.9.3
       yaml: 2.9.0
 
-  '@nimiplatform/sdk@file:.nimi/local/music-stream-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz(@grpc/grpc-js@1.14.4)':
+  '@nimiplatform/sdk@file:.nimi/local/music-transcription-cohort-2026-09-22/nimiplatform-sdk-0.16.0.tgz(@grpc/grpc-js@1.14.4)':
     dependencies:
       '@protobuf-ts/runtime': 2.11.1
     optionalDependencies:

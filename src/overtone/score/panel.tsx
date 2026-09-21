@@ -107,7 +107,10 @@ export function ScorePanel() {
           onChange={event => selectScore(event.currentTarget.value)} aria-label={t('Overtone.score.chooseScore')} disabled={busy} /> : null}
       </div>
       {loading ? <p role="status">{t('Overtone.score.loading')}</p> : null}
-      {selected?.truncated ? <InlineAlert tone="warning">{t('Overtone.score.truncated')}</InlineAlert> : null}
+      {selected?.truncated ? <InlineAlert tone="warning">{t(selected.origin === 'transcription-estimate' ? 'Overtone.transcription.completeness.truncated' : 'Overtone.score.truncated')}</InlineAlert> : null}
+      {selected?.origin === 'transcription-estimate' ? <InlineAlert tone="info">{t('Overtone.transcription.intro')}
+        <p>{t(`Overtone.transcription.completeness.${project?.transcriptions?.find(item => item.transcriptionId === selected.transcriptionId)?.completeness ?? 'unknown'}`)}</p>
+      </InlineAlert> : null}
       {selected && !loading ? <>
         <div className="overtone-row"><Button tone="primary" active={project?.generationScoreId === selected.scoreId} aria-pressed={project?.generationScoreId === selected.scoreId}
           disabled={busy || generationBusy || !profile?.scoreFormats.includes(selected.format)} onClick={() => useScoreForGeneration(selected.scoreId)}>{t(project?.generationScoreId === selected.scoreId ? 'Overtone.score.usingScore' : 'Overtone.score.useScore')}</Button>
@@ -122,7 +125,7 @@ export function ScorePanel() {
         <p className="ot-score-help">{t('Overtone.score.regenerationHint')}</p>
         {selected.losses?.length ? <ul className="ot-score-losses">{selected.losses.map(loss => <li key={loss}>{t(`Overtone.score.losses.${loss}`)}</li>)}</ul> : null}
         {selected.parentScoreId ? <Button tone="ghost" size="sm" onClick={() => selectScore(selected.parentScoreId!)}>{t('Overtone.score.viewParent')}</Button> : null}
-        {source ? <details className="ot-score-original" open={!draft}><summary>{t('Overtone.score.originalNotation')}</summary><div ref={notation} className="ot-score-notation" /></details> : null}
+        {source ? <details className="ot-score-original" open={!draft}><summary>{t('Overtone.score.originalNotation')}</summary><div className="ot-score-notation"><div ref={notation} /></div></details> : null}
         <FieldShell label={t('Overtone.score.voice')}><SelectField value={voice} options={voices} disabled={busy}
           onChange={event => setVoice(event.currentTarget.value)} /></FieldShell>
         <p className="ot-score-help">{t('Overtone.score.deriveHint')}</p>

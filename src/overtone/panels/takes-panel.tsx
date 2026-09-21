@@ -11,6 +11,7 @@ import { formatAudioTime } from '../exploration.js';
 import { useExploration } from '../exploration-context.js';
 import { belongsToSongDraft, songFallsShort } from '../full-song.js';
 import { ImportRecording } from './import-recording.js';
+import { TranscriptionPanel } from './transcription-panel.js';
 
 // @nimi-authority: rule.overtone.ia.r004
 export function TakesPanel() {
@@ -23,7 +24,7 @@ export function TakesPanel() {
   const takes = [...project?.takes ?? []].filter(take=>!take.discarded).sort((a,b)=>b.createdAt-a.createdAt);
   const shown = favoritesOnly ? takes.filter(take=>take.favorite) : takes;
   const compared = project?.comparedTakeIds.map(id=>takes.find(take=>take.takeId===id) ?? null) ?? [null,null];
-  const jobItems: GenerationStatusListProps['items'] = Object.values(state.activeJobs).map(job=>({runId:job.jobId,status:job.status,label:t('Overtone.takes.generating')}));
+  const jobItems: GenerationStatusListProps['items'] = Object.values(state.activeJobs).map(job=>({runId:job.jobId,status:job.status,label:t(job.capability === 'music.transcribe' ? 'Overtone.transcription.title' : 'Overtone.takes.generating')}));
   return <div className="overtone-takes-stack">
     <div className="ot-shelf-heading"><div><h2>{t('Overtone.studio.recordings')}</h2><span>{t('Overtone.studio.recordingCount',{count:takes.length})}</span></div>
       <IconButton className="ot-tool-button" size="sm" tone="ghost" active={favoritesOnly} aria-label={t('Overtone.studio.favoritesOnly')} aria-pressed={favoritesOnly}
@@ -39,7 +40,7 @@ export function TakesPanel() {
       </Button>)}</div>
     </section> : <p className="ot-shelf-hint">{t('Overtone.studio.compareIntro')}</p>}
     {jobItems.length ? <div className="ot-generation-status"><GenerationStatusList items={jobItems} getStatusLabel={status=>t(`Overtone.runtime.status.${status==='pending'?'queued':status}`)} /></div> : null}
-    <ImportRecording /><RecoverableResults /><div className="ot-take-list">
+    <ImportRecording /><TranscriptionPanel /><RecoverableResults /><div className="ot-take-list">
       {shown.map((take,index)=><TakeRow key={take.takeId} take={take} ordinal={takes.length-takes.indexOf(take)} isSelected={take.takeId===project?.selectedTakeId} />)}
       {!shown.length ? <div className="ot-shelf-empty"><OvertoneIcon name="music" size={35}/><h3>{t(favoritesOnly?'Overtone.studio.noFavorites':'Overtone.studio.firstSound')}</h3><p>{t(favoritesOnly?'Overtone.studio.noFavoritesHint':'Overtone.studio.firstSoundHint')}</p>{favoritesOnly?<Button tone="secondary" size="sm" onClick={()=>setFavoritesOnly(false)}>{t('Overtone.studio.showAll')}</Button>:null}</div> : null}
     </div>

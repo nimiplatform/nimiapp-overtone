@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
 import { createMusicVersion, generateRuntimeMusic, SKETCH_DURATION_SECONDS } from '../runtime-workflow.js';
 import { useOvertoneActions, useOvertoneState, useAudioCache } from '../store.js';
-import { makeId, type GenerationJob, type RecoverableMusicResult } from '../types.js';
+import { makeId, scoreSourceTakeId, type GenerationJob, type RecoverableMusicResult } from '../types.js';
 import { buildMusicPrompt, musicInputValid } from '../exploration.js';
 import { useExploration, useMusicIntent } from '../exploration-context.js';
 import { OvertoneIcon } from './icons.js';
@@ -75,7 +75,7 @@ export function GeneratePanel() {
     const submission: Omit<RecoverableMusicResult, 'jobId'> = {
       clientSubmissionId: makeId('music'), projectId: project.projectId,
       title: t(song ? 'Overtone.song.takeTitle' : 'Overtone.generate.takeTitle', { title, number: project.takes.length + (project.recoverableResults?.length ?? 0) + 1 }).slice(0,80),
-      parentTakeId: song?.sourceTakeId ?? creative.parentTakeId, promptSnapshot: prompt, lyricsSnapshot: lyrics, styleSnapshot: song ? undefined : styleTags,
+      parentTakeId: inputScore ? scoreSourceTakeId(project, inputScore.scoreId) : song?.sourceTakeId ?? creative.parentTakeId, promptSnapshot: prompt, lyricsSnapshot: lyrics, styleSnapshot: song ? undefined : styleTags,
       targetDurationSeconds: durationSeconds, creationMode: song || durationSeconds > 20 ? 'song' : 'sketch', createdAt: Date.now(),
       ...(inputScore ? { inputScoreId: inputScore.scoreId, scoreConditioning: 'melody-and-harmony' as const } : {}),
       returnGeneratedScore: profile?.supportsGeneratedScore === true,

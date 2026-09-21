@@ -1,0 +1,34 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+scope: overtone.transcription
+units:
+  - id: definition.overtone.transcription.estimate
+    kind: definition
+    title: Recording transcription estimate
+    meaning: An immutable App-owned analysis of one existing audio version, with the real completed music.transcribe Job and author submission identity, source version and canonical audio snapshot, analyzed half-open source frame range, all adopted score documents and optional normalized musical timeline, actual completeness and creation time. It contains no new audio version and never establishes correct notes, original lyrics, singer identity or expressive fidelity.
+  - id: rule.overtone.transcription.r001
+    kind: rule
+    title: Transcribe an existing recording through its protected capability
+    modality: must
+    statement: Offer transcription from a selected saved recording using its immutable canonical audio, the whole recording or an explicitly chosen source time range, and only the formats and musical parts admitted by the fresh music.transcribe input profile. Use the protected artifact preparation and ScenarioJob adapter with the shared Kit transcription runner. Convert author seconds to source frames once, verify prepared audio facts against the saved source, and capture the initiating project and input snapshot before Submit. Keep preparation, queued and running states distinct without fabricated percentages; abandon submission after a canceled unary preparation settles, and forward running Job cancellation through the existing operation. Missing capability configuration offers the normal App AI settings and never falls back to another model, prompt-only generation or private inference.
+    condition: When the author requests a score estimate from a recording.
+    failure: Preserve the recording and author inputs, reject unsupported profile combinations, invalid ranges or changed source identity, and expose the actual failure without a fabricated score or successful transcription.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact
+      - type: applies_to
+        target: definition.overtone.transcription.estimate
+  - id: rule.overtone.transcription.r002
+    kind: rule
+    title: Save and recover the complete estimate on its original project
+    modality: must
+    statement: Persist a recoverable transcription author operation with clientSubmissionId and the exact source snapshot before Submit, and the real jobId when received. Verify and adopt every requested score and timeline before atomically adding one transcription estimate and all linked score documents to the initiating project and removing the pending operation. Deduplicate by real Job or submission identity and never replace source audio or existing author edits. A storage failure retains valid adopted assets and the pending operation for explicit original Job observation without resubmission. Keep estimates, author score edits and generated plans visibly distinct; show unknown or truncated completeness, preserve the full source timeline, and route an explicit score edit into the existing score editor and score-conditioned generation flow. Regeneration creates a new recording and does not promise to preserve the original accompaniment, melody accuracy or unselected samples.
+    condition: When saving, reopening, recovering or using a transcription estimate.
+    failure: Keep incomplete adoption out of the project, clean only newly created files on pre-save failure, retain existing saved media, and report missing or mismatched output instead of partial success or automatic regeneration.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.score.document
+      - type: applies_to
+        target: definition.overtone.transcription.estimate

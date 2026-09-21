@@ -10,6 +10,20 @@ export const overtoneI18nResources = {
   "en": {
     "translation": {
       "Overtone": {
+        "transcription": {
+          "title": "Find the score in a recording", "intro": "Make an editable score draft from a recording. Notes and chords are estimates; lyrics need to be provided separately. Compare the draft with the original before making a new arrangement.",
+          "source": "Recording: {{title}}", "selectRecording": "Select one of your saved recordings first.",
+          "configure": "Choose a music transcription configuration that provides ABC scores in AI settings.", "openSettings": "Open AI settings",
+          "part": "What to transcribe", "parts": { "vocal-melody": "Vocal melody", "lead-sheet": "Melody and chords", "full-arrangement": "Full arrangement" },
+          "range": "Recording range", "full": "Whole recording", "selection": "Choose a time range", "start": "Start in seconds (blank = beginning)", "end": "End in seconds (blank = end)",
+          "run": "Make a score draft", "saved": "The score and available musical timeline are saved with their original recording.",
+          "failed": "This score could not be completed or saved. Your recording is unchanged.", "stopped": "Stopped. Any unfinished author operation remains available for checking its original Job.",
+          "canceling": "Stopping… Audio preparation may need up to a minute to settle.", "abandon": "Abandon preparation", "cancel": "Cancel task",
+          "stages": { "preparing": "Preparing the recording…", "recovering": "Checking the original task…", "pending": "Waiting for the model…", "running": "Estimating notes and chords…", "saving": "Saving the complete score result…" },
+          "estimate": "Estimated score", "completeness": { "unknown": "Completeness is not reported by the model", "complete": "Processing complete; musical accuracy needs review", "truncated": "The estimated score is truncated" },
+          "openScore": "Review and edit score", "listenSource": "Listen to the original", "recovery": "Check the original task and save its result without running the model again. If no Job was created, remove this entry before explicitly starting again.",
+          "restore": "Check original task", "configurationLabel": "Music transcription", "configurationHint": "Estimate an editable score from an existing recording."
+        },
         "recording": {
           "import": "Import a song or recording", "hint": "MP3, WAV or FLAC · up to 10 minutes and 512 MiB. Keep the original and an editable audio copy.",
           "imported": "Imported recording", "localRender": "Local mix", "abandon": "Abandon import",
@@ -177,7 +191,7 @@ export const overtoneI18nResources = {
           "startAnother": "Write another song from this take",
           "takeTitle": "{{title}} · Take {{number}}",
           "sketch": "Sketch",
-          "longResult": "Song version",
+          "longResult": "Longer recording",
           "shortResult": "Short result",
           "shortResultNotice": "The engine returned {{actual}}s against a {{target}}s target. It is listed as a short result. Your full arrangement is ready to try again.",
           "readyNotice": "{{actual}}s of new music is ready. Listen through the transitions and ending before choosing your final version."
@@ -335,7 +349,8 @@ export const overtoneI18nResources = {
         "configuration": {
           "title": "AI settings",
           "dialogTitle": "Sound engine",
-          "capabilities": "Two partners",
+          "capabilities": "Creative tools",
+          "close": "Return to the studio",
           "configured": "Ready",
           "empty": "Not set up",
           "text": "Text generation",
@@ -538,6 +553,20 @@ export const overtoneI18nResources = {
   "zh": {
     "translation": {
       "Overtone": {
+        "transcription": {
+          "title": "从录音提取乐谱", "intro": "先从录音得到可编辑的乐谱草稿。音符与和弦属于模型估计，歌词需要另行提供。请与原曲对照后再改编。",
+          "source": "当前录音：{{title}}", "selectRecording": "请先选中一段已保存的录音。",
+          "configure": "请在 AI 设置中选择能提供 ABC 乐谱的音乐转谱配置。", "openSettings": "打开 AI 设置",
+          "part": "提取什么", "parts": { "vocal-melody": "人声旋律", "lead-sheet": "旋律与和弦", "full-arrangement": "完整编配" },
+          "range": "录音范围", "full": "整段录音", "selection": "指定时间范围", "start": "起点（秒，留空从头开始）", "end": "终点（秒，留空直到结尾）",
+          "run": "提取乐谱草稿", "saved": "已保存乐谱与可用的音乐时间线，并保留它们对应的原始录音。",
+          "failed": "未能完成或保存乐谱，原始录音没有改变。", "stopped": "操作已停止。未完成的操作仍可查询原任务结果。",
+          "canceling": "正在停止……音频准备可能还需最多一分钟结束。", "abandon": "放弃准备", "cancel": "取消任务",
+          "stages": { "preparing": "正在准备录音…", "recovering": "正在查询原任务…", "pending": "正在等待模型…", "running": "正在估计音符与和弦…", "saving": "正在保存完整转谱结果…" },
+          "estimate": "转谱估计结果", "completeness": { "unknown": "模型未提供识别完整性", "complete": "处理完整，音符准确性仍需核对", "truncated": "转谱估计结果被截断" },
+          "openScore": "检查并编辑乐谱", "listenSource": "听原始录音", "recovery": "查询原任务并保存结果，不会再次运行模型。如果当时尚未创建任务，请先移除此入口，再明确发起转谱。",
+          "restore": "查询原任务", "configurationLabel": "音乐转谱", "configurationHint": "从已有录音估计可编辑的乐谱草稿。"
+        },
         "recording": {
           "import": "导入歌曲或录音", "hint": "MP3、WAV 或 FLAC · 最长10分钟、最大512 MiB。保留原文件与可编辑的音频副本。",
           "imported": "导入录音", "localRender": "本地混音", "abandon": "放弃导入",
@@ -705,7 +734,7 @@ export const overtoneI18nResources = {
           "startAnother": "从这段录音另写一首",
           "takeTitle": "{{title}} · 第 {{number}} 版",
           "sketch": "短试听",
-          "longResult": "成曲版本",
+          "longResult": "较长录音",
           "shortResult": "短版结果",
           "shortResultNotice": "目标 {{target}} 秒，这次实际生成 {{actual}} 秒，已保留为短版结果。完整编排仍在，可以再生成一次。",
           "readyNotice": "已生成 {{actual}} 秒的新音乐。听听段落衔接和结尾，再选定你的成曲版本。"
@@ -863,7 +892,8 @@ export const overtoneI18nResources = {
         "configuration": {
           "title": "AI 设置",
           "dialogTitle": "声音引擎",
-          "capabilities": "两位搭档",
+          "capabilities": "创作工具",
+          "close": "返回创作",
           "configured": "已就位",
           "empty": "待就位",
           "text": "文本生成",
