@@ -14,7 +14,7 @@ import {
   useNimiTheme,
   type NimiThemeScheme,
 } from '@nimiplatform/kit/ui';
-import { OvertoneProvider, useOvertoneActions, useOvertonePlayback, useOvertoneState } from './store.js';
+import { OvertoneProvider, useOvertoneActions, useOvertonePlayback, useOvertoneState, useOvertonePersistence } from './store.js';
 import { BriefPanel, SoundNotes } from './panels/brief-panel.js';
 import { LyricsPanel } from './panels/lyrics-panel.js';
 import { GeneratePanel } from './panels/generate-panel.js';
@@ -24,12 +24,14 @@ import { TakesPanel } from './panels/takes-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
 import { DraftSaveNotice } from './panels/draft-save-notice.js';
 import { probeReadiness } from './readiness.js';
+import { getNimiLocalAppClient } from '../shell/auth/local-app-client.js';
 import { usePlaybackShortcuts } from './use-playback-shortcuts.js';
 import { persistOvertoneScheme } from './theme-scheme.js';
 import { ExplorationProvider, useExploration } from './exploration-context.js';
 import { DirectionsPanel } from './panels/directions-panel.js';
 import { SongComposer } from './panels/song-composer.js';
 import { OvertoneIcon } from './panels/icons.js';
+import { ScorePanel } from './score/panel.js';
 import {
   OVERTONE_LOCALES,
   applyOvertoneDocumentLocale,
@@ -42,7 +44,7 @@ import './overtone.css';
 
 export function WorkspacePage() {
   return (
-    <OvertoneProvider>
+    <OvertoneProvider storage={getNimiLocalAppClient().storage}>
       <CreativeWorkspace />
       <NimiToaster />
     </OvertoneProvider>
@@ -57,6 +59,7 @@ function CreativeWorkspace() {
 function WorkspaceInner() {
   const { t } = useTranslation();
   const state = useOvertoneState();
+  const persistence = useOvertonePersistence();
   const { setReadiness, startProject, clearCompare } = useOvertoneActions();
   const creative = useExploration();
   const started = useRef(false);
@@ -67,11 +70,11 @@ function WorkspaceInner() {
 
   // @nimi-authority: rule.overtone.ia.r002
   useEffect(() => {
-    if (!state.project && !started.current && state.readiness.runtimeStatus === 'ready') {
+    if (!state.project && !started.current && state.readiness.runtimeStatus === 'ready' && persistence.status === 'saved') {
       started.current = true;
       startProject();
     }
-  }, [state.project, state.readiness.runtimeStatus, startProject]);
+  }, [state.project, state.readiness.runtimeStatus, startProject, persistence.status]);
 
   useEffect(() => {
     if (creative.notesOpen) document.getElementById('ot-notebook')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -158,6 +161,7 @@ function WorkspaceInner() {
             <div id="ot-notebook" className="ot-notebook" hidden={!creative.notesOpen}>
               <SoundNotes /><LyricsPanel />
             </div></>}
+            <ScorePanel />
           </div>
           <GeneratePanel />
         </section>

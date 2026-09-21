@@ -17,7 +17,7 @@ units:
   - id: definition.overtone.product.feature-f003
     kind: definition
     title: Music generation
-    meaning: Music generation consumes the admitted protected Local App music-generate Scenario Job through the SDK adapter and Kit runner, submitting prompt, lyrics and an optional duration budget and projecting only completed, verified and decoded audio as takes.
+    meaning: Protected music generation turns author description, lyrics and supported optional score conditions into a playable version plus any actual generated plan score. It preserves typed completion, generation budget and termination facts, adopts the complete output into App assets and supports original-submission recovery without regenerating.
   - id: definition.overtone.product.feature-f004
     kind: definition
     title: Candidate stack and compare
@@ -25,7 +25,7 @@ units:
   - id: definition.overtone.product.feature-f005
     kind: definition
     title: Reference iteration
-    meaning: Feature F-005 is reference-audio, extend, and remix iteration and remains explicitly unavailable while the required audio-reference inputs are absent from the protected Local App music contract; text-based reinterpretation is a new prompt-origin generation governed by music playground authority.
+    meaning: Reference iteration preserves source versions and distinguishes score-conditioned regeneration, waveform editing and singing work. Each action appears only with its implemented protected workflow and current supported input conditions; prompt-only textual reinterpretation remains a separately labelled new composition.
   - id: definition.overtone.product.feature-f006
     kind: definition
     title: Playback and trim
@@ -92,7 +92,7 @@ units:
     kind: rule
     title: Take-based iteration
     modality: must
-    statement: Represent admitted music-generation results as append-only takes and select through selectedTakeId; create no SongTake without a completed, verified and decoded Runtime artifact.
+    statement: Represent actual audio results as append-only SongTake versions and select through selectedTakeId. Require playable owned media and the matching runtime-result, imported-recording or local-render provenance; only runtime-result versions carry a completed Job. Score-only results create score documents rather than fabricated audio versions.
     condition: When projecting music output or the current unavailable state.
     failure: Reject fabricated output, replacement of prior results, or any take created without admitted completed artifact evidence.
     relations:
@@ -136,7 +136,7 @@ units:
     kind: rule
     title: No failure-hiding fallback
     modality: must_not
-    statement: Silently retry AI generation, change transport, or relax validation to rescue artifact or decode errors; explicit user recovery may only re-read and decode the same completed Runtime artifact.
+    statement: Silently retry AI generation, change transport or relax validation to rescue artifact, decode or persistence errors. Explicit recovery observes the original submission or Job and adopts or reads its existing outputs, or reopens already owned App assets; it never submits a replacement generation.
     condition: When a decode, content-type, schema, contract, or music-generation job failure occurs.
     failure: Surface the original failure and require the user to choose the recovery action.
     relations:

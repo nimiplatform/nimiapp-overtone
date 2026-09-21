@@ -3,7 +3,7 @@ import { Button, IconToggleAction, InlineAlert, NimiText, NumberStepper, Segment
 import { useTranslation } from 'react-i18next';
 import { useAudioCache, useAudioSnapshot, useOvertonePlayback, useOvertoneState } from '../store.js';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
-import { loadRuntimeMusicArtifact } from '../runtime-workflow.js';
+import { loadProjectAudio } from '../runtime-workflow.js';
 import { persistOvertoneVolume, resolveInitialOvertoneVolume } from '../volume-preference.js';
 import { formatAudioTime } from '../exploration.js';
 import { downloadAudio, encodeTrimmedWav } from '../audio-export.js';
@@ -18,7 +18,7 @@ export function PlayerPanel() {
   const cache = useAudioCache();
   const playback = useOvertonePlayback();
   const selectedTake = state.project?.takes.find((take) => take.takeId === state.project?.selectedTakeId && !take.discarded) ?? null;
-  const media = useAudioSnapshot(selectedTake?.artifactId ?? '');
+  const media = useAudioSnapshot(selectedTake?.audio.relativePath ?? '');
   const audioData = media?.audio?.bytes;
   const decoded = media?.audio?.decoded ?? null;
   const [isPlaying, setIsPlaying] = useState(false);
@@ -76,17 +76,17 @@ export function PlayerPanel() {
   }, [selectedTake?.takeId]);
 
   useEffect(() => {
-    cache.pin(selectedTake?.artifactId ?? null);
+    cache.pin(selectedTake?.audio.relativePath ?? null);
     return () => cache.pin(null);
-  }, [cache, selectedTake?.artifactId]);
+  }, [cache, selectedTake?.audio.relativePath]);
 
   useEffect(() => {
     stopPlayback(); setCurrentTime(0); offsetRef.current = 0;
     if (!selectedTake) { setLoadingAudio(false); return; }
     if (audioData) { setLoadingAudio(false); return; }
     const controller = new AbortController(); setLoadingAudio(true); setAudioError('');
-    void loadRuntimeMusicArtifact({ client: getNimiLocalAppClient(), cache,
-      artifact: { artifactId: selectedTake.artifactId, mimeType: selectedTake.artifactMimeType, sizeBytes: selectedTake.artifactByteLength }, signal: controller.signal,
+    void loadProjectAudio({ client: getNimiLocalAppClient(), cache,
+      audio: selectedTake.audio, signal: controller.signal,
     }).catch((cause: unknown) => { if (!controller.signal.aborted) setAudioError(cause instanceof Error && cause.name === 'TimeoutError' ? 'OVERTONE_AUDIO_READ_TIMEOUT' : cause instanceof Error ? cause.message : String(cause)); })
       .finally(() => { if (!controller.signal.aborted) setLoadingAudio(false); });
     return () => controller.abort();
@@ -204,9 +204,9 @@ export function PlayerPanel() {
     if (!selectedTake || !decoded || !audioData || (trimmed && trimInvalid)) return;
     try {
       downloadAudio(trimmed ? encodeTrimmedWav(decoded, trimStart, trimEnd) : audioData,
-        trimmed ? 'audio/wav' : selectedTake.artifactMimeType,
+        trimmed ? 'audio/wav' : selectedTake.audio.mimeType,
         trimmed ? `${selectedTake.title}-trim` : selectedTake.title,
-        trimmed ? 'wav' : selectedTake.artifactFileExtension);
+        trimmed ? 'wav' : 'wav');
     } catch (error) { setAudioError(error instanceof Error ? error.message : String(error)); }
   }
 

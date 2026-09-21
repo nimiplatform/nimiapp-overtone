@@ -3,7 +3,7 @@ import test from 'node:test';
 import { loadSource } from './load-source.mjs';
 const { MusicAudioCache } = await loadSource('../src/overtone/media-cache.ts');
 const { overtoneReducer } = await loadSource('../src/overtone/store.tsx');
-const { generateRuntimeText, recoverRuntimeMusic, readRuntimeMusicArtifact } = await loadSource('../src/overtone/runtime-workflow.ts');
+const { generateRuntimeText, recoverRuntimeMusic, createMusicVersion } = await loadSource('../src/overtone/runtime-workflow.ts');
 const audio = () => ({duration:1,length:4,numberOfChannels:1,getChannelData:()=>Float32Array.of(0,.2,-.8,.1)});
 const signal = () => new AbortController().signal;
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -96,29 +96,41 @@ test('clearing a project prevents late media from populating its cache', async()
   await Promise.resolve();cache.clear();finish(new ArrayBuffer(8));
   await assert.rejects(pending,{name:'AbortError'});assert.equal(cache.residentBytes,0);
 });
-test('a completed reference survives failed decoding; recovery reuses the same job and only then creates one take',async()=>{
-  let state={project:{projectId:'project',createdAt:1,brief:null,lyrics:null,takes:[],selectedTakeId:null,comparedTakeIds:[null,null]},readiness:{runtimeStatus:'ready'},activeJobs:{}};
-  const reference={jobId:'completed-job',title:'Song',promptSnapshot:'A bright song',lyricsSnapshot:'The real words',targetDurationSeconds:120,creationMode:'song',createdAt:1};
-  state=overtoneReducer(state,{type:'result/remember',result:reference,projectId:'project'});
-  const calls=[];let fail=true;
-  const cache=new MusicAudioCache(48,async()=>{if(fail)throw Error('decode failed');return audio();});
-  const artifact={artifactId:'same-audio',mimeType:'audio/wav',sizeBytes:8};
-  const client={ai:{scenarioJobs:{get:async id=>{calls.push(['get',id]);return {job:{jobId:id,status:'completed',scenarioType:'music-generate',artifacts:[artifact]}};}},artifacts:{read:async id=>{calls.push(['read',id]);return {bytes:new Uint8Array(8),mimeType:'audio/wav',sizeBytes:8};}}}};
-  await assert.rejects(recoverRuntimeMusic({client,cache,jobId:reference.jobId,signal:signal()}),/decode failed/);
-  assert.equal(state.project.recoverableResults.length,1);assert.equal(state.project.takes.length,0);
-  fail=false;const result=await recoverRuntimeMusic({client,cache,jobId:reference.jobId,signal:signal()});
-  const take={...reference,takeId:'take',artifactId:result.artifactId};
-  state=overtoneReducer(state,{type:'take/add',take});state=overtoneReducer(state,{type:'take/add',take:{...take,takeId:'duplicate'}});
-  assert.equal(state.project.takes.length,1);assert.equal(state.project.recoverableResults.length,0);
-  assert.deepEqual(calls,[['get','completed-job'],['read','same-audio'],['get','completed-job'],['read','same-audio']]);
+test('a captured author action survives failed decoding; observation recovers the same Job and adopts owned media', async () => {
+  // Contract fault injection only; actual models and native App acceptance run separately.
+  let state = { project: { schemaVersion: 2, projectId: 'project', createdAt: 1, brief: null, lyrics: null,
+    takes: [], scores: [], selectedScoreId: null, selectedTakeId: null, comparedTakeIds: [null, null] }, readiness: { runtimeStatus: 'ready' }, activeJobs: {} };
+  const reference = { projectId: 'project', clientSubmissionId: 'author-action', jobId: 'completed-job', title: 'Song', promptSnapshot: 'A bright song',
+    lyricsSnapshot: 'The real words', targetDurationSeconds: 20, creationMode: 'sketch', createdAt: 1 };
+  state = overtoneReducer(state, { type: 'result/remember', result: reference, projectId: 'project' });
+  const calls = []; let fail = true; const assets = new Map();
+  const cache = new MusicAudioCache(128, async () => { if (fail) throw Error('decode failed'); return { duration: .001, length: 8, numberOfChannels: 1, getChannelData: () => new Float32Array(8) }; });
+  const artifact = { artifactId: 'same-audio', mimeType: 'audio/wav', sizeBytes: 90, sha256: 'a'.repeat(64), bytes: [], durationMs: 1, sampleRateHz: 8000, channels: 1, frameCount: 8, width: 0, height: 0 };
+  const job = { jobId: reference.jobId, scenarioType: 'music-generate', status: 'completed', progressPercent: 100, progressCurrentStep: 0,
+    progressTotalSteps: 0, reasonCode: 'action-executed', reasonDetail: '', traceId: 'trace', createdAt: null, updatedAt: null, transcriptionText: '', artifacts: [artifact],
+    musicGeneration: { mixArtifactId: artifact.artifactId, termination: 'budget-limit', audioInfo: { sampleRateHz: 8000, channels: 1, frameCount: 8, durationMs: 1 } } };
+  const client = { ai: { scenarioJobs: { get: async id => { calls.push(['get', id]); return { job }; } } }, storage: { assets: {
+    list: async ({ prefix }) => ({ assets: [...assets.values()].filter(a => a.relativePath.startsWith(prefix)), nextCursor: '' }),
+    adoptArtifact: async ({ artifactId, relativePath }) => {
+      calls.push(['adopt', artifactId]); const asset = { relativePath: relativePath.replace('.asset', '.wav'), mediaType: 'audio/wav', sizeBytes: 90, sha256: 'sha256:' + 'a'.repeat(64) };
+      assets.set(asset.relativePath, asset); return asset;
+    },
+    remove: async path => { assets.delete(path); },
+    read: async ({ relativePath }) => ({ asset: assets.get(relativePath), body: { async *[Symbol.asyncIterator]() { yield new Uint8Array(90); } } }),
+  } } };
+  await assert.rejects(recoverRuntimeMusic({ client, cache, operation: reference, signal: signal() }), /decode failed/);
+  assert.equal(state.project.recoverableResults.length, 1); assert.equal(state.project.takes.length, 0); assert.equal(assets.size, 0);
+  fail = false;
+  const result = await recoverRuntimeMusic({ client, cache, operation: reference, signal: signal() });
+  const { take } = createMusicVersion(reference, result);
+  state = overtoneReducer(state, { type: 'take/add', take });
+  state = overtoneReducer(state, { type: 'take/add', take: { ...take, takeId: 'duplicate' } });
+  assert.equal(state.project.takes.length, 1); assert.equal(state.project.recoverableResults.length, 0); assert.equal(assets.size, 1);
+  assert.ok(calls.some(([kind]) => kind === 'get'));
+  assert.ok(calls.filter(([kind]) => kind === 'get').every(([, id]) => id === 'completed-job'));
+  assert.deepEqual(calls.filter(([kind]) => kind === 'adopt'), [['adopt', 'same-audio'], ['adopt', 'same-audio']]);
 });
-test('MIME comparison accepts spelling and parameter ordering while retaining semantic differences',async()=>{
-  const bytes=Uint8Array.of(1,2);
-  const client={ai:{artifacts:{read:async()=>({bytes,sizeBytes:2,mimeType:'Audio/WAV; CODECS="pcm"; rate=44100'})}}};
-  const artifact={artifactId:'one',mimeType:'audio/wav;rate=44100;codecs=pcm',sizeBytes:2};
-  const result=await readRuntimeMusicArtifact({client,artifact,signal:signal()});assert.equal(result.extension,'wav');
-  await assert.rejects(readRuntimeMusicArtifact({client,artifact:{...artifact,mimeType:'audio/wav;rate=44100;codecs=alaw'},signal:signal()}),/metadata/);
-});
+
 test('text cancellation calls protected cancellation and rejects unfinished output',async()=>{
   const controller=new AbortController();let canceled=0,finish;
   const stream={cancel:async()=>{canceled++;finish?.({done:true});},[Symbol.asyncIterator](){return {next:()=>new Promise(resolve=>{finish=resolve;}),return:async()=>({done:true})};}};

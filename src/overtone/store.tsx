@@ -1,12 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { makeId, type FullSongDraft, type GenerationJob, type LyricsDocument, type ReadinessSnapshot, type RecoverableMusicResult, type SongBrief, type SongTake } from './types.js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { makeId, type FullSongDraft, type GenerationJob, type LyricsDocument, type ReadinessSnapshot, type RecoverableMusicResult, type SongBrief, type SongTake, type ScoreDocument, type SongProject } from './types.js';
 import { MusicAudioCache } from './media-cache.js';
+import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import { readCurrentProject, readProject, writeProject, selectCurrentProject } from './project-storage.js';
 
-export interface SongProject {
-  projectId: string; createdAt: number; brief: SongBrief | null; lyrics: LyricsDocument | null;
-  takes: SongTake[]; selectedTakeId: string | null; comparedTakeIds: [string | null, string | null];
-  fullSong?: FullSongDraft | null; recoverableResults?: RecoverableMusicResult[];
-}
 export interface OvertoneState {
   project: SongProject | null; readiness: ReadinessSnapshot; activeJobs: Record<string, GenerationJob>;
   aiSettingsOpen: boolean;
@@ -19,7 +16,13 @@ type Action =
   | { type: 'lyrics/set'; text: string; source: LyricsDocument['source'] }
   | { type: 'song/set'; draft: FullSongDraft | null }
   | { type: 'result/remember'; result: RecoverableMusicResult; projectId: string }
-  | { type: 'take/add'; take: SongTake }
+  | { type: 'result/job'; clientSubmissionId: string; jobId: string }
+  | { type: 'result/forget'; clientSubmissionId: string }
+  | { type: 'score/add'; score: ScoreDocument }
+  | { type: 'score/select'; scoreId: string | null }
+  | { type: 'score/use'; scoreId: string | null }
+  | { type: 'score/budget'; seconds: number }
+  | { type: 'take/add'; take: SongTake; score?: ScoreDocument }
   | { type: 'take/select'; takeId: string | null }
   | { type: 'take/favorite'; takeId: string }
   | { type: 'take/rename'; takeId: string; title: string }
@@ -32,7 +35,6 @@ const INITIAL_STATE: OvertoneState = {
   project: null, readiness: { runtimeStatus: 'checking', textCapabilityAvailable: false, musicCapabilityAvailable: false }, activeJobs: {},
   aiSettingsOpen: false,
 };
-const LOCAL_DRAFT_STORAGE_KEY = 'nimi.overtone:workspace.v1';
 function withProject(state: OvertoneState, update: (project: SongProject) => SongProject): OvertoneState {
   return state.project ? { ...state, project: update(state.project) } : state;
 }
@@ -42,7 +44,7 @@ export function overtoneReducer(state: OvertoneState, action: Action): OvertoneS
     case 'readiness/set': return { ...state, readiness: action.readiness };
     case 'aiSettings/setOpen': return { ...state, aiSettingsOpen: action.open };
     case 'project/start': return { ...state, activeJobs: {}, project: {
-      projectId: makeId('proj'), createdAt: Date.now(), brief: action.idea ? { title: '', genre: '', mood: '', tempo: '', description: action.idea.slice(0,1500) } : null,
+      schemaVersion: 2, scores: [], selectedScoreId: null, projectId: makeId('proj'), createdAt: Date.now(), brief: action.idea ? { title: '', genre: '', mood: '', tempo: '', description: action.idea.slice(0,1500) } : null,
       lyrics: null, takes: [], selectedTakeId: null, comparedTakeIds: [null,null],
     } };
     case 'brief/set': return withProject(state, project => ({ ...project, brief: action.brief }));
@@ -50,13 +52,27 @@ export function overtoneReducer(state: OvertoneState, action: Action): OvertoneS
     case 'song/set': return withProject(state, project => ({ ...project, fullSong: action.draft }));
     case 'result/remember': return withProject(state, project => {
       if (project.projectId !== action.projectId) return project;
-      if (project.takes.some(take => take.jobId === action.result.jobId) || project.recoverableResults?.some(result => result.jobId === action.result.jobId)) return project;
+      if (project.recoverableResults?.some(result => result.clientSubmissionId === action.result.clientSubmissionId)) return project;
       return { ...project, recoverableResults: [...project.recoverableResults ?? [], action.result] };
     });
+    case 'result/job': return withProject(state, project => ({ ...project,
+      recoverableResults: project.recoverableResults?.map(result => result.clientSubmissionId === action.clientSubmissionId ? { ...result, jobId: action.jobId } : result) }));
+    case 'result/forget': return withProject(state, project => ({ ...project,
+      recoverableResults: project.recoverableResults?.filter(result => result.clientSubmissionId !== action.clientSubmissionId) }));
+    case 'score/add': return withProject(state, project => ({ ...project,
+      scores: project.scores.some(score => score.scoreId === action.score.scoreId) ? project.scores : [...project.scores, action.score], selectedScoreId: action.score.scoreId }));
+    case 'score/select': return withProject(state, project => ({ ...project, selectedScoreId: action.scoreId }));
+    case 'score/use': return withProject(state, project => ({ ...project, generationScoreId: action.scoreId }));
+    case 'score/budget': return withProject(state, project => ({ ...project, scoreBudgetSeconds: action.seconds }));
     case 'take/add': return withProject(state, project => {
-      const existing = project.takes.find(take => take.jobId === action.take.jobId);
+      const existing = project.takes.find(take => take.takeId === action.take.takeId
+        || (take.origin === 'runtime-result' && action.take.origin === 'runtime-result' && take.jobId === action.take.jobId));
+      const score = existing ? undefined : action.score;
       return { ...project, takes: existing ? project.takes : [...project.takes, action.take], selectedTakeId: existing?.takeId ?? action.take.takeId,
-        recoverableResults: project.recoverableResults?.filter(result => result.jobId !== action.take.jobId) };
+        scores: score && !project.scores.some(s => s.scoreId === score.scoreId) ? [...project.scores, score] : project.scores,
+        selectedScoreId: project.selectedScoreId ?? score?.scoreId ?? null,
+        recoverableResults: project.recoverableResults?.filter(result => action.take.origin !== 'runtime-result'
+          || (result.jobId !== action.take.jobId && result.clientSubmissionId !== action.take.clientSubmissionId)) };
     });
     case 'take/select': return withProject(state, project => ({ ...project, selectedTakeId: action.takeId }));
     case 'take/favorite': return withProject(state, project => ({ ...project, takes: project.takes.map(take => take.takeId === action.takeId ? { ...take, favorite: !take.favorite } : take) }));
@@ -73,7 +89,7 @@ export function overtoneReducer(state: OvertoneState, action: Action): OvertoneS
 export interface OvertonePlaybackController { togglePlayback: () => void; seekBy: (delta: number) => void; getPosition: () => number }
 const StateContext = createContext<OvertoneState | null>(null);
 const CacheContext = createContext<MusicAudioCache | null>(null);
-function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCache, stateRef: React.RefObject<OvertoneState>) {
+function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCache, stateRef: React.RefObject<OvertoneState>, flush: () => Promise<void>, complete: (projectId: string, take: SongTake, score?: ScoreDocument) => Promise<void>, saveScore: (projectId: string, score: ScoreDocument) => Promise<void>) {
   return useMemo(() => ({
     setReadiness: (readiness: ReadinessSnapshot) => dispatch({ type: 'readiness/set', readiness }),
     setAISettingsOpen: (open: boolean) => dispatch({ type: 'aiSettings/setOpen', open }),
@@ -81,17 +97,23 @@ function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCach
     setBrief: (brief: SongBrief | null) => dispatch({ type: 'brief/set', brief }),
     setLyrics: (text: string, source: LyricsDocument['source']) => dispatch({ type: 'lyrics/set', text, source }),
     setFullSong: (draft: FullSongDraft | null) => dispatch({ type: 'song/set', draft }),
-    rememberResult: (result: RecoverableMusicResult, projectId: string) => dispatch({ type: 'result/remember', result, projectId }),
-    addTake: (take: SongTake) => dispatch({ type: 'take/add', take }),
+    rememberResult: async (result: RecoverableMusicResult, projectId: string) => { dispatch({ type: 'result/remember', result, projectId }); await flush(); },
+    captureJob: (clientSubmissionId: string, jobId: string) => dispatch({ type: 'result/job', clientSubmissionId, jobId }),
+    forgetResult: async (clientSubmissionId: string) => { dispatch({ type: 'result/forget', clientSubmissionId }); await flush(); },
+    addTake: complete,
+    addScore: saveScore,
+    selectScore: (scoreId: string | null) => dispatch({ type: 'score/select', scoreId }),
+    useScoreForGeneration: (scoreId: string | null) => dispatch({ type: 'score/use', scoreId }),
+    setScoreBudget: (seconds: number) => dispatch({ type: 'score/budget', seconds }),
     selectTake: (takeId: string | null) => dispatch({ type: 'take/select', takeId }),
     favoriteTake: (takeId: string) => dispatch({ type: 'take/favorite', takeId }),
     renameTake: (takeId: string, title: string) => dispatch({ type: 'take/rename', takeId, title }),
-    discardTake: (takeId: string) => { const take = stateRef.current.project?.takes.find(take => take.takeId === takeId); if (take) cache.remove(take.artifactId); dispatch({ type: 'take/discard', takeId }); },
+    discardTake: (takeId: string) => { const take = stateRef.current.project?.takes.find(take => take.takeId === takeId); if (take) cache.remove(take.audio.relativePath); dispatch({ type: 'take/discard', takeId }); },
     setCompareSlot: (slot: 0|1, takeId: string|null) => dispatch({ type: 'compare/set', slot, takeId }),
     clearCompare: () => dispatch({ type: 'compare/clear' }),
     setJob: (job: GenerationJob) => dispatch({ type: 'job/set', job }),
     removeJob: (jobId: string) => dispatch({ type: 'job/remove', jobId }),
-  }), [dispatch, cache, stateRef]);
+  }), [dispatch, cache, stateRef, flush, complete, saveScore]);
 }
 const ActionsContext = createContext<ReturnType<typeof useStoreActions> | null>(null);
 function usePlaybackBridge(dispatch: React.Dispatch<Action>) {
@@ -109,39 +131,84 @@ function usePlaybackBridge(dispatch: React.Dispatch<Action>) {
   return useMemo(() => ({ registerController, togglePlayback, seekBy, requestTake, request, playingTakeId, reportPlaying }), [registerController,togglePlayback,seekBy,requestTake,request,playingTakeId]);
 }
 const PlaybackContext = createContext<ReturnType<typeof usePlaybackBridge> | null>(null);
+type PersistenceState = { status: 'loading' | 'load-failed' | 'saved' | 'saving' | 'failed'; error?: string };
+const PersistenceContext = createContext<(PersistenceState & { retry: () => void; flush: () => Promise<void> }) | null>(null);
+
 // @nimi-authority: rule.overtone.data-model.r008
-function useProjectPersistence(project: SongProject | null) {
-  const [write, setWrite] = useState<{ project: SongProject | null; status: 'saved' | 'failed' }>({ project: null, status: 'saved' });
-  const [attempt, setAttempt] = useState(0);
-  const retry = useCallback(() => setAttempt(value => value + 1), []);
-  useEffect(() => {
-    try {
-      if (project) localStorage.setItem(LOCAL_DRAFT_STORAGE_KEY, JSON.stringify({ project }));
-      setWrite({ project, status: 'saved' });
-    } catch { setWrite({ project, status: 'failed' }); }
-  }, [project, attempt]);
-  // A previous successful write does not certify the newly edited draft.
-  const status = write.project === project ? write.status : 'saving';
-  return useMemo(() => ({ status, retry }), [status, retry]);
-}
-const PersistenceContext = createContext<ReturnType<typeof useProjectPersistence> | null>(null);
-export function OvertoneProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(overtoneReducer, INITIAL_STATE, loadInitialState);
+export function OvertoneProvider({ children, storage }: { children: ReactNode; storage: Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson'> }) {
+  const [state, setState] = useState<OvertoneState>(INITIAL_STATE);
   const [cache] = useState(() => new MusicAudioCache());
-  const stateRef = useRef(state); stateRef.current = state;
-  const actions = useStoreActions(dispatch, cache, stateRef);
+  const stateRef = useRef(state);
+  const documents = useRef(new Map<string, SongProject>());
+  const savedPointer = useRef('');
+  const hydrated = useRef(false);
+  const tail = useRef<Promise<void>>(Promise.resolve());
+  const latestSave = useRef(new Map<string, Promise<void>>());
+  const alive = useRef(true);
+  const [persistence, setPersistence] = useState<PersistenceState>({ status: 'loading' });
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const publish = useCallback((next: OvertoneState) => { stateRef.current = next; setState(next); }, []);
+  const save = useCallback((project: SongProject) => {
+    if (stateRef.current.project?.projectId === project.projectId) setPersistence({ status: 'saving' });
+    const operation = tail.current.catch(() => undefined).then(async () => {
+      if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+      await writeProject(storage, project);
+      if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+      if (stateRef.current.project?.projectId === project.projectId && savedPointer.current !== project.projectId) {
+        await selectCurrentProject(storage, project.projectId); savedPointer.current = project.projectId;
+      }
+    });
+    tail.current = operation;
+    latestSave.current.set(project.projectId, operation);
+    void operation.then(() => {
+      if (alive.current && stateRef.current.project?.projectId === project.projectId && latestSave.current.get(project.projectId) === operation) setPersistence({ status: 'saved' });
+    }, cause => {
+      if (alive.current && stateRef.current.project?.projectId === project.projectId && latestSave.current.get(project.projectId) === operation) setPersistence({ status: 'failed', error: String(cause) });
+    });
+    return operation;
+  }, [storage]);
+  const dispatch = useCallback((action: Action) => {
+    if (!hydrated.current && action.type !== 'readiness/set' && action.type !== 'aiSettings/setOpen') throw new Error('OVERTONE_STORAGE_NOT_READY');
+    const before = stateRef.current;
+    const next = overtoneReducer(before, action);
+    publish(next);
+    if (next.project && next.project !== before.project) {
+      documents.current.set(next.project.projectId, next.project);
+      void save(next.project);
+    }
+  }, [publish, save]);
+  const flush = useCallback(() => tail.current, []);
+  const mutateProject = useCallback(async (projectId: string, action: Action) => {
+    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+    let project = documents.current.get(projectId) ?? await readProject(storage, projectId);
+    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+    project = documents.current.get(projectId) ?? project;
+    const next = overtoneReducer({ ...stateRef.current, project }, action).project!;
+    documents.current.set(projectId, next);
+    if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: next });
+    await save(next);
+  }, [storage, publish, save]);
+  const complete = useCallback((projectId: string, take: SongTake, score?: ScoreDocument) => mutateProject(projectId, { type: 'take/add', take, score }), [mutateProject]);
+  const saveScore = useCallback((projectId: string, score: ScoreDocument) => mutateProject(projectId, { type: 'score/add', score }), [mutateProject]);
+  useEffect(() => {
+    let active = true;
+    setPersistence({ status: 'loading' });
+    void readCurrentProject(storage).then(project => {
+      if (!active) return;
+      hydrated.current = true;
+      if (project) { documents.current.set(project.projectId, project); savedPointer.current = project.projectId; }
+      publish({ ...stateRef.current, project }); setPersistence({ status: 'saved' });
+    }, cause => { if (active) setPersistence({ status: 'load-failed', error: String(cause) }); });
+    return () => { active = false; };
+  }, [storage, loadAttempt, publish]);
+  const retry = useCallback(() => {
+    if (!hydrated.current) setLoadAttempt(value => value + 1);
+    else if (stateRef.current.project) void save(stateRef.current.project);
+  }, [save]);
+  const actions = useStoreActions(dispatch, cache, stateRef, flush, complete, saveScore);
   const playback = usePlaybackBridge(dispatch);
-  const persistence = useProjectPersistence(state.project);
-  useEffect(() => () => cache.clear(), [cache]);
-  return <CacheContext.Provider value={cache}><ActionsContext.Provider value={actions}><PlaybackContext.Provider value={playback}><PersistenceContext.Provider value={persistence}><StateContext.Provider value={state}>{children}</StateContext.Provider></PersistenceContext.Provider></PlaybackContext.Provider></ActionsContext.Provider></CacheContext.Provider>;
-}
-function loadInitialState(initial: OvertoneState): OvertoneState {
-  try { const value = JSON.parse(localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY) ?? 'null')?.project;
-    if (value && typeof value.projectId === 'string' && Number.isFinite(value.createdAt) && Array.isArray(value.takes) && Array.isArray(value.comparedTakeIds)
-      && (!value.recoverableResults || Array.isArray(value.recoverableResults) && value.recoverableResults.every((r: RecoverableMusicResult) => typeof r.jobId === 'string' && typeof r.title === 'string' && typeof r.promptSnapshot === 'string' && typeof r.lyricsSnapshot === 'string')))
-      return { ...initial, project: value };
-  } catch { /* invalid local draft does not become Runtime truth */ }
-  return initial;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; cache.clear(); }; }, [cache]);
+  return <CacheContext.Provider value={cache}><ActionsContext.Provider value={actions}><PlaybackContext.Provider value={playback}><PersistenceContext.Provider value={{ ...persistence, retry, flush }}><StateContext.Provider value={state}>{children}</StateContext.Provider></PersistenceContext.Provider></PlaybackContext.Provider></ActionsContext.Provider></CacheContext.Provider>;
 }
 export function useOvertoneState() { const value = useContext(StateContext); if (!value) throw Error('OvertoneProvider required'); return value; }
 export function useOvertoneActions() { const value = useContext(ActionsContext); if (!value) throw Error('OvertoneProvider required'); return value; }

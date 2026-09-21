@@ -33,14 +33,21 @@ globalThis.AudioContext = class {
 await i18next.use(initReactI18next).init({ lng: 'en', fallbackLng: 'en', resources: { en: { translation: {} } } });
 const { ComponentHarness } = await loadSource('./fixtures/overtone-components.tsx');
 let root, observed, writeFailure = false;
-const originalSet = dom.window.Storage.prototype.setItem;
-dom.window.Storage.prototype.setItem = function (key, value) {
-  if (writeFailure) throw new DOMException('Isolated storage fault', 'QuotaExceededError');
-  return originalSet.call(this, key, value);
+const documents = new Map();
+const storage = {
+  async readJson(path) {
+    if (!documents.has(path)) throw Object.assign(new Error('absent'), { reasonCode: 'APP_STORAGE_ENTRY_NOT_FOUND' });
+    return { value: structuredClone(documents.get(path)) };
+  },
+  async writeJson(path, value) {
+    if (writeFailure) throw new Error('Isolated storage fault');
+    documents.set(path, structuredClone(value)); return { value };
+  },
 };
+const storedProject = () => JSON.stringify([...documents.entries()].find(([key]) => key.startsWith('workspace/projects/'))?.[1]);
 async function mount() {
   root = createRoot(document.getElementById('root'));
-  await act(async () => root.render(React.createElement(ComponentHarness, { observe: value => { observed = value; } })));
+  await act(async () => root.render(React.createElement(ComponentHarness, { storage, observe: value => { observed = value; } })));
 }
 async function unmount() { if (root) { await act(async () => root.unmount()); root = null; } }
 async function change(fn) { await act(async () => fn(observed)); }
@@ -50,17 +57,18 @@ async function click(label, times = 1) {
     assert.ok(button, `Missing actual control ${label}`); button.click();
   });
 }
-test.beforeEach(async () => { writeFailure = false; localStorage.clear(); sources.length = 0; await mount(); });
+test.beforeEach(async () => { writeFailure = false; documents.clear(); localStorage.clear(); sources.length = 0; await mount(); });
 test.afterEach(unmount);
 test.after(() => dom.window.close());
 
 test('switching cached takes starts and loops B over its visible default range, not A trim', async () => {
   await change(({ actions }) => actions.startProject());
-  await change(async ({ cache, actions }) => {
+  await change(async ({ cache, actions, state }) => {
     for (const id of ['a', 'b']) {
-      await cache.load(id, async () => new ArrayBuffer(8), new AbortController().signal, { mimeType: 'audio/wav', sizeBytes: 8 });
-      actions.addTake({ takeId: id, artifactId: id, title: id, jobId: id, origin: 'prompt', artifactMimeType: 'audio/wav', artifactByteLength: 8,
-        artifactFileExtension: 'wav', durationSeconds: 20, promptSnapshot: 'Test input', lyricsSnapshot: 'Test input', favorite: false, discarded: false, createdAt: 0 });
+      await cache.load(`media/${id}.wav`, async () => new ArrayBuffer(8), new AbortController().signal, { mimeType: 'audio/wav', sizeBytes: 8 });
+      await actions.addTake(state.project.projectId, { takeId: id, title: id, jobId: id, clientSubmissionId: id, origin: 'runtime-result', capability: 'music.generate', termination: 'unknown',
+        audio: { relativePath: `media/${id}.wav`, mimeType: 'audio/wav', sizeBytes: 8, sha256: 'sha256:'+ 'a'.repeat(64), sampleRateHz: 8, channels: 1, frameCount: 160, durationMs: 20000 },
+        durationSeconds: 20, promptSnapshot: 'Test input', lyricsSnapshot: 'Test input', favorite: false, discarded: false, createdAt: 0 });
     }
     actions.selectTake('a');
   });
@@ -79,13 +87,13 @@ test('switching cached takes starts and loops B over its visible default range, 
 test('failed draft persistence is visible; retry saves the same completed reference across remount', async () => {
   await change(({ actions }) => actions.startProject('Original draft'));
   assert.equal(observed.persistence.status, 'saved');
-  const oldStored = localStorage.getItem(localStorage.key(0));
+  const oldStored = storedProject();
   writeFailure = true;
-  await change(({ actions, state }) => actions.rememberResult({ jobId: 'test-reference', title: 'Writing snapshot',
-    promptSnapshot: 'Draft to preserve', lyricsSnapshot: 'Unchanged words', createdAt: 0, creationMode: 'song', targetDurationSeconds: 120 }, state.project.projectId));
+  await change(async ({ actions, state }) => assert.rejects(actions.rememberResult({ clientSubmissionId: 'author-action', projectId: state.project.projectId, jobId: 'test-reference', title: 'Writing snapshot',
+    promptSnapshot: 'Draft to preserve', lyricsSnapshot: 'Unchanged words', createdAt: 0, creationMode: 'song', targetDurationSeconds: 120 }, state.project.projectId), /Isolated storage fault/));
   assert.equal(observed.persistence.status, 'failed');
   assert.equal(observed.state.project.recoverableResults.length, 1);
-  assert.equal(localStorage.getItem(localStorage.key(0)), oldStored);
+  assert.equal(storedProject(), oldStored);
   assert.ok(document.querySelector('.ot-draft-save-alert'));
   await act(async () => document.querySelector('.ot-draft-save-alert button').click());
   assert.equal(observed.persistence.status, 'failed');
@@ -111,6 +119,22 @@ test('a full-song result returns to the existing arrangement; a different source
   assert.equal(observed.state.project.fullSong, draft);
 });
 
+test('a late adopted version is saved to its original project without changing the active project or save indicator', async () => {
+  await change(({ actions }) => actions.startProject('First'));
+  const first = observed.state.project.projectId;
+  await change(({ actions }) => actions.startProject('Second'));
+  const second = observed.state.project.projectId;
+  await change(({ actions }) => actions.addTake(first, { takeId: 'late-take', title: 'Late result', jobId: 'late-job', clientSubmissionId: 'late-author',
+    origin: 'runtime-result', capability: 'music.generate', termination: 'budget-limit',
+    audio: { relativePath: 'music/late.wav', mimeType: 'audio/wav', sizeBytes: 90, sha256: 'sha256:' + 'a'.repeat(64), sampleRateHz: 8000, channels: 1, frameCount: 8, durationMs: 1 },
+    promptSnapshot: 'First', favorite: false, discarded: false, createdAt: 1 }));
+  assert.equal(observed.state.project.projectId, second);
+  assert.equal(observed.state.project.takes.length, 0);
+  assert.equal(documents.get(`workspace/projects/${first}.json`).takes.length, 1);
+  assert.equal(documents.get('workspace/current.json').projectId, second);
+  assert.equal(observed.persistence.status, 'saved');
+});
+
 test('the full-song action withholds incomplete edited arrangements and recovers after correction', async () => {
   const draft = { sourceTakeId: 'source', sourceTitle: 'Source', sourcePrompt: 'Direction', sourceLyrics: 'Hook',
     title: 'A whole song', durationSeconds: 120,
@@ -118,7 +142,7 @@ test('the full-song action withholds incomplete edited arrangements and recovers
       arrangement: 'Piano enters', lyrics: 'One\nTwo\nThree\nFour' })) };
   await change(({ actions, creative }) => {
     actions.startProject(); actions.setFullSong(draft);
-    actions.setReadiness({ runtimeStatus: 'ready', textCapabilityAvailable: true, musicCapabilityAvailable: true });
+    actions.setReadiness({ runtimeStatus: 'ready', textCapabilityAvailable: true, musicCapabilityAvailable: true, musicInput: { generation: [{ scoreMode: 'unsupported' }] } });
     creative.setStage('song');
   });
   const generate = () => document.querySelector('[data-next-action="generate-song"]');

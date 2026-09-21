@@ -53,5 +53,5 @@ storage_policy:
   kind: app-owned-os-storage
   os_storage_disclosure:
     - path_pattern: <Electron userData>/Local Storage/**
-      purpose: Recoverable project drafts (brief, lyrics and take references), language, theme and volume preferences. Audio bytes are not stored here; take references point to Runtime artifacts. This storage is retained when the app is uninstalled from Nimi.
+      purpose: Non-secret language, theme and volume preferences, plus retired browser draft metadata retained for explicit one-time recovery. Current projects, adopted audio and score assets use protected Nimi-mediated App storage. Browser preferences and retired drafts remain when the app is uninstalled from Nimi.
       expected_size_band: Typically KiB to a few MiB of JSON, subject to browser storage quota.

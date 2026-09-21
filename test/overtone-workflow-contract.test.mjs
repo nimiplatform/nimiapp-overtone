@@ -110,12 +110,12 @@ test('takes remain append-only and discarding clears in-memory audio', () => {
   assert.doesNotMatch(storeSource, /takes\.splice|takes\.pop|takes\.shift/);
   assert.match(storeSource, /case 'take\/discard'/);
   assert.doesNotMatch(storeSource, /audioBuffers/);
-  assert.match(storeSource, /cache\.remove\(take\.artifactId\)/);
+  assert.match(storeSource, /cache\.remove\(take\.audio\.relativePath\)/);
 });
 
 test('local drafts persist only project metadata, not audio buffers', () => {
-  assert.match(storeSource, /nimi\.overtone:workspace\.v1/);
-  assert.match(storeSource, /localStorage\.setItem/);
+  assert.match(storeSource, /writeProject/);
+  assert.doesNotMatch(storeSource, /localStorage\.setItem|nimi\.overtone:workspace\.v1/);
   assert.doesNotMatch(storeSource, /JSON\.stringify\(\{ project, audioBuffers/);
 });
 
@@ -149,7 +149,7 @@ test('removed surface names do not reappear in active source', () => {
 });
 
 test('SongTake origin enum admits only spec-listed values', () => {
-  assert.match(typesSource, /type TakeOrigin = 'prompt'/);
+  assert.match(typesSource, /type TakeOrigin = 'runtime-result' \| 'imported-recording' \| 'local-render'/);
 });
 
 test('workspace probes readiness and exposes unavailable state', () => {

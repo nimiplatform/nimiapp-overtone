@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@10.34.5",
   "scripts": {
-    "postinstall": "install-electron",
+    "postinstall": "install-electron --no",
     "dev": "nimi-app dev --shell electron",
     "dev:renderer": "vite --host 127.0.0.1 --port 1507 --strictPort",
     "dev:shell": "nimi-app dev",
@@ -28,8 +28,10 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-i18next": "^16.5.8",
-    "@nimiplatform/sdk": "^0.13.0",
-    "@nimiplatform/kit": "^0.9.0"
+    "@nimiplatform/sdk": "^0.16.0",
+    "@nimiplatform/kit": "^0.12.0",
+    "abcjs": "6.7.0",
+    "@tonejs/midi": "2.0.28"
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",
@@ -46,7 +48,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.6",
     "yaml": "^2.9.0",
-    "@nimiplatform/app-tools": "^0.7.5",
+    "@nimiplatform/app-tools": "^0.8.0",
     "@nimiplatform/nimi-coding": "0.6.3"
   },
   "main": "dist-electron/main.js",

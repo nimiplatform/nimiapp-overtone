@@ -22,16 +22,16 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
       };
     }
     const config = await client.aiConfig.get();
-    const textConfigured = config.config?.capabilities.some(
-      (capability) => capability.capabilityContract === 'text.generate',
-    ) ?? false;
+    const text = config.effectiveSelections.find(item => item.capabilityContract === 'text.generate');
+    const music = config.effectiveSelections.find(item => item.capabilityContract === 'music.generate');
+    const resource = music?.resource;
+    const musicInput = resource?.oneofKind === 'local' ? resource.local.musicInput : resource?.oneofKind === 'cloud' ? resource.cloud.target?.musicInput : undefined;
     return {
       ...base,
       runtimeStatus: 'ready',
-      textCapabilityAvailable: textConfigured,
-      musicCapabilityAvailable: config.config?.capabilities.some(
-        (capability) => capability.capabilityContract === 'music.generate',
-      ) ?? false,
+      textCapabilityAvailable: text?.state === 'ready',
+      musicCapabilityAvailable: music?.state === 'ready',
+      ...(musicInput ? { musicInput } : {}),
     };
   } catch (error) {
     return {

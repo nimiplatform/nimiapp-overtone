@@ -1,4 +1,5 @@
 import React from 'react';
+import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
 import { OvertoneProvider, useOvertoneActions, useOvertonePlayback, useOvertonePersistence, useOvertoneState, useAudioCache } from '../../src/overtone/store.js';
 import { PlayerPanel } from '../../src/overtone/panels/player-panel.js';
 import { DraftSaveNotice } from '../../src/overtone/panels/draft-save-notice.js';
@@ -10,6 +11,6 @@ function Capture({ observe }: { observe: (value: unknown) => void }) {
     persistence: useOvertonePersistence(), cache: useAudioCache(), creative: useExploration() });
   return null;
 }
-export function ComponentHarness({ observe }: { observe: (value: unknown) => void }) {
-  return <OvertoneProvider><ExplorationProvider><Capture observe={observe}/><GeneratePanel/><PlayerPanel/><DraftSaveNotice/></ExplorationProvider></OvertoneProvider>;
+export function ComponentHarness({ observe, storage }: { observe: (value: unknown) => void; storage: Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson'> }) {
+  return <OvertoneProvider storage={storage}><ExplorationProvider><Capture observe={observe}/><GeneratePanel/><PlayerPanel/><DraftSaveNotice/></ExplorationProvider></OvertoneProvider>;
 }

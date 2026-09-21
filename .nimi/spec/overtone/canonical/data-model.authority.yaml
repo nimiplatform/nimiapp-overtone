@@ -5,7 +5,7 @@ units:
   - id: definition.overtone.data-model.song-project
     kind: definition
     title: Song project
-    meaning: One app-owned writing session with projectId, createdAt, brief, lyrics, takes, selectedTakeId, two comparedTakeIds, an optional FullSongDraft, and optional recoverableResults containing only author submission snapshots and references to completed Runtime jobs; execution and media bytes remain Runtime-owned, and cache contents never persist.
+    meaning: One active App-owned music project with schemaVersion 2, projectId, createdAt, brief, lyrics, append-only audio versions, selected and compared version identifiers, score documents and current score selection, an optional FullSongDraft, and recoverable author operations captured before submission. Project JSON and referenced audio and score assets use protected App storage; Runtime execution and routing remain platform-owned.
   - id: definition.overtone.data-model.song-brief
     kind: definition
     title: Song brief
@@ -16,12 +16,12 @@ units:
     meaning: The canonical lyrics record containing text that may include section labels, source equal to assistant, manual, or mixed, and a numeric updatedAt timestamp.
   - id: definition.overtone.data-model.song-take
     kind: definition
-    title: Song take
-    meaning: One verified playable music result with takeId, prompt origin, optional textual parentTakeId, title, Runtime jobId and audio artifactId, verified MIME and byte metadata, immutable prompt and lyric snapshots, actual decoded duration, requested duration and sketch or song intent, favorite and discarded flags, and createdAt.
+    title: Song version
+    meaning: One playable immutable audio version, represented by the App SongTake type, with a takeId, optional parentTakeId, title, owned canonical audio asset and measured audio facts, optional score document, author input snapshot, favorite and discarded flags and createdAt. Origin is a discriminated runtime-result with a real Job and capability, imported-recording with an original source asset, or local-render with a deterministic mix recipe; imported and locally rendered versions never invent a Runtime Job.
   - id: definition.overtone.data-model.take-artifact
     kind: definition
     title: Take artifact
-    meaning: A renderer-only media cache entry keyed by Runtime artifactId, containing verified MIME, original ArrayBuffer bytes, decoded AudioBuffer and compact waveform peaks; evicted audio may leave lightweight peaks, and the retained SongTake references the Runtime artifact.
+    meaning: An owned canonical audio App asset with relativePath, verified MIME, size and digest, sample rate, channels, frame count and duration. Renderer playback and bounded decoded waveform caches are keyed by this asset identity; cache bytes are transient and Runtime Job expiration does not delete adopted App media.
   - id: definition.overtone.data-model.generation-job
     kind: definition
     title: Generation job
@@ -38,7 +38,7 @@ units:
   - id: definition.overtone.data-model.origin-prompt
     kind: definition
     title: Prompt origin
-    meaning: A take generated from prompt and lyrics with no reference audio. Optional parentTakeId records only the take whose text inspired the new interpretation; it never claims audio derivation. Realm source mode remains prompt-only.
+    meaning: Prompt-only musical lineage is an author input snapshot on a runtime-result version. A textual parent relationship never claims preservation of melody, voice, accompaniment or waveform samples. Score-conditioned lineage instead names the immutable input score document and requested conditioning mode.
   - id: definition.overtone.data-model.origin-extend
     kind: definition
     lifecycle: removed
@@ -58,7 +58,7 @@ units:
     kind: rule
     title: Song project shape
     modality: must
-    statement: Maintain exactly one active SongProject with projectId, createdAt, brief, lyrics, append-only takes, selectedTakeId, two comparedTakeIds slots, an optional FullSongDraft and recoverable completed-result references. Keep readiness outside the persisted writing draft and clear the prior project and decoded audio when starting a new exploration.
+    statement: Maintain exactly one active schemaVersion 2 SongProject with its writing inputs, append-only audio versions, score documents and recoverable author operations. Keep readiness and active execution status transient. Starting a new exploration changes the active project and releases playback caches; late results remain bound to their original project and cannot enter the new one.
     condition: Always.
     failure: Reject an invalid project projection; prevent prior project state or audio from entering the new blank playground after a confirmed reset.
     relations:
@@ -86,9 +86,9 @@ units:
         target: definition.overtone.data-model.lyrics-document
   - id: rule.overtone.data-model.r004
     kind: rule
-    title: Song take shape and origin
+    title: Version origin and owned media
     modality: must
-    statement: Represent generated takes with the documented playable-result metadata and origin prompt only. parentTakeId denotes textual inspiration, never audio transformation. Do not declare extend, remix or reference origins without an admitted implemented audio-input operation.
+    statement: Represent every audio version with its owned canonical audio asset, measured facts and discriminated origin. Runtime results require a real completed Job and capability; imported recordings require a preserved source asset; local renders require their actual source versions and deterministic recipe. Keep prompt-only, score-conditioned and audio-derived input lineage distinct and do not invent Jobs or AI provenance for local work.
     condition: When creating or updating a SongTake.
     failure: Reject the take projection when a required field is absent or origin is outside the admitted catalog.
     relations:
@@ -98,9 +98,9 @@ units:
         target: definition.overtone.data-model.song-take
   - id: rule.overtone.data-model.r005
     kind: rule
-    title: In-memory take artifact
+    title: Owned audio playback and bounded cache
     modality: must
-    statement: Read artifacts only through the protected client, verify bytes and MIME essence plus meaningful parameters, and decode before creating a playable take. Share decoded audio and compact waveform peaks in a renderer-only cache with a 256 MiB total resident audio budget and 128 MiB per-decoded-buffer bound, evict least-recently-used unpinned audio, and clear the cache on project reset and discard. Keep only the selected playback artifact pinned and keep lightweight peaks separate. Recover an unavailable result by querying and reading the same Runtime job and artifact, never by new generation. Coalesce media consumers per artifact, cancel abandoned queued reads, bound read waiting to 30 seconds, and keep browser decoding serial; late canceled media never enters the cache.
+    statement: Adopt every required Runtime music artifact through the protected App client, verify returned digest, MIME and size against the completed result, and validate playable audio before adding a version. Read saved assets through admitted media or streaming storage operations. Keep decoded audio and waveform caches transient with a 256 MiB resident budget and 128 MiB per-decoded-buffer bound; long files use bounded windows or the admitted media URL rather than requiring the full file in a JSON response. Browser playback decoding never defines editable frame coordinates. Cancel abandoned reads, bound waiting to 30 seconds, and serialize browser decoding; late canceled media never enters the cache.
     condition: When resolving a completed runtime artifact.
     failure: Withhold SongTake creation, clear affected transient buffers, and surface a typed artifact error.
     relations:
@@ -112,7 +112,7 @@ units:
     kind: rule
     title: Append-only takes
     modality: must
-    statement: Keep takes append-only within a session; permit favorite, rename, and soft discard only; preserve jobId, artifact identity, MIME and byte metadata, promptSnapshot, lyricsSnapshot, source trim metadata, and createdAt on every existing take.
+    statement: Keep audio versions append-only, allowing rename, favorite and soft discard. Preserve origin, owned audio and score identity, source relationships, author input snapshot, measured media facts and createdAt. A new render, edit or mix creates a new version. Do not delete an asset still referenced by another version or score document.
     condition: When an existing take is updated.
     failure: Reject mutation of immutable take fields and retain the prior take record.
     relations:
@@ -120,9 +120,9 @@ units:
         target: definition.overtone.data-model.song-take
   - id: rule.overtone.data-model.r007
     kind: rule
-    title: Transient generation jobs
+    title: Durable author intent and transient execution
     modality: must
-    statement: Keep active job identity and status transient. Upon Runtime completion, preserve a recoverable reference and the author submission snapshot before artifact loading. Atomically replace this app-owned pending-import reference with one decoded take; repeated recovery of a job never duplicates a take. Bind the reference to its submitting app project so late completion cannot populate a different project. If cancellation races with a verified Runtime completion, retain that completed reference rather than discarding the already-generated result.
+    statement: Persist an author operation and clientSubmissionId with immutable input snapshots and target project before Submit, and persist the real jobId when received. Keep execution status transient. Recover only by original submission identity or Job observation without Submit or automatic regeneration. Adopt the complete typed output and atomically save version and score references before removing its pending operation. Deduplicate by real Job identity, preserve concurrent author edits, and retain results on their submitting project when cancellation races with completion.
     condition: When tracking or completing a generation job.
     failure: Keep the job transient and reject completed artifact projection until the corresponding take is created.
     relations:
@@ -134,7 +134,7 @@ units:
     kind: rule
     title: Local persistence boundary
     modality: must
-    statement: Confine local persistence to in-memory React state or localStorage keys under nimi.overtone:* for non-secret preferences and recoverable draft metadata, or to admitted protected Local App storage; never persist tokens, refresh tokens, subject user IDs, OAuth codes, session cookies, Runtime or Realm response mirrors, artifact bytes, decoded audio buffers, uploaded reference audio, or active job projections across restarts in localStorage, sessionStorage, or IndexedDB. Track whether the current draft write succeeded; report failures visibly and allow retry without clearing in-memory writing or completed-result references.
+    statement: Persist project metadata through protected Local App JSON storage and source, canonical audio and score bytes through protected App assets. Browser storage may retain only non-secret language, theme, volume and similar device preferences, never project media, active Jobs or credentials. Track actual save completion, retain in-memory work on failure and allow explicit retry. SchemaVersion 2 hard-cuts the old workspace.v1 browser draft; an explicit one-time local backup and import tool may recover available author inputs and results, but no permanent dual-write or automatic migration path is admitted.
     condition: When application state is stored locally.
     failure: Reject the persistence write, remove prohibited retained data, and surface a typed storage-boundary error where the user action cannot complete.
     relations:

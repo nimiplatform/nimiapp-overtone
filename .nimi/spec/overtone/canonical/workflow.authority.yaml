@@ -76,10 +76,10 @@ units:
         target: definition.overtone.workflow.iteration-loop
   - id: rule.overtone.workflow.r006
     kind: rule
-    title: Music iteration unavailable
+    title: Exact iteration admission
     modality: must_not
-    statement: Enable or dispatch extend, remix, or reference iteration while those inputs are absent from the protected Local App music contract.
-    condition: While the iteration input admission gap remains.
+    statement: Enable or dispatch audio editing, extension, remix or singing iteration without its exact admitted capability, supported selected implementation and complete protected App workflow.
+    condition: When an iteration action is offered or invoked.
     failure: Render the explicit unavailable state and dispatch no request.
     relations:
       - type: applies_to
@@ -152,9 +152,9 @@ units:
     kind: rule
     title: Project reset
     modality: must
-    statement: New Exploration, after confirmation when work exists, clears the current SongProject, decoded audio buffers and owned job subscriptions and opens a fresh blank project in the same playground. Late results from the discarded project cannot populate the new one.
+    statement: New Exploration, after confirmation when work exists, changes the active project, clears decoded playback buffers and cancels owned invocations and observations, then opens a fresh blank project in the same playground. Preserve durable assets and late recoverable results on their original project instead of attaching them to the new one. This is not an implicit deletion of saved media.
     condition: When the author confirms New Exploration.
-    failure: Withhold the fresh project until the prior session state, buffers and owned subscriptions are cleared; ignore late results from that prior session.
+    failure: Keep the prior project or display the actual save or cancellation failure; never show old results as part of the new exploration.
     relations:
       - type: applies_to
         target: definition.overtone.data-model.generation-job

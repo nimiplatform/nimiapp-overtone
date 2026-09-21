@@ -1,0 +1,68 @@
+format: nimicoding.authority/v2
+owner: team.overtone
+scope: overtone.score
+units:
+  - id: definition.overtone.score.document
+    kind: definition
+    title: Preserved score document
+    meaning: An immutable App-owned ABC or MIDI asset with its format, source as imported, generated-plan, transcription-estimate, author-edit or explicit-conversion, optional source version and parent score, and actual truncation fact when supplied by Runtime. A score is a plan or estimate and is not proof that an audio recording follows every note.
+  - id: definition.overtone.score.draft
+    kind: definition
+    title: Editable lead sheet
+    meaning: An App-owned monophonic melody draft with rational quarter-note positions and durations, pitched notes and rests, attached chord symbols, section labels, meter changes, global tempo and key, and an explicit parent document and any declared conversion losses. The draft does not replace its original score or imply sample-aligned source-audio edits.
+  - id: rule.overtone.score.r001
+    kind: rule
+    title: Original score custody
+    modality: must
+    statement: Preserve imported and Runtime-produced score bytes as protected App assets before saving their project references. Keep original and derived documents separate and show whether each is a generation plan, transcription estimate or author revision. Missing bytes or unsupported content cannot be replaced by a fabricated score.
+    condition: When adopting or importing a score.
+    failure: Keep the existing document and report the missing or invalid input without creating a successful score version.
+    relations:
+      - type: applies_to
+        target: definition.overtone.score.document
+  - id: rule.overtone.score.r002
+    kind: rule
+    title: Explicit structured editing subset
+    modality: must
+    statement: Restrict the initial structured editor to one explicitly selected melody voice, ordinary pitched notes, rests, duration fractions, ties, chord symbols, meter changes, section labels, and global tempo and key. Preserve full multi-voice ABC for viewing and supported engine input; deriving a single voice requires an explicit author action and identifies omitted voices. Reject structured editing of unsupported repeats, tuplets, simultaneous notes, ornaments, microtones or ambiguous syntax rather than silently flattening them. Source editing remains distinct from the structured editor and requires validation before use.
+    condition: When turning an existing score into an editable lead sheet.
+    failure: Preserve the original score, identify the unsupported construct, and withhold the unsafe structured conversion.
+    relations:
+      - type: applies_to
+        target: definition.overtone.score.document
+      - type: applies_to
+        target: definition.overtone.score.draft
+  - id: rule.overtone.score.r003
+    kind: rule
+    title: Reversible author edits
+    modality: must
+    statement: Let the author select notes or phrases, edit pitch, onset and duration, replace chords, change tempo and key, undo changes, and audition the original and edited melody using an explicitly labelled local synthesizer. Keep rational musical coordinates distinct from Runtime canonical PCM frame coordinates. Do not label synthesizer playback or volume changes as a new AI singing performance.
+    condition: When the structured score editor is available.
+    failure: Reject overlaps, invalid durations or out-of-range edits and retain the last valid draft and undo state.
+    relations:
+      - type: applies_to
+        target: definition.overtone.score.draft
+  - id: rule.overtone.score.r004
+    kind: rule
+    title: Explicit ABC and MIDI conversion
+    modality: must
+    statement: Treat ABC to MIDI and MIDI to ABC as explicit author actions. Use the pinned libraries' documented public entry points, inspect actual exported events, preserve source bytes, and disclose voice selection, quantization, meter or tempo loss, controller loss and other unsupported content before accepting a derived score. Do not claim universal lossless conversion or silently convert MIDI to pretend the chosen engine accepts MIDI natively.
+    condition: When converting score formats.
+    failure: Preserve the original document, report conversion losses or invalid output, and withhold the derived document until the author accepts a supported result.
+    relations:
+      - type: applies_to
+        target: definition.overtone.score.document
+      - type: applies_to
+        target: definition.overtone.score.draft
+  - id: rule.overtone.score.r005
+    kind: rule
+    title: Score-conditioned regeneration
+    modality: must
+    statement: Submit score-conditioned music only when the current protected resource projection and Runtime admission accept its exact format and conditioning mode. Capture the score version and author input in the operation, keep the prior audio unchanged, and append a new version only after the real output is adopted and playable. Explain that this regenerates the audio version and does not preserve its accompaniment or unselected waveform regions. A supplied score is never relabelled as a newly generated output score.
+    condition: When an author requests a new music version from a score.
+    failure: Preserve the draft and prior version, show the typed unsupported or execution failure, and create no substitute audio.
+    relations:
+      - type: applies_to
+        target: definition.overtone.score.document
+      - type: applies_to
+        target: definition.overtone.score.draft

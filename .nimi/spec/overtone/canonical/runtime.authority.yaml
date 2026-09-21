@@ -13,11 +13,11 @@ units:
   - id: definition.overtone.runtime.binding-f003
     kind: definition
     title: Music generation binding
-    meaning: Feature F-003 binds prompt, lyrics and an admitted optional duration budget to the admitted protected Local App music-generate Scenario Job through the SDK adapter and Kit music runner; a completed Runtime audio artifact is read and decoded before becoming a SongTake.
+    meaning: Protected music.generate uses the SDK Local App adapter and Kit music generation or observation runner. Inputs are captured author description and lyrics, a supported duration budget, optional seed and instrumental intent, and supported owned score with explicit conditioning. The complete typed musicGeneration result is adopted into App assets before becoming an audio version and optional generated-plan score.
   - id: definition.overtone.runtime.binding-f005
     kind: definition
     title: Music iteration binding
-    meaning: Feature F-005 remains unavailable because the protected music operation accepts prompt, lyrics and an optional duration budget, without reference-audio, extend, or remix inputs; those iteration controls dispatch no Runtime operation.
+    meaning: Reference-audio editing, singing conversion and vocal regeneration require their exact admitted Runtime capability and implemented protected App workflow. Score-conditioned regeneration uses music.generate and is distinct from waveform-preserving editing; none of these tasks may be simulated through prompt-only reinterpretation.
   - id: definition.overtone.runtime.binding-f007
     kind: definition
     title: Realm media binding
@@ -66,7 +66,7 @@ units:
     kind: rule
     title: Protected music generation
     modality: must
-    statement: Submit music generation only through the SDK protected Local App Scenario Job adapter and Kit runRuntimeMusicGenerate with prompt, lyrics, and the admitted optional durationSeconds budget from 1 through 180; no generic Runtime client, private SDK, raw IPC, instrumental, or reference input is admitted.
+    statement: Submit music.generate through the protected SDK Scenario Job adapter and Kit runRuntimeMusicGenerate. Use current musicInput profiles for exact legal combinations of lyrics, duration up to the Runtime ceiling, seed, instrumental intent and score format or conditioning; missing projections mean unknown, and Runtime revalidates every request. Persist clientSubmissionId before Submit. Do not infer support from model labels, expose native model paths or forward unsupported fields.
     condition: When submitting music generation.
     failure: Preserve the draft and display the typed failure without creating a SongTake.
     relations:
@@ -78,7 +78,7 @@ units:
     kind: rule
     title: No shadow music job lifecycle
     modality: must
-    statement: Delegate submit, subscription, terminal lookup, and cancellation to the Kit music runner; project Runtime job identity and status, read the completed artifact through the public App client, verify MIME and byte metadata, decode audio before adding a take, and abort the owned invocation when its project closes.
+    statement: Delegate Submit, observation, terminal lookup and cancellation to the Kit music runners. Display Runtime status and only actual supplied progress. Adopt the mix and every required generated score, preserve measured audio facts and termination, and create a playable version only after verification and project persistence. Budget-limit is a cutoff, unknown is not natural completion, and an input score cannot be reported as generated output. Closing a project cancels its owned invocation without moving a late completed result into another project.
     condition: During a music generation invocation.
     failure: Display the actual failure and create no take from incomplete, rejected, cancelled, or undecodable output.
     relations:
@@ -92,7 +92,7 @@ units:
     kind: rule
     title: Iteration admission gap
     modality: must_not
-    statement: Serialize or dispatch reference-audio, extend, remix, or style-reference music iteration while those inputs are absent from the protected Local App music contract.
+    statement: Serialize or dispatch an audio-reference, extension, remix or performance-reference operation unless its exact capability, selected implementation and protected App workflow support that input. A general typed input field does not prove the selected model implements it.
     condition: When constructing or displaying a music iteration request.
     failure: Dispatch nothing and display the explicit App Access unavailable state.
     relations:

@@ -50,7 +50,7 @@ function TakeRow({take,ordinal,isSelected}:{take:SongTake;ordinal:number;isSelec
   const state=useOvertoneState();
   const playback=useOvertonePlayback();
   const creative=useExploration();
-  const {selectTake,favoriteTake,renameTake,discardTake,setCompareSlot}=useOvertoneActions();
+  const {selectTake,selectScore,favoriteTake,renameTake,discardTake,setCompareSlot}=useOvertoneActions();
   const [menuOpen,setMenuOpen]=useState(false);
   const [editing,setEditing]=useState(false);
   const [draft,setDraft]=useState(take.title);
@@ -81,12 +81,17 @@ function TakeRow({take,ordinal,isSelected}:{take:SongTake;ordinal:number;isSelec
       <TextField autoFocus aria-label={t('Overtone.takes.rename')} value={draft} maxLength={80} onChange={event=>setDraft(event.target.value)}/>
       <Button type="submit" tone="primary" size="sm">{t('Overtone.takes.save')}</Button><Button type="button" tone="ghost" size="sm" onClick={()=>setEditing(false)}>{t('Overtone.takes.cancel')}</Button>
     </form>:null}
-    <div className="ot-take-row__sound"><TakeWaveformPreview artifactId={take.artifactId}/>
+    <div className="ot-take-row__sound"><TakeWaveformPreview artifactId={take.audio.relativePath}/>
       <div className="ot-take-shortcuts"><Button size="sm" tone="ghost" className="ot-compare-slot" active={slots[0]===take.takeId} aria-pressed={slots[0]===take.takeId} aria-label={t('Overtone.takes.setCompareA')} onClick={()=>compare(0)}>A</Button>
         <Button size="sm" tone="ghost" className="ot-compare-slot" active={slots[1]===take.takeId} aria-pressed={slots[1]===take.takeId} aria-label={t('Overtone.takes.setCompareB')} onClick={()=>compare(1)}>B</Button>
         <IconButton size="sm" tone="ghost" className="ot-favorite" active={take.favorite} aria-label={t(take.favorite?'Overtone.takes.favoriteActive':'Overtone.takes.favoriteInactive')} aria-pressed={take.favorite} onClick={()=>favoriteTake(take.takeId)} icon={<OvertoneIcon name="heart" size={15}/>}/></div>
     </div>
     {parent?<p className="ot-take-parent"><OvertoneIcon name="branch" size={12}/>{t('Overtone.takes.fromParent',{title:parent.title})}</p>:null}
+    {take.origin === 'runtime-result' && take.termination === 'budget-limit' ? <p className="ot-take-parent">{t('Overtone.score.budgetLimit')}</p> : null}
+    {take.scoreId || take.inputScoreId ? <Button tone="ghost" size="sm" onClick={() => {
+      selectScore((take.scoreId || take.inputScoreId)!); const panel = document.querySelector<HTMLDetailsElement>('#ot-score-panel');
+      if (panel) { panel.open = true; panel.scrollIntoView({ block: 'nearest' }); }
+    }}>{t(take.scoreId ? 'Overtone.score.openGenerated' : 'Overtone.score.openInput')}</Button> : null}
     {isSelected ? <Button className="ot-finish-song" tone="secondary" size="sm" disabled={creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0}
       trailingIcon={<OvertoneIcon name="arrow" size={14}/>} onClick={() => creative.startSong(take)}>
       {t(belongsToSongDraft(take, state.project?.fullSong) ? 'Overtone.song.resume' : state.project?.fullSong ? 'Overtone.song.startAnother' : 'Overtone.song.start')}</Button> : null}
