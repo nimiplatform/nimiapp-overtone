@@ -157,3 +157,64 @@ test('the full-song action withholds incomplete edited arrangements and recovers
   await change(({ actions }) => actions.setFullSong(draft));
   assert.equal(generate().disabled, false);
 });
+
+const { createVoiceConvertVersions } = await loadSource('../src/overtone/runtime-workflow.ts');
+test('voice conversion completion survives a failed project write and retries into one saved pair', async () => {
+  const sha = 'sha256:' + 'a'.repeat(64);
+  const facts = (relativePath, sampleRateHz, channels, frameCount) => ({ relativePath, mimeType: 'audio/wav', sizeBytes: frameCount * channels * 4 + 44, sha256: sha,
+    sampleRateHz, channels, frameCount, durationMs: Math.floor(frameCount * 1000 / sampleRateHz) });
+  const imported = (takeId, audio) => ({ takeId, title: takeId, origin: 'imported-recording', originalAsset: audio, audio,
+    promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 });
+  const vocals = facts('music/results/vocals/result.asset', 44100, 2, 44100 * 60);
+  const target = facts('recordings/target.wav', 44100, 1, 44100 * 8);
+  const background = facts('music/results/background/result.asset', 44100, 2, 44100 * 60);
+  await change(({ actions }) => actions.startProject('Voice conversion'));
+  const projectId = observed.state.project.projectId;
+  for (const [takeId, audio] of [['take-vocals', vocals], ['take-target', target], ['take-background', background]]) {
+    await change(({ actions }) => actions.addTake(projectId, imported(takeId, audio)));
+  }
+  const operation = { clientSubmissionId: 'voice-author-1', projectId, title: 'Vocals · Voice 4', sourceTakeId: 'take-vocals', sourceArtifactId: 'source-artifact',
+    sourceAudio: vocals, sourceRange: { startFrame: 44100 * 30, endFrame: 44100 * 40 },
+    targetVoice: { kind: 'reference-audio', artifactId: 'target-artifact', range: { startFrame: 44100 * 2, endFrame: 44100 * 8 } },
+    targetTakeId: 'take-target', targetAudio: target, retainedAccompanimentTakeId: 'take-background', retainedAccompanimentArtifactId: 'background-artifact',
+    retainedAccompaniment: background, createdAt: 2 };
+  await change(({ actions }) => actions.rememberVoiceConvert(operation));
+  await change(({ actions }) => actions.captureVoiceConvertJob(projectId, 'voice-author-1', 'voice-job-1'));
+  const stored = () => documents.get(`workspace/projects/${projectId}.json`);
+  assert.equal(stored().recoverableVoiceConversions[0].jobId, 'voice-job-1');
+  const vocal = facts('music/results/vocal/result.asset', 24000, 1, 240008);
+  const derived = facts('music/results/derived/result.asset', 44100, 2, 441015);
+  const start = 44100 * 30;
+  const adopted = { jobId: 'voice-job-1', vocalAudio: vocal, convertedVocalArtifactId: 'vocal-artifact', sourceArtifactId: 'source-artifact',
+    sourceInfo: { sampleRateHz: 44100, channels: 2, frameCount: vocals.frameCount, durationMs: vocals.durationMs }, inputRange: operation.sourceRange,
+    vocalInfo: { sampleRateHz: 24000, channels: 1, frameCount: vocal.frameCount, durationMs: vocal.durationMs }, lengthRelation: 'MODEL_FRAME_ROUNDING', durationDeltaMs: 0,
+    mixDomain: { sampleRateHz: 44100, channels: 2 },
+    derived: [{ sourceArtifactId: 'vocal-artifact', artifactId: 'derived-artifact', preparation: { profile: 'canonical-pcm-v1', targetSampleRateHz: 44100, channelMode: 'MONO_TO_STEREO' }, audio: derived }],
+    mixAudio: facts('music/results/mix/result.wav', 44100, 2, Math.max(start + derived.frameCount, background.frameCount)),
+    mixVocalStartFrame: start, mixVocalFrameCount: derived.frameCount, mixAccompanimentFrameCount: background.frameCount,
+    mixOutputFrameCount: Math.max(start + derived.frameCount, background.frameCount), mixPeak: 0.91 };
+  const first = createVoiceConvertVersions(operation, adopted, 'Vocals · Mix 4');
+  writeFailure = true;
+  await change(async ({ actions }) => assert.rejects(actions.completeVoiceConvert(projectId, first.take, first.mixTake), /Isolated storage fault/));
+  assert.equal(observed.state.project.takes.length, 3);
+  assert.equal(observed.state.project.recoverableVoiceConversions.length, 1);
+  assert.equal(stored().takes.length, 3);
+  assert.equal(stored().recoverableVoiceConversions.length, 1);
+  writeFailure = false;
+  // A recovery rerun adopts the same Job again and builds a fresh version pair.
+  const retry = createVoiceConvertVersions(operation, adopted, 'Vocals · Mix 4');
+  await change(({ actions }) => actions.completeVoiceConvert(projectId, retry.take, retry.mixTake));
+  const duplicate = createVoiceConvertVersions(operation, adopted, 'Vocals · Mix 4');
+  await change(({ actions }) => actions.completeVoiceConvert(projectId, duplicate.take, duplicate.mixTake));
+  assert.equal(stored().takes.length, 5);
+  assert.equal(stored().recoverableVoiceConversions.length, 0);
+  assert.deepEqual(stored().takes.slice(3).map(item => item.takeId), [retry.take.takeId, retry.mixTake.takeId]);
+  await unmount(); await mount();
+  const reopened = observed.state.project;
+  assert.equal(reopened.takes.length, 5);
+  const converted = reopened.takes.find(item => item.capability === 'audio.voice.convert');
+  assert.equal(converted.jobId, 'voice-job-1');
+  assert.equal(converted.derivation.mix.vocalStartFrame, start);
+  assert.deepEqual(converted.derivation.targetVoice.range, { startFrame: 44100 * 2, endFrame: 44100 * 8 });
+  assert.equal(converted.derivation.mix.peak, 0.91);
+});

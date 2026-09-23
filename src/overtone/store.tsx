@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { makeId, sameProjectAudio, type FullSongDraft, type GenerationJob, type LyricsDocument, type ReadinessSnapshot, type RecoverableMusicResult, type RecoverableMusicTranscription, type MusicTranscriptionDocument, type SongBrief, type SongTake, type ScoreDocument, type SongProject } from './types.js';
+import { makeId, sameProjectAudio, type FullSongDraft, type GenerationJob, type LyricsDocument, type ReadinessSnapshot, type RecoverableMusicResult, type RecoverableMusicTranscription, type RecoverableVoiceConvert, type RecoverableSeparation, type MusicTranscriptionDocument, type SongBrief, type SongTake, type SeparationSongTake, type ScoreDocument, type SongProject } from './types.js';
 import { MusicAudioCache } from './media-cache.js';
 import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
 import { readCurrentProject, readProject, writeProject, selectCurrentProject } from './project-storage.js';
@@ -22,6 +22,14 @@ type Action =
   | { type: 'transcription/job'; clientSubmissionId: string; jobId: string }
   | { type: 'transcription/forget'; clientSubmissionId: string }
   | { type: 'transcription/complete'; document: MusicTranscriptionDocument; scores: ScoreDocument[] }
+  | { type: 'voiceConvert/remember'; operation: RecoverableVoiceConvert }
+  | { type: 'voiceConvert/job'; clientSubmissionId: string; jobId: string }
+  | { type: 'voiceConvert/forget'; clientSubmissionId: string }
+  | { type: 'voiceConvert/complete'; take: SongTake; mixTake: SongTake }
+  | { type: 'separation/remember'; operation: RecoverableSeparation }
+  | { type: 'separation/job'; separationId: string; jobId: string }
+  | { type: 'separation/forget'; separationId: string }
+  | { type: 'separation/complete'; takes: SongTake[] }
   | { type: 'score/add'; score: ScoreDocument }
   | { type: 'score/select'; scoreId: string | null }
   | { type: 'score/use'; scoreId: string | null }
@@ -87,20 +95,85 @@ export function overtoneReducer(state: OvertoneState, action: Action): OvertoneS
         selectedScoreId: existing?.scoreIds[0] ?? document.scoreIds[0] ?? project.selectedScoreId,
         recoverableTranscriptions: project.recoverableTranscriptions?.filter(item => item.clientSubmissionId !== document.clientSubmissionId && item.jobId !== document.jobId) };
     });
+    case 'voiceConvert/remember': return withProject(state, project => {
+      const operation = action.operation;
+      const source = project.takes.find(take => take.takeId === operation.sourceTakeId);
+      const accompaniment = project.takes.find(take => take.takeId === operation.retainedAccompanimentTakeId);
+      if (project.projectId !== operation.projectId || !source || !sameProjectAudio(source.audio, operation.sourceAudio)
+        || !accompaniment || !sameProjectAudio(accompaniment.audio, operation.retainedAccompaniment)
+        || operation.sourceTakeId === operation.retainedAccompanimentTakeId) throw new Error('OVERTONE_VOICE_CONVERT_IDENTITY');
+      if (project.recoverableVoiceConversions?.some(item => item.clientSubmissionId === operation.clientSubmissionId)) return project;
+      return { ...project, recoverableVoiceConversions: [...project.recoverableVoiceConversions ?? [], operation] };
+    });
+    case 'voiceConvert/job': return withProject(state, project => ({ ...project,
+      recoverableVoiceConversions: project.recoverableVoiceConversions?.map(item => item.clientSubmissionId === action.clientSubmissionId ? { ...item, jobId: action.jobId } : item) }));
+    case 'voiceConvert/forget': return withProject(state, project => ({ ...project,
+      recoverableVoiceConversions: project.recoverableVoiceConversions?.filter(item => item.clientSubmissionId !== action.clientSubmissionId) }));
+    case 'voiceConvert/complete': return withProject(state, project => {
+      const { take, mixTake } = action;
+      if (take.origin !== 'runtime-result' || take.capability !== 'audio.voice.convert'
+        || take.derivation.mix.mixTakeId !== mixTake.takeId || mixTake.origin !== 'local-render') throw new Error('OVERTONE_VOICE_CONVERT_INCOMPLETE');
+      const clear = (items: RecoverableVoiceConvert[] | undefined) => items?.filter(item => item.clientSubmissionId !== take.clientSubmissionId
+        && (item.jobId === undefined || item.jobId !== take.jobId));
+      const existing = project.takes.find(item => item.takeId === take.takeId
+        || (item.origin === 'runtime-result' && item.capability === 'audio.voice.convert' && item.jobId === take.jobId));
+      if (existing) return { ...project, selectedTakeId: existing.takeId, recoverableVoiceConversions: clear(project.recoverableVoiceConversions) };
+      if (project.takes.some(item => item.takeId === mixTake.takeId)) throw new Error('OVERTONE_VOICE_CONVERT_INCOMPLETE');
+      return { ...project, takes: [...project.takes, take, mixTake], selectedTakeId: take.takeId,
+        recoverableVoiceConversions: clear(project.recoverableVoiceConversions) };
+    });
+    case 'separation/remember': return withProject(state, project => {
+      const operation = action.operation;
+      const source = project.takes.find(take => take.takeId === operation.sourceTakeId);
+      if (project.projectId !== operation.projectId || !source || !sameProjectAudio(source.audio, operation.sourceAudio)) {
+        throw new Error('OVERTONE_SEPARATION_IDENTITY');
+      }
+      if (project.recoverableSeparations?.some(item => item.separationId === operation.separationId)) return project;
+      return { ...project, recoverableSeparations: [...project.recoverableSeparations ?? [], operation] };
+    });
+    case 'separation/job': return withProject(state, project => ({ ...project,
+      recoverableSeparations: project.recoverableSeparations?.map(item => item.separationId === action.separationId ? { ...item, jobId: action.jobId } : item) }));
+    case 'separation/forget': return withProject(state, project => ({ ...project,
+      recoverableSeparations: project.recoverableSeparations?.filter(item => item.separationId !== action.separationId) }));
+    case 'separation/complete': return withProject(state, project => {
+      const stems = action.takes.filter((take): take is SeparationSongTake =>
+        take.origin === 'runtime-result' && take.capability === 'audio.separate');
+      if (!action.takes.length || stems.length !== action.takes.length
+        || new Set(stems.map(take => take.separation.stem)).size !== stems.length
+        || new Set(stems.map(take => take.separation.separationId)).size !== 1) throw new Error('OVERTONE_SEPARATION_INCOMPLETE');
+      const identity = stems[0].separation;
+      const missing = stems.filter(take => !project.takes.some(item => item.takeId === take.takeId
+        || (item.origin === 'runtime-result' && item.capability === 'audio.separate' && item.jobId === take.jobId && item.separation.stem === take.separation.stem)));
+      const first = project.takes.find(item => stems.some(take => item.takeId === take.takeId
+        || (item.origin === 'runtime-result' && item.capability === 'audio.separate' && item.jobId === stems[0].jobId && item.separation.stem === take.separation.stem)));
+      return { ...project, takes: [...project.takes, ...missing], selectedTakeId: first?.takeId ?? stems[0].takeId,
+        recoverableSeparations: project.recoverableSeparations?.filter(item => item.separationId !== identity.separationId
+          && (item.jobId === undefined || item.jobId !== stems[0].jobId)) };
+    });
     case 'score/add': return withProject(state, project => ({ ...project,
       scores: project.scores.some(score => score.scoreId === action.score.scoreId) ? project.scores : [...project.scores, action.score], selectedScoreId: action.score.scoreId }));
     case 'score/select': return withProject(state, project => ({ ...project, selectedScoreId: action.scoreId }));
     case 'score/use': return withProject(state, project => ({ ...project, generationScoreId: action.scoreId }));
     case 'score/budget': return withProject(state, project => ({ ...project, scoreBudgetSeconds: action.seconds }));
     case 'take/add': return withProject(state, project => {
+      if (action.take.origin === 'runtime-result' && (action.take.capability === 'audio.voice.convert' || action.take.capability === 'audio.separate')) {
+        throw new Error('OVERTONE_TAKE_COMPLETE_REQUIRED');
+      }
+      if (action.take.origin === 'local-render'
+        && action.take.mixRecipe.sourceTakeIds.some(sourceTakeId => !project.takes.some(item => item.takeId === sourceTakeId))) {
+        throw new Error('OVERTONE_TAKE_COMPLETE_REQUIRED');
+      }
       const existing = project.takes.find(take => take.takeId === action.take.takeId
-        || (take.origin === 'runtime-result' && action.take.origin === 'runtime-result' && take.jobId === action.take.jobId));
+        || (take.origin === 'runtime-result' && action.take.origin === 'runtime-result' && take.capability === action.take.capability
+          && action.take.capability !== 'audio.separate' && take.jobId === action.take.jobId));
       const score = existing ? undefined : action.score;
       return { ...project, takes: existing ? project.takes : [...project.takes, action.take], selectedTakeId: existing?.takeId ?? action.take.takeId,
         scores: score && !project.scores.some(s => s.scoreId === score.scoreId) ? [...project.scores, score] : project.scores,
         selectedScoreId: project.selectedScoreId ?? score?.scoreId ?? null,
         recoverableResults: project.recoverableResults?.filter(result => action.take.origin !== 'runtime-result'
-          || (result.jobId !== action.take.jobId && result.clientSubmissionId !== action.take.clientSubmissionId)) };
+          || (result.jobId !== action.take.jobId && (!(action.take.capability === 'audio.separate') && result.clientSubmissionId !== action.take.clientSubmissionId))),
+        recoverableVoiceConversions: project.recoverableVoiceConversions?.filter(result => action.take.origin !== 'runtime-result'
+          || (result.jobId !== action.take.jobId && (!(action.take.capability === 'audio.separate') && result.clientSubmissionId !== action.take.clientSubmissionId))) };
     });
     case 'take/select': return withProject(state, project => ({ ...project, selectedTakeId: action.takeId }));
     case 'take/favorite': return withProject(state, project => ({ ...project, takes: project.takes.map(take => take.takeId === action.takeId ? { ...take, favorite: !take.favorite } : take) }));
@@ -117,7 +190,7 @@ export function overtoneReducer(state: OvertoneState, action: Action): OvertoneS
 export interface OvertonePlaybackController { togglePlayback: () => void; seekBy: (delta: number) => void; getPosition: () => number }
 const StateContext = createContext<OvertoneState | null>(null);
 const CacheContext = createContext<MusicAudioCache | null>(null);
-function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCache, stateRef: React.RefObject<OvertoneState>, flush: () => Promise<void>, complete: (projectId: string, take: SongTake, score?: ScoreDocument) => Promise<void>, saveScore: (projectId: string, score: ScoreDocument) => Promise<void>, mutateProject: (projectId: string, action: Action) => Promise<void>) {
+function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCache, stateRef: React.RefObject<OvertoneState>, flush: () => Promise<void>, complete: (projectId: string, take: SongTake, score?: ScoreDocument) => Promise<void>, saveScore: (projectId: string, score: ScoreDocument) => Promise<void>, mutateProject: (projectId: string, action: Action) => Promise<void>, completeMutation: (projectId: string, action: Action) => Promise<void>) {
   return useMemo(() => ({
     setReadiness: (readiness: ReadinessSnapshot) => dispatch({ type: 'readiness/set', readiness }),
     setAISettingsOpen: (open: boolean) => dispatch({ type: 'aiSettings/setOpen', open }),
@@ -132,6 +205,14 @@ function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCach
     captureTranscriptionJob: (projectId: string, clientSubmissionId: string, jobId: string) => mutateProject(projectId, { type: 'transcription/job', clientSubmissionId, jobId }),
     forgetTranscription: (projectId: string, clientSubmissionId: string) => mutateProject(projectId, { type: 'transcription/forget', clientSubmissionId }),
     completeTranscription: (projectId: string, result: { document: MusicTranscriptionDocument; scores: ScoreDocument[] }) => mutateProject(projectId, { type: 'transcription/complete', ...result }),
+    rememberVoiceConvert: (operation: RecoverableVoiceConvert) => mutateProject(operation.projectId, { type: 'voiceConvert/remember', operation }),
+    captureVoiceConvertJob: (projectId: string, clientSubmissionId: string, jobId: string) => mutateProject(projectId, { type: 'voiceConvert/job', clientSubmissionId, jobId }),
+    forgetVoiceConvert: (projectId: string, clientSubmissionId: string) => mutateProject(projectId, { type: 'voiceConvert/forget', clientSubmissionId }),
+    completeVoiceConvert: (projectId: string, take: SongTake, mixTake: SongTake) => completeMutation(projectId, { type: 'voiceConvert/complete', take, mixTake }),
+    rememberSeparation: (operation: RecoverableSeparation) => mutateProject(operation.projectId, { type: 'separation/remember', operation }),
+    captureSeparationJob: (projectId: string, separationId: string, jobId: string) => mutateProject(projectId, { type: 'separation/job', separationId, jobId }),
+    forgetSeparation: (projectId: string, separationId: string) => mutateProject(projectId, { type: 'separation/forget', separationId }),
+    completeSeparation: (projectId: string, takes: SongTake[]) => completeMutation(projectId, { type: 'separation/complete', takes }),
     addTake: complete,
     addScore: saveScore,
     selectScore: (scoreId: string | null) => dispatch({ type: 'score/select', scoreId }),
@@ -145,7 +226,7 @@ function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCach
     clearCompare: () => dispatch({ type: 'compare/clear' }),
     setJob: (job: GenerationJob) => dispatch({ type: 'job/set', job }),
     removeJob: (jobId: string) => dispatch({ type: 'job/remove', jobId }),
-  }), [dispatch, cache, stateRef, flush, complete, saveScore, mutateProject]);
+  }), [dispatch, cache, stateRef, flush, complete, saveScore, mutateProject, completeMutation]);
 }
 const ActionsContext = createContext<ReturnType<typeof useStoreActions> | null>(null);
 function usePlaybackBridge(dispatch: React.Dispatch<Action>) {
@@ -222,6 +303,19 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
   }, [storage, publish, save]);
   const complete = useCallback((projectId: string, take: SongTake, score?: ScoreDocument) => mutateProject(projectId, { type: 'take/add', take, score }), [mutateProject]);
   const saveScore = useCallback((projectId: string, score: ScoreDocument) => mutateProject(projectId, { type: 'score/add', score }), [mutateProject]);
+  // Completion writes one valid project first and publishes only after that
+  // write settles, so a failed persistence keeps the in-memory project and its
+  // recoverable operation intact for retry.
+  const completeMutation = useCallback(async (projectId: string, action: Action) => {
+    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+    let project = documents.current.get(projectId) ?? await readProject(storage, projectId);
+    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+    project = documents.current.get(projectId) ?? project;
+    const next = overtoneReducer({ ...stateRef.current, project }, action).project!;
+    await save(next);
+    documents.current.set(projectId, next);
+    if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: next });
+  }, [storage, publish, save, stateRef]);
   useEffect(() => {
     let active = true;
     setPersistence({ status: 'loading' });
@@ -237,7 +331,7 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
     if (!hydrated.current) setLoadAttempt(value => value + 1);
     else if (stateRef.current.project) void save(stateRef.current.project);
   }, [save]);
-  const actions = useStoreActions(dispatch, cache, stateRef, flush, complete, saveScore, mutateProject);
+  const actions = useStoreActions(dispatch, cache, stateRef, flush, complete, saveScore, mutateProject, completeMutation);
   const playback = usePlaybackBridge(dispatch);
   useEffect(() => { alive.current = true; return () => { alive.current = false; cache.clear(); }; }, [cache]);
   return <CacheContext.Provider value={cache}><ActionsContext.Provider value={actions}><PlaybackContext.Provider value={playback}><PersistenceContext.Provider value={{ ...persistence, retry, flush }}><StateContext.Provider value={state}>{children}</StateContext.Provider></PersistenceContext.Provider></PlaybackContext.Provider></ActionsContext.Provider></CacheContext.Provider>;

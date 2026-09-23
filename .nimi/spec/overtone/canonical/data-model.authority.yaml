@@ -17,7 +17,11 @@ units:
   - id: definition.overtone.data-model.song-take
     kind: definition
     title: Song version
-    meaning: One playable immutable audio version, represented by the App SongTake type, with a takeId, optional parentTakeId, title, owned canonical audio asset and measured audio facts, optional score document, author input snapshot, favorite and discarded flags and createdAt. Origin is a discriminated runtime-result with a real Job and capability, imported-recording with an original source asset, or local-render with a deterministic mix recipe; imported and locally rendered versions never invent a Runtime Job.
+    meaning: One playable immutable audio version, represented by the App SongTake type, with a takeId, optional parentTakeId, title, owned canonical audio asset and measured audio facts, optional score document, author input snapshot, favorite and discarded flags and createdAt. Origin is a discriminated runtime-result with a real Job and a canonical capability identity of music.generate, audio.voice.convert or audio.separate, imported-recording with an original source asset, or local-render with a deterministic mix recipe; imported and locally rendered versions never invent a Runtime Job. The hyphenated audio-voice-convert string belongs only to the protected Scenario spec discriminant and never names a capability. An audio.voice.convert version carries its conversion derivation and an audio.separate version carries its separation stem record.
+  - id: definition.overtone.data-model.voice-conversion-derivation
+    kind: definition
+    title: Voice conversion derivation
+    meaning: The auditable record on a converted vocal version naming the exact source take, source artifact and selected range, the target voice reference recording artifact and its optional range, the optional semitone shift, the converted vocal artifact and its reported length relation and duration delta, the retained accompaniment take and artifact kept unchanged, the chosen mix domain, every explicit derived rate or channel preparation, and the mix recipe facts of vocal placement frame, vocal and accompaniment frame counts, longest-track output length and measured mix peak on one shared source timeline. Rate or channel changes happen only through explicit derived preparation records; the placement frame states where the converted vocal starts in the mix domain so a non-zero source selection keeps its source-time offset while the retained accompaniment keeps its zero point and full length. The mix sums both tracks at unity gain without limiting or normalization, and a measured peak above full scale is shown to the author rather than hidden. This record is a conversion and mix intent, never a claim of exact tail alignment, timbre change control or preservation of out-of-range original audio.
   - id: definition.overtone.data-model.take-artifact
     kind: definition
     title: Take artifact
@@ -88,7 +92,7 @@ units:
     kind: rule
     title: Version origin and owned media
     modality: must
-    statement: Represent every audio version with its owned canonical audio asset, measured facts and discriminated origin. Runtime results require a real completed Job and capability; imported recordings require a preserved source asset; local renders require their actual source versions and deterministic recipe. Keep prompt-only, score-conditioned and audio-derived input lineage distinct and do not invent Jobs or AI provenance for local work.
+    statement: Represent every audio version with its owned canonical audio asset, measured facts and discriminated origin. Runtime results require a real completed Job and a canonical capability identity; imported recordings require a preserved source asset; local renders require their actual source versions and deterministic recipe. Keep prompt-only, score-conditioned and audio-derived input lineage distinct and do not invent Jobs or AI provenance for local work. A voice conversion version records its complete conversion derivation including target reference identity, retained accompaniment identity, mix domain, explicit derived preparations, vocal placement and measured mix peak; a separation stem version records its separation identity, source identity, separated source range and stem.
     condition: When creating or updating a SongTake.
     failure: Reject the take projection when a required field is absent or origin is outside the admitted catalog.
     relations:
@@ -96,6 +100,8 @@ units:
         target: definition.overtone.data-model.origin-prompt
       - type: applies_to
         target: definition.overtone.data-model.song-take
+      - type: applies_to
+        target: definition.overtone.data-model.voice-conversion-derivation
   - id: rule.overtone.data-model.r005
     kind: rule
     title: Owned audio playback and bounded cache

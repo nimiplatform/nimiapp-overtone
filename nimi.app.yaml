@@ -19,6 +19,9 @@ metadata:
 capability_contract_refs:
   - text.generate
   - music.generate
+  - music.transcribe
+  - audio.voice.convert
+  - audio.separate
 required_standardized_feature_refs: []
 safety_profile:
   intended_audience: general

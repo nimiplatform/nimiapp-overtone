@@ -1,9 +1,10 @@
 import { createNimiLocalAppRuntimeScenarioJobClient, type NimiLocalAppClient } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeMusicGeneration, runRuntimeMusicGenerate, type RuntimeMusicGenerateResult } from '@nimiplatform/kit/features/generation/runtime';
-import { makeId, type OwnedAsset, type ProjectAudio, type RecoverableMusicResult, type ScoreDocument, type SongTake } from './types.js';
+import type { RuntimeVoiceConvertResult } from '@nimiplatform/kit/features/generation/runtime';
+import { makeId, sameProjectAudio, type AudioInfoFacts, type DerivedAudioRecord, type OwnedAsset, type ProjectAudio, type RecoverableMusicResult, type RecoverableVoiceConvert, type ScoreDocument, type SongTake, type VoiceConvertDerivation } from './types.js';
 import { MusicAudioCache, waitForAbort } from './media-cache.js';
-import { projectWaveform } from './pcm-media.js';
+import { projectWaveform, renderProjectMix } from './pcm-media.js';
 
 export const TEXT_WAIT_TIMEOUT_MS = 90_000;
 export interface RuntimeTextGenerationInput {
@@ -145,8 +146,7 @@ export async function adoptMusicArtifacts<T>(input: { client: MusicClient; cache
   try {
     for (const artifact of artifacts) {
       input.signal.throwIfAborted();
-      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${jobId}:${artifact.artifactId}`)));
-      const token = [...digest].map(b => b.toString(16).padStart(2, '0')).join('');
+      const token = await resultAssetToken(`${jobId}:${artifact.artifactId}`);
       const prefix = `music/results/${token}/`;
       const retained = await input.client.storage.assets.list({ prefix, pageSize: 2 });
       if (retained.nextCursor || retained.assets.length > 1) throw new Error('OVERTONE_ASSET_COLLISION');
@@ -191,4 +191,165 @@ export async function loadProjectAudio(input: { client: Pick<NimiLocalAppClient,
     const { info, peaks } = await projectWaveform(input.client, input.audio, signal);
     return { info, peaks, mimeType: input.audio.mimeType, sizeBytes: input.audio.sizeBytes, sha256: input.audio.sha256 };
   }, input.signal, input.audio);
+}
+
+async function resultAssetToken(seed: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed)));
+  return [...digest].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function ownedWriteAsset(asset: { relativePath: string; mediaType?: string | null; sizeBytes: number; sha256: string }): OwnedAsset {
+  if (asset.mediaType !== 'audio/wav') throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+  return { relativePath: asset.relativePath, mimeType: asset.mediaType, sizeBytes: asset.sizeBytes, sha256: asset.sha256 };
+}
+
+export interface AdoptedVoiceConversion {
+  readonly jobId: string;
+  readonly vocalAudio: ProjectAudio;
+  readonly convertedVocalArtifactId: string;
+  readonly sourceArtifactId: string;
+  readonly sourceInfo: AudioInfoFacts;
+  readonly inputRange: { readonly startFrame: number; readonly endFrame: number };
+  readonly vocalInfo: AudioInfoFacts;
+  readonly lengthRelation: 'EXACT' | 'MODEL_FRAME_ROUNDING';
+  readonly durationDeltaMs: number;
+  readonly mixDomain: { readonly sampleRateHz: number; readonly channels: number };
+  readonly derived: readonly DerivedAudioRecord[];
+  readonly mixAudio: ProjectAudio;
+  readonly mixVocalStartFrame: number;
+  readonly mixVocalFrameCount: number;
+  readonly mixAccompanimentFrameCount: number;
+  readonly mixOutputFrameCount: number;
+  readonly mixPeak: number;
+}
+
+export function createVoiceConvertVersions(operation: RecoverableVoiceConvert, adopted: AdoptedVoiceConversion,
+  mixTitle: string): { take: SongTake; mixTake: SongTake } {
+  const takeId = makeId('take'); const mixTakeId = makeId('take');
+  const derivation: VoiceConvertDerivation = {
+    sourceTakeId: operation.sourceTakeId, sourceArtifactId: operation.sourceArtifactId, sourceRange: operation.sourceRange,
+    sourceInfo: adopted.sourceInfo, targetVoice: operation.targetVoice,
+    ...(operation.semitoneShift !== undefined ? { semitoneShift: operation.semitoneShift } : {}),
+    convertedVocalArtifactId: adopted.convertedVocalArtifactId, inputRange: adopted.inputRange, vocalInfo: adopted.vocalInfo,
+    lengthRelation: adopted.lengthRelation, durationDeltaMs: adopted.durationDeltaMs,
+    retainedAccompanimentTakeId: operation.retainedAccompanimentTakeId,
+    retainedAccompanimentArtifactId: operation.retainedAccompanimentArtifactId,
+    retainedAccompaniment: operation.retainedAccompaniment, mixDomain: adopted.mixDomain, derived: adopted.derived,
+    mix: { mixTakeId, outputFrameCount: adopted.mixOutputFrameCount, lengthPolicy: 'longest-track',
+      vocalStartFrame: adopted.mixVocalStartFrame,
+      vocalFrameCount: adopted.mixVocalFrameCount, accompanimentFrameCount: adopted.mixAccompanimentFrameCount, peak: adopted.mixPeak },
+  };
+  const take: SongTake = {
+    takeId, parentTakeId: operation.sourceTakeId, title: operation.title, origin: 'runtime-result', capability: 'audio.voice.convert',
+    jobId: adopted.jobId, clientSubmissionId: operation.clientSubmissionId, audio: adopted.vocalAudio, derivation,
+    promptSnapshot: '', durationSeconds: adopted.vocalAudio.frameCount / adopted.vocalAudio.sampleRateHz,
+    favorite: false, discarded: false, createdAt: operation.createdAt,
+  };
+  const mixTake: SongTake = {
+    takeId: mixTakeId, parentTakeId: takeId, title: mixTitle, origin: 'local-render',
+    mixRecipe: { sourceTakeIds: [takeId, operation.retainedAccompanimentTakeId] }, audio: adopted.mixAudio,
+    promptSnapshot: '', durationSeconds: adopted.mixAudio.frameCount / adopted.mixAudio.sampleRateHz,
+    favorite: false, discarded: false, createdAt: operation.createdAt,
+  };
+  return { take, mixTake };
+}
+
+// @nimi-authority: rule.overtone.data-model.r004
+export async function adoptVoiceConversion(input: { client: MusicClient; cache: MusicAudioCache; signal: AbortSignal },
+  operation: RecoverableVoiceConvert, result: Extract<RuntimeVoiceConvertResult, { ok: true }>): Promise<AdoptedVoiceConversion> {
+  const conversion = result.output.conversion;
+  if (conversion.sourceArtifactId !== operation.sourceArtifactId
+    || !sameProjectAudio(operation.sourceAudio, { ...operation.sourceAudio, ...conversion.sourceInfo })
+    || conversion.inputRange.startFrame !== operation.sourceRange.startFrame || conversion.inputRange.endFrame !== operation.sourceRange.endFrame) {
+    throw new Error('OVERTONE_VOICE_CONVERT_IDENTITY');
+  }
+  return adoptMusicArtifacts(input, result.output.jobId, result.output.artifacts, async adopted => {
+    const vocalAsset = adopted.get(conversion.vocalArtifactId);
+    if (!vocalAsset || vocalAsset.mimeType !== 'audio/wav') throw new Error('OVERTONE_RESULT_UNAVAILABLE');
+    const vocalAudio: ProjectAudio = { ...vocalAsset, ...conversion.vocalInfo };
+    await loadProjectAudio({ ...input, audio: vocalAudio });
+    input.signal.throwIfAborted();
+    // Mix domain is the app decision: the retained accompaniment's own domain.
+    const mixDomain = { sampleRateHz: operation.retainedAccompaniment.sampleRateHz, channels: operation.retainedAccompaniment.channels };
+    const created: string[] = [];
+    try {
+      let mixVocalAudio = vocalAudio;
+      const derived: DerivedAudioRecord[] = [];
+      if (vocalAudio.sampleRateHz !== mixDomain.sampleRateHz || vocalAudio.channels !== mixDomain.channels) {
+        const channelMode = vocalAudio.channels === mixDomain.channels ? 'PRESERVE'
+          : vocalAudio.channels === 1 && mixDomain.channels === 2 ? 'MONO_TO_STEREO'
+          : vocalAudio.channels === 2 && mixDomain.channels === 1 ? 'STEREO_TO_MONO'
+          : (() => { throw new Error('OVERTONE_VOICE_CONVERT_CHANNEL_MODE'); })();
+        const prepared = await input.client.ai.artifacts.upload({ source: { kind: 'artifact', artifactId: conversion.vocalArtifactId },
+          mimeType: 'audio/wav', audioPreparation: { profile: 'canonical-pcm-v1', targetSampleRateHz: mixDomain.sampleRateHz, channelMode } });
+        input.signal.throwIfAborted();
+        const preparedInfo = prepared.audioInfo;
+        if (prepared.mimeType !== 'audio/wav' || !preparedInfo || preparedInfo.sampleRateHz !== mixDomain.sampleRateHz
+          || preparedInfo.channels !== mixDomain.channels || preparedInfo.frameCount < 1) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+        const token = await resultAssetToken(`${result.output.jobId}:derived:${conversion.vocalArtifactId}`);
+        const prefix = `music/results/${token}/`;
+        const retained = await input.client.storage.assets.list({ prefix, pageSize: 2 });
+        if (retained.nextCursor || retained.assets.length > 1) throw new Error('OVERTONE_ASSET_COLLISION');
+        let asset = retained.assets[0];
+        if (!asset) {
+          asset = await input.client.storage.assets.adoptArtifact({ artifactId: prepared.artifactId, relativePath: `${prefix}result.asset`, overwrite: false });
+          created.push(asset.relativePath);
+        }
+        if (!asset.relativePath.startsWith(`${prefix}result.`) || asset.sizeBytes !== prepared.sizeBytes || asset.mediaType !== prepared.mimeType) {
+          throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+        }
+        mixVocalAudio = { ...ownedWriteAsset(asset), ...preparedInfo };
+        derived.push({ sourceArtifactId: conversion.vocalArtifactId, artifactId: prepared.artifactId,
+          preparation: { profile: 'canonical-pcm-v1', targetSampleRateHz: mixDomain.sampleRateHz, channelMode }, audio: mixVocalAudio });
+      }
+      input.signal.throwIfAborted();
+      // Source-time placement: the converted vocal keeps the selected range's
+      // start on the shared song timeline, converted into the mix domain. The
+      // retained accompaniment keeps its zero point and full length.
+      const vocalStartFrame = Math.round(operation.sourceRange.startFrame / operation.sourceAudio.sampleRateHz * mixDomain.sampleRateHz);
+      const outputFrameCount = Math.max(vocalStartFrame + mixVocalAudio.frameCount, operation.retainedAccompaniment.frameCount);
+      const mixToken = await resultAssetToken(`${result.output.jobId}:mix`);
+      const mixPrefix = `music/results/${mixToken}/`;
+      const retainedMix = await input.client.storage.assets.list({ prefix: mixPrefix, pageSize: 2 });
+      if (retainedMix.nextCursor || retainedMix.assets.length > 1) throw new Error('OVERTONE_ASSET_COLLISION');
+      let mixAudio: ProjectAudio | undefined; let mixPeak: number;
+      const existingMix = retainedMix.assets[0];
+      if (existingMix) {
+        const candidate: ProjectAudio = { relativePath: existingMix.relativePath, mimeType: existingMix.mediaType ?? 'audio/wav',
+          sizeBytes: existingMix.sizeBytes, sha256: existingMix.sha256,
+          sampleRateHz: mixDomain.sampleRateHz, channels: mixDomain.channels, frameCount: outputFrameCount,
+          durationMs: Math.floor(outputFrameCount * 1000 / mixDomain.sampleRateHz) };
+        if (candidate.mimeType !== 'audio/wav') throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+        mixAudio = candidate;
+        // The waveform scans every sample; its bucket maxima give the exact peak.
+        const loaded = await loadProjectAudio({ ...input, audio: mixAudio });
+        mixPeak = Math.max(0, ...loaded.peaks);
+      } else {
+        const rendered = await renderProjectMix({ client: input.client,
+          tracks: [
+            { audio: mixVocalAudio, startFrame: vocalStartFrame, sourceStartFrame: 0, sourceEndFrame: mixVocalAudio.frameCount, gain: 1 },
+            { audio: operation.retainedAccompaniment, startFrame: 0, sourceStartFrame: 0, sourceEndFrame: operation.retainedAccompaniment.frameCount, gain: 1 },
+          ],
+          output: { sampleRateHz: mixDomain.sampleRateHz, channels: mixDomain.channels as 1 | 2, frameCount: outputFrameCount },
+          relativePath: `${mixPrefix}result.wav`, signal: input.signal });
+        created.push(rendered.audio.relativePath);
+        mixAudio = rendered.audio; mixPeak = rendered.peak;
+      }
+      return {
+        jobId: result.output.jobId, vocalAudio, convertedVocalArtifactId: conversion.vocalArtifactId,
+        sourceArtifactId: conversion.sourceArtifactId, sourceInfo: conversion.sourceInfo, inputRange: conversion.inputRange,
+        vocalInfo: conversion.vocalInfo, lengthRelation: conversion.lengthRelation, durationDeltaMs: conversion.durationDeltaMs,
+        mixDomain, derived, mixAudio, mixVocalStartFrame: vocalStartFrame, mixVocalFrameCount: mixVocalAudio.frameCount,
+        mixAccompanimentFrameCount: operation.retainedAccompaniment.frameCount, mixOutputFrameCount: outputFrameCount, mixPeak,
+      };
+    } catch (error) {
+      const failures: string[] = [];
+      for (const path of created.reverse()) {
+        input.cache.remove(path);
+        try { await input.client.storage.assets.remove(path); } catch (cause) { failures.push(String(cause)); }
+      }
+      if (failures.length) throw new Error(`${String(error)}; derived cleanup: ${failures.join('; ')}`);
+      throw error;
+    }
+  });
 }

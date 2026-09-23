@@ -157,6 +157,25 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
     } catch (error) { if (!controller.signal.aborted) setAudioError(String(error)); }
     finally { if (exportController.current === controller) { exportController.current = null; setExporting(false); } }
   }
+  async function exportTrack(audio: ProjectAudio) {
+    if (!selectedTake || exporting) return;
+    const controller = new AbortController(); exportController.current = controller; setExporting(true); setAudioError('');
+    try {
+      const result = await renderProjectMix({ client: getNimiLocalAppClient(), tracks: [{ audio, gain: 1, startFrame: 0, sourceStartFrame: 0, sourceEndFrame: audio.frameCount }],
+        output: { sampleRateHz: audio.sampleRateHz, channels: audio.channels as 1 | 2, frameCount: audio.frameCount },
+        relativePath: 'music/exports/' + makeId('export') + '.wav', signal: controller.signal });
+      controller.signal.throwIfAborted();
+      setLastExport({ sourceTakeId: selectedTake.takeId, audio: result.audio });
+      await getNimiLocalAppClient().storage.assets.reveal(result.audio.relativePath);
+    } catch (error) { if (!controller.signal.aborted) setAudioError(String(error)); }
+    finally { if (exportController.current === controller) { exportController.current = null; setExporting(false); } }
+  }
+  const derivation = selectedTake && selectedTake.origin === 'runtime-result' && selectedTake.capability === 'audio.voice.convert' ? selectedTake.derivation : null;
+  const voiceTracks = derivation && selectedTake ? [
+    { key: 'trackVocal', takeId: selectedTake.takeId, audio: selectedTake.audio },
+    { key: 'trackAccompaniment', takeId: derivation.retainedAccompanimentTakeId, audio: derivation.retainedAccompaniment },
+    ...((() => { const mix = state.project?.takes.find(take => take.takeId === derivation.mix.mixTakeId); return mix ? [{ key: 'trackMix', takeId: derivation.mix.mixTakeId, audio: mix.audio }] : []; })()),
+  ] : null;
 
   return <Surface material="solid" tone="panel" elevation="base" padding="none" className="overtone-transport" data-testid="overtone-transport">
     <div className="overtone-transport__main">
@@ -177,6 +196,14 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
     {loadingAudio ? <NimiText role="helper">{t('Overtone.player.loadingAudio')}</NimiText> : null}
     {audioError ? <InlineAlert tone="warning">{t('Overtone.player.audioUnavailable', { message: audioError === 'OVERTONE_AUDIO_READ_TIMEOUT' ? t('Overtone.player.loadTimeout') : audioError })}<Button tone="ghost" size="sm" onClick={() => setAudioRetry((value) => value + 1)}>{t('Overtone.player.retryAudio')}</Button></InlineAlert> : null}
     {selectedTake ? <div className="overtone-transport__extras">
+      {voiceTracks ? <div className="overtone-row" role="group" aria-label={t('Overtone.voiceConvert.tracks')} data-testid="voice-convert-tracks">
+        {voiceTracks.map(track => <span key={track.takeId} className="overtone-row">
+          <Button tone={track.takeId === selectedTake.takeId ? 'primary' : 'ghost'} size="sm"
+            aria-label={t('Overtone.playground.playTake', { title: t(`Overtone.voiceConvert.${track.key}`) })}
+            onClick={() => playback.requestTake(track.takeId, true)}><OvertoneIcon name="play" size={14} />{t(`Overtone.voiceConvert.${track.key}`)}</Button>
+          <Button tone="ghost" size="sm" loading={exporting} disabled={exporting} onClick={() => void exportTrack(track.audio)}>{t('Overtone.voiceConvert.exportTrack')}</Button>
+        </span>)}
+      </div> : null}
       <div className="overtone-row"><NimiText role="caption">{t('Overtone.playground.speed')}</NimiText>
         <SegmentedControl size="sm" ariaLabel={t('Overtone.playground.speed')} value={String(speed)} onValueChange={changeSpeed}
           items={[{ value: '0.75', label: '0.75×' }, { value: '1', label: '1×' }, { value: '1.25', label: '1.25×' }]} /></div>

@@ -21,6 +21,7 @@ import { GeneratePanel } from './panels/generate-panel.js';
 import { AIConfigPanel } from './panels/ai-config-panel.js';
 import { IterationPanel } from './panels/iteration-panel.js';
 import { TakesPanel } from './panels/takes-panel.js';
+import { VoiceConvertPanel } from './panels/voice-convert-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
 import { DraftSaveNotice } from './panels/draft-save-notice.js';
 import { probeReadiness } from './readiness.js';
@@ -173,6 +174,7 @@ function WorkspaceInner() {
         </section>
         <aside className="ot-recordings" aria-label={t('Overtone.workspace.takesAria')}>
           <TakesPanel />
+          <VoiceConvertPanel />
           {hasTakes ? <IterationPanel /> : null}
         </aside>
         </div>

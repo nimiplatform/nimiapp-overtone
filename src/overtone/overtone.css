@@ -158,14 +158,14 @@ label.ot-prompt-field:focus-within{box-shadow:none}
 .overtone-style-details summary{cursor:pointer}
 .overtone-style-details[open]{min-width:150px}
 .overtone-style-details[open]>div{margin-top:10px}
-.ot-recordings{display:flex;flex-direction:column;min-width:0;min-height:0;border-left:1px solid var(--ot-line);background:var(--ot-surface)}
-.overtone-takes-stack{display:flex;flex-direction:column;flex:1;min-height:0;padding:24px 18px 0}
+.ot-recordings{display:flex;flex-direction:column;min-width:0;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--ot-line) transparent;border-left:1px solid var(--ot-line);background:var(--ot-surface)}
+.overtone-takes-stack{display:flex;flex-direction:column;flex:1 0 auto;min-height:0;padding:24px 18px 0}
 .ot-shelf-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .ot-shelf-heading>div{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .ot-shelf-heading h2{font-size:17px}
 .ot-shelf-heading span{font-size:10px;color:var(--ot-muted)}
 .ot-shelf-hint{font-size:10px;line-height:1.7;color:var(--ot-muted);padding-bottom:15px}
-.ot-take-list{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--ot-line) transparent;margin:0 -6px;padding:0 6px 12px}
+.ot-take-list{flex:1 0 auto;margin:0 -6px;padding:0 6px 12px}
 .ot-take-row{padding:14px 4px;border-bottom:1px solid var(--ot-line);min-width:0}
 .ot-take-row[data-selected="true"]{background:var(--ot-selected);border-radius:10px;border-color:transparent;padding:14px 10px;margin:0 -6px}
 .ot-take-row__head{display:grid;grid-template-columns:32px minmax(0,1fr) 23px;align-items:center;gap:8px}
@@ -183,6 +183,8 @@ label.ot-prompt-field:focus-within{box-shadow:none}
 .ot-favorite[aria-pressed="true"]{color:var(--ot-blue)}
 .ot-favorite[aria-pressed="true"] svg{fill:currentColor}
 .ot-take-parent{display:flex;gap:5px;align-items:center;font-size:9px;color:var(--ot-muted);margin:7px 0 0 40px!important;overflow-wrap:anywhere}
+.ot-voice-record{flex-direction:column;align-items:flex-start;gap:2px}
+.ot-voice-record p{display:flex;gap:5px;align-items:center;margin:0}
 .ot-waveform-status{font-size:9px;color:var(--ot-muted);line-height:1.4}
 .ot-take-menu{padding:0;border:0;background:var(--ot-surface)}
 .ot-rename-form{display:flex;flex-wrap:wrap;gap:5px;margin:12px 0}

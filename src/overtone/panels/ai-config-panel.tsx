@@ -80,7 +80,7 @@ export function AIConfigPanel() {
       footer={<Button tone="secondary" onClick={() => setOpen(false)}>{t('Overtone.configuration.close')}</Button>}
       contentClassName="overtone-section ot-ai-config-content"
       title={t('Overtone.configuration.dialogTitle')}>
-      <ModelConfigAIConfigSurface className="ot-ai-config" context={CONTEXT} capabilityContracts={['text.generate', 'music.generate', 'music.transcribe']}
+      <ModelConfigAIConfigSurface className="ot-ai-config" context={CONTEXT} capabilityContracts={['text.generate', 'music.generate', 'music.transcribe', 'audio.voice.convert', 'audio.separate']}
         capabilities={snapshot ? snapshot.config?.capabilities ?? null : undefined}
         revision={snapshot?.revision} effectiveSelections={snapshot?.effectiveSelections}
         listOptions={(query) => getNimiLocalAppClient().aiConfig.listOptions(query)}
@@ -161,9 +161,11 @@ export function AIConfigPanel() {
           confirmSelectionLabel: t('Overtone.configuration.confirmSelection'),
           unsupportedCapabilityLabel: t('Overtone.configuration.unsupported'),
           capabilityLabel: (contract, fallback) => contract === 'text.generate'
-            ? t('Overtone.configuration.text') : contract === 'music.generate' ? t('Overtone.configuration.music') : contract === 'music.transcribe' ? t('Overtone.transcription.configurationLabel') : fallback,
+            ? t('Overtone.configuration.text') : contract === 'music.generate' ? t('Overtone.configuration.music') : contract === 'music.transcribe' ? t('Overtone.transcription.configurationLabel')
+            : contract === 'audio.voice.convert' ? t('Overtone.voiceConvert.configurationLabel') : contract === 'audio.separate' ? t('Overtone.separation.configurationLabel') : fallback,
           capabilityDescription: (contract, fallback) => contract === 'text.generate'
-            ? t('Overtone.configuration.textHint') : contract === 'music.generate' ? t('Overtone.configuration.musicHint') : contract === 'music.transcribe' ? t('Overtone.transcription.configurationHint') : fallback,
+            ? t('Overtone.configuration.textHint') : contract === 'music.generate' ? t('Overtone.configuration.musicHint') : contract === 'music.transcribe' ? t('Overtone.transcription.configurationHint')
+            : contract === 'audio.voice.convert' ? t('Overtone.voiceConvert.configurationHint') : contract === 'audio.separate' ? t('Overtone.separation.configurationHint') : fallback,
         }}
         language={i18n.resolvedLanguage || i18n.language} />
     </OverlayShell>
