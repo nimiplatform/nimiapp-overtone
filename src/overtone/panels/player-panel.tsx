@@ -171,11 +171,21 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
     finally { if (exportController.current === controller) { exportController.current = null; setExporting(false); } }
   }
   const derivation = selectedTake && selectedTake.origin === 'runtime-result' && selectedTake.capability === 'audio.voice.convert' ? selectedTake.derivation : null;
+  // The accompaniment and mix run on the song timeline; the converted vocal
+  // starts at its recorded placement. A discarded or missing track stays
+  // listed but cannot be selected for playback.
   const voiceTracks = derivation && selectedTake ? [
-    { key: 'trackVocal', takeId: selectedTake.takeId, audio: selectedTake.audio },
-    { key: 'trackAccompaniment', takeId: derivation.retainedAccompanimentTakeId, audio: derivation.retainedAccompaniment },
-    ...((() => { const mix = state.project?.takes.find(take => take.takeId === derivation.mix.mixTakeId); return mix ? [{ key: 'trackMix', takeId: derivation.mix.mixTakeId, audio: mix.audio }] : []; })()),
-  ] : null;
+    { key: 'trackVocal', takeId: selectedTake.takeId, audio: selectedTake.audio, startSeconds: derivation.mix.vocalStartFrame / derivation.mixDomain.sampleRateHz },
+    { key: 'trackAccompaniment', takeId: derivation.retainedAccompanimentTakeId, audio: derivation.retainedAccompaniment, startSeconds: 0 },
+    ...((() => { const mix = state.project?.takes.find(take => take.takeId === derivation.mix.mixTakeId); return mix ? [{ key: 'trackMix', takeId: derivation.mix.mixTakeId, audio: mix.audio, startSeconds: 0 }] : []; })()),
+  ].map(track => ({ ...track, playable: state.project?.takes.some(take => take.takeId === track.takeId && !take.discarded) ?? false })) : null;
+  const currentTrack = voiceTracks?.find(track => track.takeId === selectedTake?.takeId);
+  // Carry the listening position across tracks through the song timeline; a
+  // position outside the target track starts it from its beginning.
+  const trackPosition = (target: { startSeconds: number; audio: { durationMs: number } }) => (seconds: number) => {
+    const local = seconds + (currentTrack?.startSeconds ?? 0) - target.startSeconds;
+    return local >= 0 && local < target.audio.durationMs / 1000 ? local : 0;
+  };
 
   return <Surface material="solid" tone="panel" elevation="base" padding="none" className="overtone-transport" data-testid="overtone-transport">
     <div className="overtone-transport__main">
@@ -198,9 +208,10 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
     {selectedTake ? <div className="overtone-transport__extras">
       {voiceTracks ? <div className="overtone-row" role="group" aria-label={t('Overtone.voiceConvert.tracks')} data-testid="voice-convert-tracks">
         {voiceTracks.map(track => <span key={track.takeId} className="overtone-row">
-          <Button tone={track.takeId === selectedTake.takeId ? 'primary' : 'ghost'} size="sm"
+          <Button tone={track.takeId === selectedTake.takeId ? 'primary' : 'ghost'} size="sm" disabled={!track.playable}
             aria-label={t('Overtone.playground.playTake', { title: t(`Overtone.voiceConvert.${track.key}`) })}
-            onClick={() => playback.requestTake(track.takeId, true)}><OvertoneIcon name="play" size={14} />{t(`Overtone.voiceConvert.${track.key}`)}</Button>
+            onClick={() => playback.requestTake(track.takeId, trackPosition(track))}><OvertoneIcon name="play" size={14} />{t(`Overtone.voiceConvert.${track.key}`)}</Button>
+          {track.playable ? null : <NimiText as="span" role="caption">{t('Overtone.voiceConvert.trackDiscarded')}</NimiText>}
           <Button tone="ghost" size="sm" loading={exporting} disabled={exporting} onClick={() => void exportTrack(track.audio)}>{t('Overtone.voiceConvert.exportTrack')}</Button>
         </span>)}
       </div> : null}

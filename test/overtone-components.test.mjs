@@ -18,10 +18,12 @@ globalThis.cancelAnimationFrame = () => {};
 dom.window.HTMLCanvasElement.prototype.getContext = () => null;
 dom.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 const sources = [];
+// Media length per relative path; unlisted media keeps the 20 second default.
+const mediaSeconds = new Map();
 globalThis.Audio = class extends dom.window.EventTarget {
   constructor() { super(); sources.push(this); }
   currentTime = 0; duration = 20; readyState = 0; paused = true; src = '';
-  load() { this.readyState = 0; if (this.src) queueMicrotask(() => { this.readyState = 4; this.dispatchEvent(new dom.window.Event('loadedmetadata')); }); }
+  load() { this.readyState = 0; if (this.src) queueMicrotask(() => { this.duration = mediaSeconds.get(new URL(this.src).pathname.slice(1)) ?? 20; this.readyState = 4; this.dispatchEvent(new dom.window.Event('loadedmetadata')); }); }
   async play() { this.paused = false; this.dispatchEvent(new dom.window.Event('play')); }
   pause() { this.paused = true; this.dispatchEvent(new dom.window.Event('pause')); }
   removeAttribute(name) { if (name === 'src') this.src = ''; }
@@ -362,4 +364,52 @@ test('an edit made while separation stems are being written is saved with the st
   expectBoth(observed.state.project); expectBoth(documents.get(`workspace/projects/${projectId}.json`));
   await unmount(); await mount();
   expectBoth(observed.state.project);
+});
+
+test('voice conversion tracks carry the listening position through the song timeline', async () => {
+  const media = (name, seconds) => ({ relativePath: `media/${name}.wav`, mimeType: 'audio/wav', sizeBytes: seconds * 8000 * 4 + 44,
+    sha256: 'sha256:' + 'c'.repeat(64), sampleRateHz: 8000, channels: 1, frameCount: seconds * 8000, durationMs: seconds * 1000 });
+  const source = media('source', 60), target = media('target', 10), background = media('background', 60), vocal = media('vocal', 10), mix = media('mix', 60);
+  await change(({ actions }) => actions.startProject('Tracks'));
+  const projectId = observed.state.project.projectId;
+  await change(async ({ cache, actions }) => {
+    for (const audio of [source, target, background, vocal, mix]) {
+      mediaSeconds.set(audio.relativePath, audio.durationMs / 1000);
+      await cache.load(audio.relativePath, async () => ({ info: audio, peaks: [0, 0.5], mimeType: audio.mimeType, sizeBytes: audio.sizeBytes, sha256: audio.sha256 }), new AbortController().signal);
+    }
+    for (const [takeId, audio] of [['source', source], ['target', target], ['background', background]]) {
+      await actions.addTake(projectId, { takeId, title: takeId, origin: 'imported-recording', originalAsset: audio, audio,
+        promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 });
+    }
+  });
+  // Source 30-40 s converted; the mix places the converted vocal at 30 s.
+  const operation = { clientSubmissionId: 'voice-tracks', projectId, title: 'Source · Voice', sourceTakeId: 'source', sourceArtifactId: 'source-artifact',
+    sourceAudio: source, sourceRange: { startFrame: 30 * 8000, endFrame: 40 * 8000 },
+    targetVoice: { kind: 'reference-audio', artifactId: 'target-artifact' }, targetTakeId: 'target', targetAudio: target,
+    retainedAccompanimentTakeId: 'background', retainedAccompanimentArtifactId: 'background-artifact', retainedAccompaniment: background, createdAt: 2 };
+  await change(({ actions }) => actions.rememberVoiceConvert(operation));
+  const versions = createVoiceConvertVersions(operation, { jobId: 'voice-tracks-job', vocalAudio: vocal, convertedVocalArtifactId: 'vocal-artifact',
+    sourceArtifactId: 'source-artifact', sourceInfo: { sampleRateHz: 8000, channels: 1, frameCount: source.frameCount, durationMs: source.durationMs },
+    inputRange: operation.sourceRange, vocalInfo: { sampleRateHz: 8000, channels: 1, frameCount: vocal.frameCount, durationMs: vocal.durationMs },
+    lengthRelation: 'EXACT', durationDeltaMs: 0, mixDomain: { sampleRateHz: 8000, channels: 1 }, derived: [], mixAudio: mix,
+    mixVocalStartFrame: 30 * 8000, mixVocalFrameCount: vocal.frameCount, mixAccompanimentFrameCount: background.frameCount,
+    mixOutputFrameCount: mix.frameCount, mixPeak: 0.5 }, 'Source · Mix');
+  await change(({ actions }) => actions.completeVoiceConvert(projectId, versions.take, versions.mixTake));
+  const playTrack = index => document.querySelectorAll('[data-testid="voice-convert-tracks"] button')[index * 2];
+  const listenFromVocal = async (seconds, index) => {
+    await change(({ actions }) => actions.selectTake(versions.take.takeId));
+    await act(async () => { sources.at(-1).currentTime = seconds; sources.at(-1).dispatchEvent(new dom.window.Event('timeupdate')); });
+    await act(async () => { playTrack(index).click(); });
+    return sources.at(-1).currentTime;
+  };
+  // 5 s into the converted vocal is 35 s into the kept accompaniment and the mix.
+  assert.equal(await listenFromVocal(5, 2), 35);
+  assert.equal(observed.state.project.selectedTakeId, versions.mixTake.takeId);
+  assert.equal(await listenFromVocal(5, 1), 35);
+  assert.equal(observed.state.project.selectedTakeId, 'background');
+  // A discarded kept accompaniment stays listed but cannot clear the player.
+  await change(({ actions }) => { actions.selectTake(versions.take.takeId); actions.discardTake('background'); });
+  assert.equal(playTrack(1).disabled, true);
+  assert.match(document.querySelector('[data-testid="voice-convert-tracks"]').textContent, /Overtone\.voiceConvert\.trackDiscarded/);
+  assert.equal(playTrack(2).disabled, false);
 });

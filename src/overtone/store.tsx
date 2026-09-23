@@ -237,8 +237,11 @@ function usePlaybackBridge(dispatch: React.Dispatch<Action>) {
   const registerController = useCallback((value: OvertonePlaybackController | null) => { controller.current = value; }, []);
   const togglePlayback = useCallback(() => controller.current?.togglePlayback(), []);
   const seekBy = useCallback((delta: number) => controller.current?.seekBy(delta), []);
-  const requestTake = useCallback((takeId: string, preservePosition = false) => {
-    const offset = preservePosition ? controller.current?.getPosition() ?? 0 : 0;
+  // `position` keeps the current position (true) or maps it into the requested
+  // take's own timeline when the two recordings start at different song times.
+  const requestTake = useCallback((takeId: string, position: boolean | ((seconds: number) => number) = false) => {
+    const current = controller.current?.getPosition() ?? 0;
+    const offset = typeof position === 'function' ? position(current) : position ? current : 0;
     dispatch({ type: 'take/select', takeId }); setRequest({ takeId, serial: ++serial.current, offset });
   }, [dispatch]);
   return useMemo(() => ({ registerController, togglePlayback, seekBy, requestTake, request, playingTakeId, reportPlaying }), [registerController,togglePlayback,seekBy,requestTake,request,playingTakeId]);

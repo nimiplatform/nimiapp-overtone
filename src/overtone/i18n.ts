@@ -61,7 +61,7 @@ export const overtoneI18nResources = {
           "recovery": "Check the original voice-conversion task and save its result without running the model again. If no Job was created, remove this entry before explicitly starting again.",
           "restore": "Check original task",
           "takeTitle": "{{title}} · Voice {{number}}", "mixTakeTitle": "{{title}} · Mix {{number}}",
-          "tracks": "Voice conversion tracks", "trackVocal": "Converted vocal", "trackAccompaniment": "Kept accompaniment", "trackMix": "Mix",
+          "tracks": "Voice conversion tracks", "trackVocal": "Converted vocal", "trackAccompaniment": "Kept accompaniment", "trackMix": "Mix", "trackDiscarded": "Discarded, so it cannot be played",
           "exportTrack": "Export WAV",
           "configurationLabel": "Voice conversion", "configurationHint": "Convert one vocal into another voice from a chosen recording.",
           "placementFacts": "Vocal placed at frame {{start}} of the mix domain ({{rate}} Hz)"
@@ -671,7 +671,7 @@ export const overtoneI18nResources = {
           "recovery": "查询原换声任务并保存结果，不会再次运行模型。如果当时尚未创建任务，请先移除此入口，再明确发起换声。",
           "restore": "查询原任务",
           "takeTitle": "{{title}} · 换声 {{number}}", "mixTakeTitle": "{{title}} · 混音 {{number}}",
-          "tracks": "换声音轨", "trackVocal": "换声人声", "trackAccompaniment": "保留的伴奏", "trackMix": "混音",
+          "tracks": "换声音轨", "trackVocal": "换声人声", "trackAccompaniment": "保留的伴奏", "trackMix": "混音", "trackDiscarded": "已丢弃，无法试听",
           "exportTrack": "导出 WAV",
           "configurationLabel": "换声", "configurationHint": "把一段人声换成选定录音中的另一个声音。",
           "placementFacts": "人声放置在混音域第 {{start}} 帧（{{rate}} Hz）"
