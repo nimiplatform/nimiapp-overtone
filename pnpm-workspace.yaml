@@ -6,7 +6,7 @@ allowBuilds:
   protobufjs: true
 
 overrides:
-  '@nimiplatform/sdk': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23/nimiplatform-sdk-0.16.0.tgz'
-  '@nimiplatform/kit': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23/nimiplatform-kit-0.12.0.tgz'
-  '@nimiplatform/app-tools': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23/nimiplatform-app-tools-0.8.0.tgz'
-  '@nimiplatform/kit-protected-local-win32-x64': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz'
+  '@nimiplatform/sdk': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23c/nimiplatform-sdk-0.16.0.tgz'
+  '@nimiplatform/kit': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23c/nimiplatform-kit-0.12.0.tgz'
+  '@nimiplatform/app-tools': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23c/nimiplatform-app-tools-0.8.0.tgz'
+  '@nimiplatform/kit-protected-local-win32-x64': 'file:.nimi/local/music-voice-convert-cohort-2026-09-23c/nimiplatform-kit-protected-local-win32-x64-0.12.0.tgz'

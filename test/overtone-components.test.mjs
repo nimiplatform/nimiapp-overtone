@@ -218,3 +218,148 @@ test('voice conversion completion survives a failed project write and retries in
   assert.deepEqual(converted.derivation.targetVoice.range, { startFrame: 44100 * 2, endFrame: 44100 * 8 });
   assert.equal(converted.derivation.mix.peak, 0.91);
 });
+
+// Holds the first project write that contains a completed result of this
+// capability, so supported edits can arrive through the public actions while
+// it is pending; the held write can then be released or made to fail once.
+function holdCompletionWrite(capability, { fail = false } = {}) {
+  const originalWrite = storage.writeJson; let release, entered, armed = true;
+  const gate = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  storage.writeJson = async (path, value) => {
+    if (armed && value?.takes?.some(item => item.capability === capability)) {
+      armed = false; entered(); await gate;
+      if (fail) throw new Error('Isolated storage fault');
+    }
+    return originalWrite(path, value);
+  };
+  return { started, release: () => release(), restore: () => { storage.writeJson = originalWrite; release(); } };
+}
+
+async function pendingVoiceConversion() {
+  const sha = 'sha256:' + 'a'.repeat(64);
+  const facts = (relativePath, sampleRateHz, channels, frameCount) => ({ relativePath, mimeType: 'audio/wav', sizeBytes: frameCount * channels * 4 + 44, sha256: sha,
+    sampleRateHz, channels, frameCount, durationMs: Math.floor(frameCount * 1000 / sampleRateHz) });
+  const imported = (takeId, audio) => ({ takeId, title: takeId, origin: 'imported-recording', originalAsset: audio, audio,
+    promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 });
+  const vocals = facts('music/results/vocals/result.asset', 44100, 2, 44100 * 60);
+  const target = facts('recordings/target.wav', 44100, 1, 44100 * 8);
+  const background = facts('music/results/background/result.asset', 44100, 2, 44100 * 60);
+  await change(({ actions }) => actions.startProject('Voice conversion'));
+  const projectId = observed.state.project.projectId;
+  for (const [takeId, audio] of [['take-vocals', vocals], ['take-target', target], ['take-background', background]]) {
+    await change(({ actions }) => actions.addTake(projectId, imported(takeId, audio)));
+  }
+  const operation = { clientSubmissionId: 'voice-author-1', projectId, title: 'Vocals · Voice 4', sourceTakeId: 'take-vocals', sourceArtifactId: 'source-artifact',
+    sourceAudio: vocals, sourceRange: { startFrame: 44100 * 30, endFrame: 44100 * 40 },
+    targetVoice: { kind: 'reference-audio', artifactId: 'target-artifact', range: { startFrame: 44100 * 2, endFrame: 44100 * 8 } },
+    targetTakeId: 'take-target', targetAudio: target, retainedAccompanimentTakeId: 'take-background', retainedAccompanimentArtifactId: 'background-artifact',
+    retainedAccompaniment: background, createdAt: 2 };
+  await change(({ actions }) => actions.rememberVoiceConvert(operation));
+  await change(({ actions }) => actions.captureVoiceConvertJob(projectId, 'voice-author-1', 'voice-job-1'));
+  const vocal = facts('music/results/vocal/result.asset', 24000, 1, 240008);
+  const derived = facts('music/results/derived/result.asset', 44100, 2, 441015);
+  const start = 44100 * 30;
+  const adopted = { jobId: 'voice-job-1', vocalAudio: vocal, convertedVocalArtifactId: 'vocal-artifact', sourceArtifactId: 'source-artifact',
+    sourceInfo: { sampleRateHz: 44100, channels: 2, frameCount: vocals.frameCount, durationMs: vocals.durationMs }, inputRange: operation.sourceRange,
+    vocalInfo: { sampleRateHz: 24000, channels: 1, frameCount: vocal.frameCount, durationMs: vocal.durationMs }, lengthRelation: 'MODEL_FRAME_ROUNDING', durationDeltaMs: 0,
+    mixDomain: { sampleRateHz: 44100, channels: 2 },
+    derived: [{ sourceArtifactId: 'vocal-artifact', artifactId: 'derived-artifact', preparation: { profile: 'canonical-pcm-v1', targetSampleRateHz: 44100, channelMode: 'MONO_TO_STEREO' }, audio: derived }],
+    mixAudio: facts('music/results/mix/result.wav', 44100, 2, Math.max(start + derived.frameCount, background.frameCount)),
+    mixVocalStartFrame: start, mixVocalFrameCount: derived.frameCount, mixAccompanimentFrameCount: background.frameCount,
+    mixOutputFrameCount: Math.max(start + derived.frameCount, background.frameCount), mixPeak: 0.91 };
+  return { projectId, pair: () => createVoiceConvertVersions(operation, adopted, 'Vocals · Mix 4'), stored: () => documents.get(`workspace/projects/${projectId}.json`) };
+}
+
+test('edits made while a voice conversion completion is being written are saved with the result', async () => {
+  const { projectId, pair, stored } = await pendingVoiceConversion();
+  const result = pair();
+  const hold = holdCompletionWrite('audio.voice.convert');
+  try {
+    await act(async () => {
+      const completion = observed.actions.completeVoiceConvert(projectId, result.take, result.mixTake);
+      await hold.started;
+      observed.actions.favoriteTake('take-vocals');
+      observed.actions.renameTake('take-target', 'Target reference');
+      hold.release();
+      await completion; await observed.persistence.flush();
+    });
+  } finally { hold.restore(); }
+  const expectBoth = project => {
+    assert.equal(project.takes.length, 5);
+    assert.equal(project.recoverableVoiceConversions?.length ?? 0, 0);
+    assert.equal(project.takes.find(item => item.takeId === 'take-vocals').favorite, true);
+    assert.equal(project.takes.find(item => item.takeId === 'take-target').title, 'Target reference');
+  };
+  expectBoth(observed.state.project); expectBoth(stored());
+  assert.equal(observed.persistence.status, 'saved');
+  await unmount(); await mount();
+  expectBoth(observed.state.project);
+});
+
+test('a failed completion write keeps concurrent edits and the recovery entry; recovery then saves one pair', async () => {
+  const { projectId, pair, stored } = await pendingVoiceConversion();
+  const failed = pair();
+  const hold = holdCompletionWrite('audio.voice.convert', { fail: true });
+  try {
+    await act(async () => {
+      const completion = observed.actions.completeVoiceConvert(projectId, failed.take, failed.mixTake);
+      await hold.started;
+      observed.actions.favoriteTake('take-vocals');
+      hold.release();
+      await assert.rejects(completion, /Isolated storage fault/);
+      await observed.persistence.flush();
+    });
+  } finally { hold.restore(); }
+  for (const project of [observed.state.project, stored()]) {
+    assert.equal(project.takes.length, 3);
+    assert.equal(project.recoverableVoiceConversions.length, 1);
+    assert.equal(project.takes.find(item => item.takeId === 'take-vocals').favorite, true);
+  }
+  const retry = pair();
+  await change(({ actions }) => actions.completeVoiceConvert(projectId, retry.take, retry.mixTake));
+  await unmount(); await mount();
+  const reopened = observed.state.project;
+  assert.equal(reopened.takes.length, 5);
+  assert.equal(reopened.recoverableVoiceConversions?.length ?? 0, 0);
+  assert.equal(reopened.takes.find(item => item.takeId === 'take-vocals').favorite, true);
+  assert.deepEqual(reopened.takes.slice(3).map(item => item.takeId), [retry.take.takeId, retry.mixTake.takeId]);
+});
+
+test('an edit made while separation stems are being written is saved with the stems', async () => {
+  const sha = 'sha256:' + 'b'.repeat(64);
+  const facts = (relativePath, sampleRateHz, channels, frameCount) => ({ relativePath, mimeType: 'audio/wav', sizeBytes: frameCount * channels * 4 + 44, sha256: sha,
+    sampleRateHz, channels, frameCount, durationMs: Math.floor(frameCount * 1000 / sampleRateHz) });
+  const original = facts('recordings/mix.wav', 48000, 2, 48000 * 60);
+  await change(({ actions }) => actions.startProject('Separation'));
+  const projectId = observed.state.project.projectId;
+  await change(({ actions }) => actions.addTake(projectId, { takeId: 'take-mix', title: 'Mix', origin: 'imported-recording', originalAsset: original, audio: original,
+    promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 }));
+  const sourceRange = { startFrame: 48000 * 10, endFrame: 48000 * 20 };
+  const inputPreparation = { profile: 'canonical-pcm-v1', targetSampleRateHz: 44100, channelMode: 'PRESERVE' };
+  await change(({ actions }) => actions.rememberSeparation({ separationId: 'separation-1', projectId, title: 'Mix · Separation', sourceTakeId: 'take-mix',
+    sourceArtifactId: 'mix-artifact', sourceAudio: original, sourceRange, requestedInstrumentParts: false, inputPreparation, createdAt: 2 }));
+  await change(({ actions }) => actions.captureSeparationJob(projectId, 'separation-1', 'separation-job-1'));
+  const stem = (takeId, name) => ({ takeId, title: takeId, promptSnapshot: '', favorite: false, discarded: false, createdAt: 3,
+    origin: 'runtime-result', capability: 'audio.separate', jobId: 'separation-job-1', audio: facts(`music/results/${takeId}/result.asset`, 44100, 2, 441000),
+    separation: { separationId: 'separation-1', sourceTakeId: 'take-mix', sourceArtifactId: 'mix-artifact', sourceAudio: original, sourceRange, stem: name,
+      requestedInstrumentParts: false, inputPreparation } });
+  const hold = holdCompletionWrite('audio.separate');
+  try {
+    await act(async () => {
+      const completion = observed.actions.completeSeparation(projectId, [stem('take-stem-vocals', 'vocals'), stem('take-stem-background', 'background')]);
+      await hold.started;
+      observed.actions.favoriteTake('take-mix');
+      hold.release();
+      await completion; await observed.persistence.flush();
+    });
+  } finally { hold.restore(); }
+  const expectBoth = project => {
+    assert.equal(project.takes.length, 3);
+    assert.equal(project.recoverableSeparations?.length ?? 0, 0);
+    assert.equal(project.takes.find(item => item.takeId === 'take-mix').favorite, true);
+  };
+  expectBoth(observed.state.project); expectBoth(documents.get(`workspace/projects/${projectId}.json`));
+  await unmount(); await mount();
+  expectBoth(observed.state.project);
+});

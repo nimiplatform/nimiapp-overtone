@@ -253,6 +253,7 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
   const [cache] = useState(() => new MusicAudioCache());
   const stateRef = useRef(state);
   const documents = useRef(new Map<string, SongProject>());
+  const written = useRef(new Map<string, SongProject>());
   const savedPointer = useRef('');
   const hydrated = useRef(false);
   const tail = useRef<Promise<void>>(Promise.resolve());
@@ -261,25 +262,35 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
   const [persistence, setPersistence] = useState<PersistenceState>({ status: 'loading' });
   const [loadAttempt, setLoadAttempt] = useState(0);
   const publish = useCallback((next: OvertoneState) => { stateRef.current = next; setState(next); }, []);
-  const save = useCallback((project: SongProject) => {
-    if (stateRef.current.project?.projectId === project.projectId) setPersistence({ status: 'saving' });
+  // One serialized persistence queue for every project. Work reads the
+  // project's latest in-memory document when it runs, never a snapshot taken
+  // when it was queued, so an edit queued behind a completion cannot write an
+  // older document over it.
+  const enqueue = useCallback((projectId: string, work: () => Promise<void>) => {
+    if (stateRef.current.project?.projectId === projectId) setPersistence({ status: 'saving' });
     const operation = tail.current.catch(() => undefined).then(async () => {
       if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
-      await writeProject(storage, project);
+      await work();
       if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
-      if (stateRef.current.project?.projectId === project.projectId && savedPointer.current !== project.projectId) {
-        await selectCurrentProject(storage, project.projectId); savedPointer.current = project.projectId;
+      if (stateRef.current.project?.projectId === projectId && savedPointer.current !== projectId) {
+        await selectCurrentProject(storage, projectId); savedPointer.current = projectId;
       }
     });
     tail.current = operation;
-    latestSave.current.set(project.projectId, operation);
+    latestSave.current.set(projectId, operation);
     void operation.then(() => {
-      if (alive.current && stateRef.current.project?.projectId === project.projectId && latestSave.current.get(project.projectId) === operation) setPersistence({ status: 'saved' });
+      if (alive.current && stateRef.current.project?.projectId === projectId && latestSave.current.get(projectId) === operation) setPersistence({ status: 'saved' });
     }, cause => {
-      if (alive.current && stateRef.current.project?.projectId === project.projectId && latestSave.current.get(project.projectId) === operation) setPersistence({ status: 'failed', error: String(cause) });
+      if (alive.current && stateRef.current.project?.projectId === projectId && latestSave.current.get(projectId) === operation) setPersistence({ status: 'failed', error: String(cause) });
     });
     return operation;
   }, [storage]);
+  const save = useCallback((projectId: string) => enqueue(projectId, async () => {
+    const project = documents.current.get(projectId);
+    if (!project || written.current.get(projectId) === project) return;
+    await writeProject(storage, project);
+    written.current.set(projectId, project);
+  }), [enqueue, storage]);
   const dispatch = useCallback((action: Action) => {
     if (!hydrated.current && action.type !== 'readiness/set' && action.type !== 'aiSettings/setOpen') throw new Error('OVERTONE_STORAGE_NOT_READY');
     const before = stateRef.current;
@@ -287,49 +298,59 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
     publish(next);
     if (next.project && next.project !== before.project) {
       documents.current.set(next.project.projectId, next.project);
-      void save(next.project);
+      void save(next.project.projectId);
     }
   }, [publish, save]);
   const flush = useCallback(() => tail.current, []);
+  const loadDocument = useCallback(async (projectId: string) => {
+    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+    const project = documents.current.get(projectId) ?? await readProject(storage, projectId);
+    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
+    if (!documents.current.has(projectId)) { documents.current.set(projectId, project); written.current.set(projectId, project); }
+    return documents.current.get(projectId)!;
+  }, [storage]);
   const mutateProject = useCallback(async (projectId: string, action: Action) => {
-    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
-    let project = documents.current.get(projectId) ?? await readProject(storage, projectId);
-    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
-    project = documents.current.get(projectId) ?? project;
+    const project = await loadDocument(projectId);
     const next = overtoneReducer({ ...stateRef.current, project }, action).project!;
     documents.current.set(projectId, next);
     if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: next });
-    await save(next);
-  }, [storage, publish, save]);
+    await save(projectId);
+  }, [loadDocument, publish, save]);
   const complete = useCallback((projectId: string, take: SongTake, score?: ScoreDocument) => mutateProject(projectId, { type: 'take/add', take, score }), [mutateProject]);
   const saveScore = useCallback((projectId: string, score: ScoreDocument) => mutateProject(projectId, { type: 'score/add', score }), [mutateProject]);
-  // Completion writes one valid project first and publishes only after that
-  // write settles, so a failed persistence keeps the in-memory project and its
-  // recoverable operation intact for retry.
+  // A completion becomes visible only after a write that contains it
+  // succeeds. It is applied inside the queue to the latest document, then
+  // re-applied to any edit made while that write was pending, whose own queued
+  // write persists both. A failed write leaves the document, its recoverable
+  // operation and concurrent edits unchanged for retry.
   const completeMutation = useCallback(async (projectId: string, action: Action) => {
-    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
-    let project = documents.current.get(projectId) ?? await readProject(storage, projectId);
-    if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
-    project = documents.current.get(projectId) ?? project;
-    const next = overtoneReducer({ ...stateRef.current, project }, action).project!;
-    await save(next);
-    documents.current.set(projectId, next);
-    if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: next });
-  }, [storage, publish, save, stateRef]);
+    const apply = (project: SongProject) => overtoneReducer({ ...stateRef.current, project }, action).project!;
+    apply(await loadDocument(projectId));
+    await enqueue(projectId, async () => {
+      const base = documents.current.get(projectId)!;
+      const next = apply(base);
+      await writeProject(storage, next);
+      written.current.set(projectId, next);
+      const current = documents.current.get(projectId)!;
+      const committed = current === base ? next : apply(current);
+      documents.current.set(projectId, committed);
+      if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: committed });
+    });
+  }, [storage, publish, enqueue, loadDocument]);
   useEffect(() => {
     let active = true;
     setPersistence({ status: 'loading' });
     void readCurrentProject(storage).then(project => {
       if (!active) return;
       hydrated.current = true;
-      if (project) { documents.current.set(project.projectId, project); savedPointer.current = project.projectId; }
+      if (project) { documents.current.set(project.projectId, project); written.current.set(project.projectId, project); savedPointer.current = project.projectId; }
       publish({ ...stateRef.current, project }); setPersistence({ status: 'saved' });
     }, cause => { if (active) setPersistence({ status: 'load-failed', error: String(cause) }); });
     return () => { active = false; };
   }, [storage, loadAttempt, publish]);
   const retry = useCallback(() => {
     if (!hydrated.current) setLoadAttempt(value => value + 1);
-    else if (stateRef.current.project) void save(stateRef.current.project);
+    else if (stateRef.current.project) void save(stateRef.current.project.projectId);
   }, [save]);
   const actions = useStoreActions(dispatch, cache, stateRef, flush, complete, saveScore, mutateProject, completeMutation);
   const playback = usePlaybackBridge(dispatch);
