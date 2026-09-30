@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { loadSource } from './load-source.mjs';
+import { attachProjectAssets, storedProject as inspectStoredProject } from './project-storage-fixture.mjs';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import i18next from 'i18next';
@@ -10,7 +11,7 @@ import { initReactI18next } from 'react-i18next';
 // Real React/Kit components, with isolated storage and an audio sink that records
 // playback commands. These tests do not claim Runtime, decoding or speaker success.
 const dom = new JSDOM('<div id="root"></div>', { url: 'http://component-test.invalid/' });
-for (const name of ['window', 'document', 'HTMLElement', 'HTMLCanvasElement', 'Node', 'MutationObserver', 'localStorage', 'getComputedStyle']) globalThis[name] = dom.window[name];
+for (const name of ['window', 'document', 'HTMLElement', 'HTMLCanvasElement', 'HTMLInputElement', 'Node', 'NodeFilter', 'CustomEvent', 'MutationObserver', 'localStorage', 'getComputedStyle']) globalThis[name] = dom.window[name];
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.ResizeObserver = class { observe() {} disconnect() {} };
 globalThis.requestAnimationFrame = () => 1;
@@ -43,25 +44,32 @@ const storage = {
     documents.set(path, structuredClone(value)); return { value };
   },
 };
-const storedProject = () => JSON.stringify([...documents.entries()].find(([key]) => key.startsWith('workspace/projects/'))?.[1]);
+attachProjectAssets(storage, documents);
+const saved = projectId => inspectStoredProject(storage, documents, projectId);
+const storedProject = () => JSON.stringify(saved(observed.state.project.projectId));
 async function mount() {
   root = createRoot(document.getElementById('root'));
   await act(async () => root.render(React.createElement(ComponentHarness, { storage, openMedia, observe: value => { observed = value; } })));
+  for (let attempt = 0; observed.persistence.status === 'loading' && attempt < 100; attempt++) await act(async () => new Promise(resolve => setImmediate(resolve)));
+  assert.equal(observed.persistence.status, 'saved', observed.persistence.error);
 }
 async function unmount() { if (root) { await act(async () => root.unmount()); root = null; } }
 async function change(fn) { await act(async () => fn(observed)); }
+async function startProject(idea) {
+  await change(async ({ actions, persistence }) => { actions.startProject(idea); await persistence.flush(); });
+}
 async function click(label, times = 1) {
   for (let i = 0; i < times; i++) await act(async () => {
     const button = document.querySelector(`button[aria-label="${label}"]`);
     assert.ok(button, `Missing actual control ${label}`); button.click();
   });
 }
-test.beforeEach(async () => { writeFailure = false; documents.clear(); localStorage.clear(); sources.length = 0; await mount(); });
+test.beforeEach(async () => { writeFailure = false; documents.clear(); localStorage.clear(); storage.assetBodies.clear(); storage.assetRecords.clear(); sources.length = 0; await mount(); });
 test.afterEach(unmount);
 test.after(() => dom.window.close());
 
 test('switching cached takes starts and loops B over its visible default range, not A trim', async () => {
-  await change(({ actions }) => actions.startProject());
+  await startProject();
   await change(async ({ cache, actions, state }) => {
     for (const id of ['a', 'b']) {
       await cache.load(`media/${id}.wav`, async () => ({ info: { sampleRateHz: 8000, channels: 1, frameCount: 160000 }, peaks: [0, 0.5], mimeType: 'audio/wav', sizeBytes: 8, sha256: 'sha256:'+'a'.repeat(64) }), new AbortController().signal);
@@ -85,7 +93,7 @@ test('switching cached takes starts and loops B over its visible default range, 
 });
 
 test('failed draft persistence is visible; retry saves the same completed reference across remount', async () => {
-  await change(({ actions }) => actions.startProject('Original draft'));
+  await startProject('Original draft');
   assert.equal(observed.persistence.status, 'saved');
   const oldStored = storedProject();
   writeFailure = true;
@@ -95,10 +103,10 @@ test('failed draft persistence is visible; retry saves the same completed refere
   assert.equal(observed.state.project.recoverableResults.length, 1);
   assert.equal(storedProject(), oldStored);
   assert.ok(document.querySelector('.ot-draft-save-alert'));
-  await act(async () => document.querySelector('.ot-draft-save-alert button').click());
+  await act(async () => { document.querySelector('.ot-draft-save-alert button').click(); await assert.rejects(observed.persistence.flush(), /Isolated storage fault/); });
   assert.equal(observed.persistence.status, 'failed');
   writeFailure = false;
-  await act(async () => document.querySelector('.ot-draft-save-alert button').click());
+  await act(async () => { document.querySelector('.ot-draft-save-alert button').click(); await observed.persistence.flush(); });
   assert.equal(observed.persistence.status, 'saved');
   assert.equal(document.querySelector('.ot-draft-save-alert'), null);
   await unmount(); await mount();
@@ -120,9 +128,9 @@ test('a full-song result returns to the existing arrangement; a different source
 });
 
 test('a late adopted version is saved to its original project without changing the active project or save indicator', async () => {
-  await change(({ actions }) => actions.startProject('First'));
+  await startProject('First');
   const first = observed.state.project.projectId;
-  await change(({ actions }) => actions.startProject('Second'));
+  await startProject('Second');
   const second = observed.state.project.projectId;
   await change(({ actions }) => actions.addTake(first, { takeId: 'late-take', title: 'Late result', jobId: 'late-job', clientSubmissionId: 'late-author',
     origin: 'runtime-result', capability: 'music.generate', termination: 'budget-limit',
@@ -130,7 +138,7 @@ test('a late adopted version is saved to its original project without changing t
     promptSnapshot: 'First', favorite: false, discarded: false, createdAt: 1 }));
   assert.equal(observed.state.project.projectId, second);
   assert.equal(observed.state.project.takes.length, 0);
-  assert.equal(documents.get(`workspace/projects/${first}.json`).takes.length, 1);
+  assert.equal(saved(first).takes.length, 1);
   assert.equal(documents.get('workspace/current.json').projectId, second);
   assert.equal(observed.persistence.status, 'saved');
 });
@@ -170,7 +178,7 @@ test('voice conversion completion survives a failed project write and retries in
   const vocals = facts('music/results/vocals/result.asset', 44100, 2, 44100 * 60);
   const target = facts('recordings/target.wav', 44100, 1, 44100 * 8);
   const background = facts('music/results/background/result.asset', 44100, 2, 44100 * 60);
-  await change(({ actions }) => actions.startProject('Voice conversion'));
+  await startProject('Voice conversion');
   const projectId = observed.state.project.projectId;
   for (const [takeId, audio] of [['take-vocals', vocals], ['take-target', target], ['take-background', background]]) {
     await change(({ actions }) => actions.addTake(projectId, imported(takeId, audio)));
@@ -182,7 +190,7 @@ test('voice conversion completion survives a failed project write and retries in
     retainedAccompaniment: background, createdAt: 2 };
   await change(({ actions }) => actions.rememberVoiceConvert(operation));
   await change(({ actions }) => actions.captureVoiceConvertJob(projectId, 'voice-author-1', 'voice-job-1'));
-  const stored = () => documents.get(`workspace/projects/${projectId}.json`);
+  const stored = () => saved(projectId);
   assert.equal(stored().recoverableVoiceConversions[0].jobId, 'voice-job-1');
   const vocal = facts('music/results/vocal/result.asset', 24000, 1, 240008);
   const derived = facts('music/results/derived/result.asset', 44100, 2, 441015);
@@ -229,7 +237,8 @@ function holdCompletionWrite(capability, { fail = false } = {}) {
   const gate = new Promise(resolve => { release = resolve; });
   const started = new Promise(resolve => { entered = resolve; });
   storage.writeJson = async (path, value) => {
-    if (armed && value?.takes?.some(item => item.capability === capability)) {
+    const projects = (value?.heads ?? []).map(head => JSON.parse(new TextDecoder().decode(storage.assetBodies.get(head.document.relativePath))));
+    if (armed && projects.some(document => capability === 'music.transcribe' ? document.transcriptions?.length : document.takes?.some(item => item.capability === capability))) {
       armed = false; entered(); await gate;
       if (fail) throw new Error('Isolated storage fault');
     }
@@ -237,6 +246,169 @@ function holdCompletionWrite(capability, { fail = false } = {}) {
   };
   return { started, release: () => release(), restore: () => { storage.writeJson = originalWrite; release(); } };
 }
+
+test('a failed transcription commit keeps its recovery entry and concurrent writing; retry saves one complete estimate', async () => {
+  await startProject('Transcription');
+  const projectId = observed.state.project.projectId;
+  const audio = { relativePath: 'music/imports/source/canonical.wav', mimeType: 'audio/wav', sizeBytes: 640044, sha256: 'sha256:' + 'a'.repeat(64),
+    sampleRateHz: 8000, channels: 1, frameCount: 160000, durationMs: 20000 };
+  await change(({ actions }) => actions.addTake(projectId, { takeId: 'source', title: 'Source', origin: 'imported-recording', originalAsset: audio, audio,
+    promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 }));
+  const operation = { projectId, clientSubmissionId: 'transcribe-author', jobId: 'transcribe-job', sourceTakeId: 'source', sourceAudio: audio,
+    sourceArtifactId: 'source-artifact', sourceRange: { startFrame: 0, endFrame: audio.frameCount }, requestedFormats: ['abc'], requestedPart: 'lead-sheet', title: 'Source', createdAt: 2 };
+  await change(({ actions }) => actions.rememberTranscription(operation));
+  const result = { document: { transcriptionId: 'estimate', clientSubmissionId: operation.clientSubmissionId, jobId: operation.jobId, sourceTakeId: 'source', sourceAudio: audio,
+    sourceRange: operation.sourceRange, scoreIds: ['estimate-score'], completeness: 'unknown', createdAt: 2 },
+    scores: [{ scoreId: 'estimate-score', title: 'Estimate', origin: 'transcription-estimate', format: 'abc', sourceTakeId: 'source', transcriptionId: 'estimate', transcriptionPart: 'lead-sheet',
+      asset: { relativePath: 'scores/estimate.abc', mimeType: 'text/vnd.abc', sizeBytes: 42, sha256: 'sha256:' + 'b'.repeat(64) }, createdAt: 2 }] };
+  const hold = holdCompletionWrite('music.transcribe', { fail: true });
+  try {
+    await act(async () => {
+      const completion = observed.actions.completeTranscription(projectId, result);
+      await hold.started;
+      observed.actions.setLyrics('Author changed these words during save', 'manual');
+      hold.release(); await assert.rejects(completion, /Isolated storage fault/);
+      await observed.persistence.flush();
+    });
+  } finally { hold.restore(); }
+  for (const document of [observed.state.project, saved(projectId)]) {
+    assert.equal(document.transcriptions?.length ?? 0, 0); assert.equal(document.scores.length, 0);
+    assert.equal(document.recoverableTranscriptions.length, 1);
+    assert.equal(document.lyrics.text, 'Author changed these words during save');
+  }
+  await change(({ actions }) => actions.completeTranscription(projectId, result));
+  await change(({ actions }) => actions.completeTranscription(projectId, result));
+  await unmount(); await mount();
+  assert.equal(observed.state.project.transcriptions.length, 1);
+  assert.equal(observed.state.project.scores.length, 1);
+  assert.equal(observed.state.project.recoverableTranscriptions.length, 0);
+  assert.equal(observed.state.project.lyrics.text, 'Author changed these words during save');
+});
+
+test('music results remain recoverable and invisible until their document commit succeeds', async () => {
+  await startProject('Music');
+  const projectId = observed.state.project.projectId;
+  const operation = { clientSubmissionId: 'music-author', projectId, jobId: 'music-job', title: 'Music', promptSnapshot: 'Folk', lyricsSnapshot: 'Words',
+    targetDurationSeconds: 20, creationMode: 'sketch', createdAt: 1 };
+  await change(({ actions }) => actions.rememberResult(operation, projectId));
+  const take = { takeId: 'music-result', title: 'Music', origin: 'runtime-result', capability: 'music.generate', jobId: operation.jobId, clientSubmissionId: operation.clientSubmissionId,
+    termination: 'unknown', promptSnapshot: 'Folk', favorite: false, discarded: false, createdAt: 2,
+    audio: { relativePath: 'music/results/music/result.asset', mimeType: 'audio/wav', sizeBytes: 640044, sha256: 'sha256:' + 'a'.repeat(64), sampleRateHz: 8000, channels: 1, frameCount: 160000, durationMs: 20000 } };
+  writeFailure = true;
+  await change(({ actions }) => assert.rejects(actions.addTake(projectId, take), /Isolated storage fault/));
+  assert.equal(observed.state.project.takes.length, 0);
+  assert.equal(observed.state.project.recoverableResults.length, 1);
+  writeFailure = false;
+  await change(({ actions }) => actions.addTake(projectId, take));
+  assert.equal(saved(projectId).takes.length, 1);
+  assert.equal(saved(projectId).recoverableResults.length, 0);
+});
+
+for (const kind of ['recording', 'score']) {
+  test(`failed ${kind} import retries the exact completion with concurrent edits and reopens once`, async () => {
+    await startProject('Import');
+    const projectId = observed.state.project.projectId;
+    const record = await storage.assets.write({ relativePath: kind === 'recording' ? 'music/imports/source/canonical.wav' : 'scores/source.abc',
+      mediaType: kind === 'recording' ? 'audio/wav' : 'text/vnd.abc', body: new Uint8Array([1, 2, 3]), overwrite: false });
+    const asset = { relativePath: record.relativePath, mimeType: record.mediaType, sizeBytes: record.sizeBytes, sha256: record.sha256 };
+    const audio = { ...asset, sampleRateHz: 8000, channels: 1, frameCount: 8000, durationMs: 1000 };
+    const imported = kind === 'recording'
+      ? { takeId: 'imported', title: 'Recording', origin: 'imported-recording', originalAsset: asset, audio, promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 }
+      : { scoreId: 'imported', title: 'Score', origin: 'imported', format: 'abc', asset, createdAt: 1 };
+    const collection = kind === 'recording' ? 'takes' : 'scores';
+    writeFailure = true;
+    await change(({ actions }) => assert.rejects(kind === 'recording' ? actions.addTake(projectId, imported) : actions.addScore(projectId, imported), /Isolated storage fault/));
+    assert.equal(observed.state.project[collection].length, 0);
+    assert.equal(observed.persistence.status, 'failed');
+    await change(async ({ actions, persistence }) => {
+      actions.setLyrics('Words edited after the failed save', 'manual');
+      await assert.rejects(persistence.flush(), /Isolated storage fault/);
+    });
+    assert.equal(observed.state.project[collection].length, 0);
+    assert.equal(saved(projectId)[collection].length, 0);
+    writeFailure = false;
+    await act(async () => { document.querySelector('.ot-draft-save-alert button').click(); await observed.persistence.flush(); });
+    assert.equal(observed.persistence.status, 'saved');
+    assert.deepEqual(observed.state.project[collection], [imported]);
+    assert.equal(saved(projectId).lyrics.text, 'Words edited after the failed save');
+    await change(async ({ persistence }) => { persistence.retry(); await persistence.flush(); });
+    await unmount(); await mount();
+    assert.deepEqual(observed.state.project[collection], [imported]);
+    assert.equal(observed.state.project.lyrics.text, 'Words edited after the failed save');
+    assert.ok(storage.assetBodies.has(asset.relativePath));
+  });
+}
+
+test('cleanup protects a replaced project with a failed local completion and its unsaved asset', async () => {
+  await startProject('Pending score');
+  const old = observed.state.project.projectId;
+  const asset = await storage.assets.write({ relativePath: 'scores/pending.abc', mediaType: 'text/vnd.abc', body: new Uint8Array([1, 2, 3]), overwrite: false });
+  writeFailure = true;
+  await change(({ actions }) => assert.rejects(actions.addScore(old, { scoreId: 'pending', title: 'Score', origin: 'imported', format: 'abc', createdAt: 1,
+    asset: { relativePath: asset.relativePath, mimeType: asset.mediaType, sizeBytes: asset.sizeBytes, sha256: asset.sha256 } }), /Isolated storage fault/));
+  writeFailure = false;
+  await startProject('Current');
+  await change(({ persistence }) => persistence.cleanup());
+  assert.ok(saved(old));
+  assert.ok(storage.assetBodies.has(asset.relativePath));
+  assert.equal(observed.state.project.scores.length, 0);
+});
+
+test('snapshot cleanup retry requires confirmation and cancel preserves the old project', async () => {
+  await startProject('Old');
+  const old = observed.state.project.projectId;
+  await startProject('Current');
+  const remove = storage.assets.remove;
+  storage.assets.remove = async path => { if (path.startsWith('workspace/projects/')) throw Error('Snapshot cleanup fault'); return remove(path); };
+  try { await change(async ({ actions, persistence }) => { actions.setLyrics('Trigger a new snapshot', 'manual'); await persistence.flush(); }); }
+  finally { storage.assets.remove = remove; }
+  assert.match(observed.persistence.maintenance.warning, /Snapshot cleanup fault/);
+  const retry = () => [...document.querySelectorAll('.ot-draft-save-alert button')].find(button => button.textContent === 'Overtone.storage.retryCleanup');
+  const dialog = () => document.querySelector('[role="dialog"], [role="alertdialog"]');
+  await act(async () => retry().click());
+  assert.ok(dialog()); assert.ok(saved(old));
+  const cancel = [...dialog().querySelectorAll('button')].find(button => button.textContent === 'Overtone.workspace.keepProject');
+  await act(async () => cancel.click());
+  assert.ok(saved(old));
+  await act(async () => retry().click());
+  const confirm = [...dialog().querySelectorAll('button')].find(button => button.textContent === 'Overtone.storage.cleanup');
+  await act(async () => { confirm.click(); await observed.persistence.flush(); });
+  assert.equal(saved(old), undefined);
+  assert.equal(observed.persistence.maintenance.warning, undefined);
+});
+
+test('App operation leases reject cross-panel preparation and cleanup until the original operation releases', async () => {
+  await startProject('In-flight project');
+  const first = observed.state.project.projectId;
+  let release;
+  await change(({ persistence }) => { release = persistence.beginOperation(first); });
+  await startProject('New exploration');
+  assert.throws(() => observed.persistence.beginOperation(observed.state.project.projectId), /OPERATION_BUSY/);
+  await assert.rejects(observed.persistence.cleanup(), /STORAGE_BUSY/);
+  await act(async () => release());
+  await act(async () => await observed.persistence.cleanup());
+  assert.equal(saved(first), undefined);
+  assert.ok(saved(observed.state.project.projectId));
+});
+
+test('a cleanup failure leaves the successful creative save state intact and has its own retry', async () => {
+  await startProject('Old exploration');
+  const old = observed.state.project.projectId;
+  await startProject('Current exploration');
+  const current = observed.state.project.projectId;
+  const original = storage.writeJson;
+  storage.writeJson = async () => { throw Error('Isolated cleanup fault'); };
+  try {
+    await change(({ persistence }) => assert.rejects(persistence.cleanup(), /Isolated cleanup fault/));
+    assert.equal(observed.persistence.status, 'saved');
+    assert.match(observed.persistence.maintenance.warning, /Isolated cleanup fault/);
+    assert.ok(saved(old)); assert.ok(saved(current));
+  } finally { storage.writeJson = original; }
+  await change(({ persistence }) => persistence.cleanup());
+  assert.equal(observed.persistence.status, 'saved');
+  assert.equal(observed.persistence.maintenance.warning, undefined);
+  assert.equal(saved(old), undefined); assert.ok(saved(current));
+});
 
 async function pendingVoiceConversion() {
   const sha = 'sha256:' + 'a'.repeat(64);
@@ -247,7 +419,7 @@ async function pendingVoiceConversion() {
   const vocals = facts('music/results/vocals/result.asset', 44100, 2, 44100 * 60);
   const target = facts('recordings/target.wav', 44100, 1, 44100 * 8);
   const background = facts('music/results/background/result.asset', 44100, 2, 44100 * 60);
-  await change(({ actions }) => actions.startProject('Voice conversion'));
+  await startProject('Voice conversion');
   const projectId = observed.state.project.projectId;
   for (const [takeId, audio] of [['take-vocals', vocals], ['take-target', target], ['take-background', background]]) {
     await change(({ actions }) => actions.addTake(projectId, imported(takeId, audio)));
@@ -270,7 +442,7 @@ async function pendingVoiceConversion() {
     mixAudio: facts('music/results/mix/result.wav', 44100, 2, Math.max(start + derived.frameCount, background.frameCount)),
     mixVocalStartFrame: start, mixVocalFrameCount: derived.frameCount, mixAccompanimentFrameCount: background.frameCount,
     mixOutputFrameCount: Math.max(start + derived.frameCount, background.frameCount), mixPeak: 0.91 };
-  return { projectId, pair: () => createVoiceConvertVersions(operation, adopted, 'Vocals · Mix 4'), stored: () => documents.get(`workspace/projects/${projectId}.json`) };
+  return { projectId, pair: () => createVoiceConvertVersions(operation, adopted, 'Vocals · Mix 4'), stored: () => saved(projectId) };
 }
 
 test('edits made while a voice conversion completion is being written are saved with the result', async () => {
@@ -333,7 +505,7 @@ test('an edit made while separation stems are being written is saved with the st
   const facts = (relativePath, sampleRateHz, channels, frameCount) => ({ relativePath, mimeType: 'audio/wav', sizeBytes: frameCount * channels * 4 + 44, sha256: sha,
     sampleRateHz, channels, frameCount, durationMs: Math.floor(frameCount * 1000 / sampleRateHz) });
   const original = facts('recordings/mix.wav', 48000, 2, 48000 * 60);
-  await change(({ actions }) => actions.startProject('Separation'));
+  await startProject('Separation');
   const projectId = observed.state.project.projectId;
   await change(({ actions }) => actions.addTake(projectId, { takeId: 'take-mix', title: 'Mix', origin: 'imported-recording', originalAsset: original, audio: original,
     promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 }));
@@ -361,7 +533,7 @@ test('an edit made while separation stems are being written is saved with the st
     assert.equal(project.recoverableSeparations?.length ?? 0, 0);
     assert.equal(project.takes.find(item => item.takeId === 'take-mix').favorite, true);
   };
-  expectBoth(observed.state.project); expectBoth(documents.get(`workspace/projects/${projectId}.json`));
+  expectBoth(observed.state.project); expectBoth(saved(projectId));
   await unmount(); await mount();
   expectBoth(observed.state.project);
 });
@@ -370,7 +542,7 @@ test('voice conversion tracks carry the listening position through the song time
   const media = (name, seconds) => ({ relativePath: `media/${name}.wav`, mimeType: 'audio/wav', sizeBytes: seconds * 8000 * 4 + 44,
     sha256: 'sha256:' + 'c'.repeat(64), sampleRateHz: 8000, channels: 1, frameCount: seconds * 8000, durationMs: seconds * 1000 });
   const source = media('source', 60), target = media('target', 10), background = media('background', 60), vocal = media('vocal', 10), mix = media('mix', 60);
-  await change(({ actions }) => actions.startProject('Tracks'));
+  await startProject('Tracks');
   const projectId = observed.state.project.projectId;
   await change(async ({ cache, actions }) => {
     for (const audio of [source, target, background, vocal, mix]) {

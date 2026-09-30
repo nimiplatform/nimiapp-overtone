@@ -1,12 +1,23 @@
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, Menu, protocol, session, webContents } from 'electron';
-import {
+import { configureNimiElectronAppHostProfile } from '@nimiplatform/kit/shell/electron/host-profile';
+
+// @nimi-authority: rule.overtone.kit.r004
+try {
+  configureNimiElectronAppHostProfile(app);
+} catch (error) {
+  process.stderr.write(`[nimi-app-host-profile] ${error instanceof Error ? error.message : String(error)}\n`);
+  app.exit(78);
+  throw error;
+}
+
+const {
   createNimiElectronStandardApplicationMenuTemplate,
   isAllowedElectronRendererUrl,
   registerNimiElectronAppAssetProtocolScheme,
   registerNimiElectronAppBridge,
-} from '@nimiplatform/kit/shell/electron/main';
+} = await import('@nimiplatform/kit/shell/electron/main');
 
 const APP_ID = 'nimi.overtone';
 declare const __NIMI_ELECTRON_PRODUCTION__: boolean;
@@ -20,6 +31,8 @@ const productionRendererUrl = pathToFileURL(path.join(appRoot, 'dist', 'index.ht
 const developmentRendererUrl = readDevelopmentRendererUrl();
 const rendererUrl = developmentRendererUrl || productionRendererUrl;
 const allowedRendererUrls = [rendererUrl];
+let resettingRenderer = false;
+let quitting = false;
 
 app.setName('Nimi Overtone');
 app.commandLine.appendSwitch('disable-background-networking');
@@ -34,6 +47,7 @@ void app.whenReady().then(async () => {
     allowedRendererUrls,
     assetMediaPlatform: { protocol, webRequest: session.defaultSession.webRequest, webContents },
     ipcMain,
+    onSessionInvalidated: resetAccountScopedRenderer,
   });
   await createMainWindow();
   app.on('activate', () => {
@@ -45,8 +59,21 @@ void app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin' && !resettingRenderer && BrowserWindow.getAllWindows().length === 0) app.quit();
 });
+app.on('before-quit', () => { quitting = true; });
+
+function resetAccountScopedRenderer(): void {
+  const windows = BrowserWindow.getAllWindows();
+  if (quitting || windows.length === 0) return;
+  resettingRenderer = true;
+  try {
+    for (const window of windows) window.destroy();
+    void createMainWindow().catch((error: unknown) => {
+      process.stderr.write(`[nimi-app-session-reset] ${error instanceof Error ? error.message : String(error)}\n`);
+    });
+  } finally { resettingRenderer = false; }
+}
 
 async function createMainWindow(): Promise<void> {
   const window = new BrowserWindow({
@@ -68,7 +95,11 @@ async function createMainWindow(): Promise<void> {
   window.webContents.on('will-navigate', (event, url) => {
     if (!isAllowedElectronRendererUrl(url, allowedRendererUrls)) event.preventDefault();
   });
-  await window.loadURL(rendererUrl);
+  try {
+    await window.loadURL(rendererUrl);
+    if (!window.isDestroyed()) { window.show(); window.focus(); }
+  }
+  catch (error) { if (!window.isDestroyed()) throw error; }
 }
 
 function readDevelopmentRendererUrl(): string {

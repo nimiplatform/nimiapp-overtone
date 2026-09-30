@@ -5,7 +5,7 @@ units:
   - id: definition.overtone.kit.allowlist
     kind: definition
     title: Kit module allowlist
-    meaning: The admitted @nimiplatform/kit imports are ui, ui styles, light and nimi accent themes, core offline coordinator, shell renderer bridge and bootstrap, shell Electron main and preload-cjs, features model-config, and features generation runtime.
+    meaning: The admitted @nimiplatform/kit imports are ui, ui styles, light, dark and nimi accent themes, core offline coordinator and audio, shell renderer bridge and bootstrap, shell Electron host-profile, main and preload-cjs, features model-config, and features generation runtime and ui.
   - id: rule.overtone.kit.r001
     kind: rule
     title: Kit-first UI
@@ -40,7 +40,7 @@ units:
     kind: rule
     title: Protected Local App shell
     modality: must
-    statement: Install the Kit standard renderer bridge before constructing NimiLocalAppClient, register the protected Electron bridge and asset media platform in the Electron main process, and render no app-owned login or token surface.
+    statement: Configure the Kit Electron App Host profile before loading the rest of Kit, install the standard renderer bridge before constructing NimiLocalAppClient, and register the protected Electron bridge and asset media platform in main. Session invalidation destroys the old account-scoped renderer before opening a fresh window, without replaying prior work. Render no app-owned login or token surface.
     condition: When bootstrapping the renderer or Electron carrier.
     failure: Fail bootstrap and expose the typed host-unavailable state without constructing a direct Runtime, login, or bearer-token path.
     relations:
@@ -80,9 +80,9 @@ units:
     kind: rule
     title: Public Kit and SDK dependencies
     modality: must
-    statement: Consume published registry @nimiplatform/kit and SDK exports and keep package declarations and lockfile aligned. Do not introduce app-level workspace overrides, local cohort links, local package tarballs or vendored forks; retain the official production preflight and use a matching published App Tools cohort for release.
+    statement: Consume public @nimiplatform/kit and SDK exports from one complete supported package combination and keep declarations, installed packages and lockfile aligned. Development may use complete npm archives through explicit pnpm-workspace overrides, including the matching host-native Kit package, with a documented preparation command. Source-directory links and vendored forks remain forbidden. Public-release preflight requires registry resolutions and a matching published App Tools combination.
     condition: When consuming or changing the Kit dependency.
-    failure: Fail dependency validation and block the divergent Kit source or incomplete lockfile update.
+    failure: Fail dependency validation for a missing archive, unsupported combination, source link or incomplete lockfile update; block public-release preflight while registry resolutions are unavailable.
     relations:
       - type: applies_to
         target: definition.overtone.kit.allowlist

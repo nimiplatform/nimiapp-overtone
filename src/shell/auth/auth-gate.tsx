@@ -7,6 +7,7 @@ import {
   type RuntimePlatformUnavailableProjection,
 } from './runtime-platform.js';
 import { RuntimeUnavailablePage } from './runtime-unavailable-page.js';
+import { useTranslation } from 'react-i18next';
 
 const runtimeGateOfflineCoordinator = new OfflineCoordinator();
 
@@ -35,6 +36,7 @@ async function resolveGateState(): Promise<GateState> {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<GateState>({ kind: 'checking' });
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -66,7 +68,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (state.kind === 'checking') {
     return (
       <main className="runtime-check-screen">
-        <StatusBadge tone="neutral" shape="dot">App-host check</StatusBadge>
+        <StatusBadge tone="neutral" shape="dot">{t('Overtone.host.checking')}</StatusBadge>
       </main>
     );
   }

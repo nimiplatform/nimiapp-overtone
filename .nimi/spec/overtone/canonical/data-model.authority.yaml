@@ -5,7 +5,7 @@ units:
   - id: definition.overtone.data-model.song-project
     kind: definition
     title: Song project
-    meaning: One active App-owned music project with schemaVersion 2, projectId, createdAt, brief, lyrics, append-only audio versions, selected and compared version identifiers, score documents and current score selection, an optional FullSongDraft, and recoverable author operations captured before submission. Project JSON and referenced audio and score assets use protected App storage; Runtime execution and routing remain platform-owned.
+    meaning: One active App-owned music project with schemaVersion 3, projectId, createdAt, brief, lyrics, append-only audio versions, selected and compared version identifiers, score documents and current score selection, an optional FullSongDraft, and recoverable author operations captured before submission. A protected JSON catalog contains every project head selecting an immutable owned JSON document asset; referenced audio and scores also use protected App assets. This catalog owns only App creative document references, not platform identity or execution. Creative documents and their cleanup belong to the App; Runtime execution and routing remain platform-owned.
   - id: definition.overtone.data-model.song-brief
     kind: definition
     title: Song brief
@@ -62,7 +62,7 @@ units:
     kind: rule
     title: Song project shape
     modality: must
-    statement: Maintain exactly one active schemaVersion 2 SongProject with its writing inputs, append-only audio versions, score documents and recoverable author operations. Keep readiness and active execution status transient. Starting a new exploration changes the active project and releases playback caches; late results remain bound to their original project and cannot enter the new one.
+    statement: Maintain exactly one active schemaVersion 3 SongProject with its writing inputs, append-only audio versions, score documents and recoverable author operations. Keep readiness and active execution status transient. Starting a new exploration changes the active project and releases playback caches; late results remain bound to their original project and cannot enter the new one.
     condition: Always.
     failure: Reject an invalid project projection; prevent prior project state or audio from entering the new blank playground after a confirmed reset.
     relations:
@@ -128,7 +128,7 @@ units:
     kind: rule
     title: Durable author intent and transient execution
     modality: must
-    statement: Persist an author operation and clientSubmissionId with immutable input snapshots and target project before Submit, and persist the real jobId when received. Keep execution status transient. Recover only by original submission identity or Job observation without Submit or automatic regeneration. Adopt the complete typed output and atomically save version and score references before removing its pending operation. Deduplicate by real Job identity, preserve concurrent author edits, and retain results on their submitting project when cancellation races with completion.
+    statement: Persist the immutable author input and target project before Submit, using clientSubmissionId for music generation, transcription and voice conversion, and persist the real jobId when received. Audio separation admits only the captured jobId for recovery; an operation without it cannot be restored and must never invent a submission lookup identity. Keep execution status transient. Recover only by original submission identity or Job observation without Submit or automatic regeneration. Adopt the complete typed output and atomically save version and score references before removing its pending operation. Deduplicate by real Job identity, preserve concurrent author edits, and retain results on their submitting project when cancellation races with completion.
     condition: When tracking or completing a generation job.
     failure: Keep the job transient and reject completed artifact projection until the corresponding take is created.
     relations:
@@ -140,7 +140,7 @@ units:
     kind: rule
     title: Local persistence boundary
     modality: must
-    statement: Persist project metadata through protected Local App JSON storage and source, canonical audio and score bytes through protected App assets. Browser storage may retain only non-secret language, theme, volume and similar device preferences, never project media, active Jobs or credentials. Track actual save completion, retain in-memory work on failure and allow explicit retry. Project writes are serialized and each persists the latest valid document, so a queued write never restores an older snapshot over saved work; a completed result becomes visible only after a write containing it succeeds and keeps edits made while that write was pending. SchemaVersion 2 hard-cuts the old workspace.v1 browser draft; an explicit one-time local backup and import tool may recover available author inputs and results, but no permanent dual-write or automatic migration path is admitted.
+    statement: Persist immutable project JSON documents through protected App assets and select them through one protected Local App JSON catalog containing all project heads, keeping project document growth outside the per-JSON-entry budget. Verify document size, MIME and digest on write and read, and bound one document to 16 MiB with visible capacity feedback at 80 percent; export needed recordings and start a new exploration before continuing beyond the document budget. Source, canonical audio and scores also use protected App assets. Browser storage may retain only non-secret device preferences, never project media, active Jobs or credentials. Serialize writes of the latest valid document and atomically commit its catalog head before showing completed results or removing recovery entries, preserving concurrent author edits. A failed commit retains the prior saved head and valid assets for retry; imported recordings and author-created scores without a Runtime recovery identity retain their exact pending completion in memory until save retry commits it. Uncertain commits must not delete a possibly referenced document. SchemaVersion 3 and its complete head catalog hard-cut prior inline project, separate-head and browser draft formats; prior unlaunched development projects are not preserved, and no automatic migration or dual-write path is admitted. Any remaining machine-local obsolete state is handled by an explicit one-time tool outside the product.
     condition: When application state is stored locally.
     failure: Reject the persistence write, remove prohibited retained data, and surface a typed storage-boundary error where the user action cannot complete.
     relations:
@@ -170,3 +170,15 @@ units:
     relations:
       - type: applies_to
         target: definition.overtone.data-model.readiness-snapshot
+  - id: rule.overtone.data-model.r011-storage-lifecycle
+    kind: rule
+    title: Reference-safe project storage cleanup
+    modality: must
+    statement: Remove superseded project document snapshots only after their replacement head commits. Offer confirmed cleanup of replaced projects without pending author recovery operations and their unreferenced owned assets; every cleanup entry including retry must obtain that confirmation. Enumerate every project head from the protected App document catalog before deleting anything, never infer the project inventory from surviving document assets. Preserve the current project, projects used by in-flight App operations, all pending recovery or local completion projects and assets referenced by any retained project. Fail closed on an unreadable catalog, project head or document; expose cleanup failures separately from successful creative saves and support retry. Remove obsolete heads atomically from the catalog before deleting their document snapshots, so partial deletion remains retryable. Cleanup never submits, cancels or infers Runtime Jobs, and introduces no multi-project navigation or platform registry.
+    condition: When reclaiming App-owned project storage.
+    failure: Retain uncertain or referenced data and show the actual cleanup error without claiming reclaimed storage.
+    relations:
+      - type: applies_to
+        target: definition.overtone.data-model.song-project
+      - type: applies_to
+        target: definition.overtone.data-model.take-artifact

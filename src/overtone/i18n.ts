@@ -566,6 +566,10 @@ export const overtoneI18nResources = {
         },
         "player": {
           "play": "Play",
+          "seekWaveform": "Seek through the selected recording",
+          "seekRecording": "Seek through {{title}}",
+          "recordingWaveform": "Waveform of {{title}}",
+          "shortcuts": "Shortcuts outside controls: Space plays or pauses; ←/→ seeks 5 seconds, Shift + ←/→ seeks 15 seconds. Ctrl/Cmd + N starts a new exploration; Escape exits compare.",
           "pause": "Pause",
           "loadingAudio": "Loading audio…",
           "audioUnavailable": "Audio unavailable: {{message}}",
@@ -580,6 +584,19 @@ export const overtoneI18nResources = {
           "trimEndIncreaseAria": "Increase trim end",
           "volumeAria": "Volume",
           "invalidTrim": "Invalid trim"
+        },
+        "host": {
+          "checking": "Checking the Nimi connection",
+          "actionRequired": "Action required",
+          "unavailable": "Nimi connection unavailable",
+          "fallback": "Make sure Nimi is running, then retry the connection.",
+          "retry": "Retry Nimi connection",
+          "offlineTier": "Offline tier: {{tier}}",
+          "reasons": {
+            "local-development-registration-required": "Start this development project through Nimi Desktop's official launcher.",
+            "local-development-session-revoked": "Nimi access for this App is unavailable. Retry when access is restored.",
+            "local-development-project-changed": "The project identity differs from its current registration. Restore the registered identity and restart."
+          }
         },
         "runtime": {
           "status": {
@@ -598,6 +615,14 @@ export const overtoneI18nResources = {
           "incomplete": "The writing ended before a complete candidate arrived. Your draft is kept; please try again."
         },
         "storage": {
+          "nearCapacity": "This exploration is approaching its document limit. Export the recordings you want to keep, then start a new exploration. Storage cleanup does not shrink the current exploration.",
+          "cleanup": "Clean up storage",
+          "cleanupTitle": "Remove data from replaced explorations?",
+          "cleanupHint": "Permanently remove replaced explorations and their recordings and scores. The current exploration, pending recovery work, shared assets and exported audio are kept. This does not stop Runtime tasks.",
+          "cleaned": "Removed {{count}} unused files.",
+          "cleanupFailed": "Storage cleanup did not finish",
+          "cleanupFailedHint": "The current exploration and recovery data are kept. Retry cleanup when no recording operation is running.",
+          "retryCleanup": "Retry cleanup",
           "loadFailedTitle": "This project could not be opened",
           "loadFailedHint": "Your saved project was kept. Retry opening it before creating new work.",
           "retryLoad": "Retry opening",
@@ -1176,6 +1201,10 @@ export const overtoneI18nResources = {
         },
         "player": {
           "play": "播放",
+          "seekWaveform": "调整当前录音的播放位置",
+          "seekRecording": "调整「{{title}}」的播放位置",
+          "recordingWaveform": "「{{title}}」的波形",
+          "shortcuts": "控件外快捷键：空格播放或暂停，←/→ 跳转 5 秒，Shift + ←/→ 跳转 15 秒。Ctrl/Cmd + N 开始新探索，Escape 退出对比。",
           "pause": "暂停",
           "loadingAudio": "加载音频…",
           "audioUnavailable": "音频暂不可用：{{message}}",
@@ -1190,6 +1219,19 @@ export const overtoneI18nResources = {
           "trimEndIncreaseAria": "增大裁剪终点",
           "volumeAria": "音量",
           "invalidTrim": "裁剪无效"
+        },
+        "host": {
+          "checking": "正在检查 Nimi 连接",
+          "actionRequired": "需要处理",
+          "unavailable": "Nimi 连接暂不可用",
+          "fallback": "请确认 Nimi 正在运行，然后重试连接。",
+          "retry": "重试 Nimi 连接",
+          "offlineTier": "离线级别：{{tier}}",
+          "reasons": {
+            "local-development-registration-required": "请通过 Nimi Desktop 的正式启动器运行这个开发项目。",
+            "local-development-session-revoked": "这个应用的 Nimi 访问暂不可用，请在访问恢复后重试。",
+            "local-development-project-changed": "项目标识与当前注册信息不一致，请恢复注册时的标识后重新启动。"
+          }
         },
         "runtime": {
           "status": {
@@ -1208,6 +1250,14 @@ export const overtoneI18nResources = {
           "incomplete": "文字创作提前结束，没有返回完整内容。草稿已保留，请重试。"
         },
         "storage": {
+          "nearCapacity": "这次探索接近项目文档容量上限。请导出需要保留的录音后开始新探索；存储清理不会缩小当前探索。",
+          "cleanup": "清理存储",
+          "cleanupTitle": "删除已替换探索的数据？",
+          "cleanupHint": "永久删除已替换探索及其录音和乐谱。当前探索、待恢复操作、共享资产与已导出的音频会保留。此操作不会停止 Runtime 任务。",
+          "cleaned": "已清理 {{count}} 个未使用文件。",
+          "cleanupFailed": "存储清理尚未完成",
+          "cleanupFailedHint": "当前探索与待恢复数据会保留。请在录音操作结束后重试清理。",
+          "retryCleanup": "重试清理",
           "loadFailedTitle": "项目暂时无法打开",
           "loadFailedHint": "已保存的项目仍被保留。请先重试打开，不会自动用空白项目覆盖。",
           "retryLoad": "重试打开",

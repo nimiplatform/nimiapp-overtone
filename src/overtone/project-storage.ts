@@ -1,9 +1,15 @@
 import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
 import type { JsonValue } from '@nimiplatform/sdk/types';
-import { sameProjectAudio, type AudioInfoFacts, type AudioPreparationRecord, type DerivedAudioRecord, type OwnedAsset, type ProjectAudio, type SongProject, type VoiceConvertDerivation, type VoiceMixRecord } from './types.js';
+import { makeId, sameProjectAudio, type AudioInfoFacts, type AudioPreparationRecord, type DerivedAudioRecord, type OwnedAsset, type ProjectAudio, type SongProject, type VoiceConvertDerivation, type VoiceMixRecord } from './types.js';
 
-type Storage = Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson'>;
+export type ProjectStorage = Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson' | 'removeJson' | 'assets'>;
+type Storage = ProjectStorage;
 const CURRENT = 'workspace/current.json';
+export const MAX_PROJECT_DOCUMENT_BYTES = 16 * 1024 * 1024;
+export const PROJECT_DOCUMENT_PREFIX = 'workspace/projects/';
+export const PROJECT_CATALOG_PATH = 'workspace/projects.json';
+export interface ProjectHead { schemaVersion: 3; projectId: string; document: OwnedAsset }
+export interface ProjectCatalog { schemaVersion: 3; heads: ProjectHead[] }
 export function isStorageMissing(error: unknown): boolean {
   const e = error as { reasonCode?: string; code?: string };
   return ['not_found', 'app_storage_entry_not_found'].includes(String(e?.reasonCode ?? e?.code ?? '').toLowerCase().replaceAll('-', '_'));
@@ -24,7 +30,7 @@ function requireAsset(value: unknown): OwnedAsset {
 // @nimi-authority: rule.overtone.data-model.r008
 export function parseSongProject(value: unknown): SongProject {
   const p = record(value);
-  if (p.schemaVersion !== 2 || !id(p.projectId) || !Number.isFinite(p.createdAt) || !Array.isArray(p.takes)
+  if (p.schemaVersion !== 3 || !id(p.projectId) || !Number.isFinite(p.createdAt) || !Array.isArray(p.takes)
     || !Array.isArray(p.scores) || !Array.isArray(p.comparedTakeIds) || p.comparedTakeIds.length !== 2
     || (p.selectedTakeId !== null && !id(p.selectedTakeId)) || (p.selectedScoreId !== null && !id(p.selectedScoreId))
     || Object.keys(p).some(k => !['schemaVersion', 'projectId', 'createdAt', 'brief', 'lyrics', 'takes', 'selectedTakeId', 'comparedTakeIds', 'scores', 'selectedScoreId', 'generationScoreId', 'scoreBudgetSeconds', 'fullSong', 'recoverableResults', 'transcriptions', 'recoverableTranscriptions', 'recoverableVoiceConversions', 'recoverableSeparations'].includes(k))
@@ -410,10 +416,74 @@ function validateProjectVoiceConversions(project: SongProject, jobs: Map<string,
   }
 }
 
-export async function readProject(storage: Storage, projectId: string): Promise<SongProject> {
+function parseProjectHead(input: unknown): ProjectHead {
+  const value = record(input);
+  const document = requireAsset(value.document);
+  if (value.schemaVersion !== 3 || !id(value.projectId) || Object.keys(value).some(key => !['schemaVersion', 'projectId', 'document'].includes(key))
+    || document.mimeType !== 'application/json' || document.sizeBytes > MAX_PROJECT_DOCUMENT_BYTES
+    || !document.relativePath.startsWith(`${PROJECT_DOCUMENT_PREFIX}${value.projectId}/`)) throw new Error('OVERTONE_PROJECT_INVALID');
+  return value as unknown as ProjectHead;
+}
+// @nimi-authority: rule.overtone.data-model.r008
+// This is the sole App-owned directory of creative document heads. Keeping
+// the heads together makes a missing document discoverable during cleanup.
+export async function readProjectCatalog(storage: Storage): Promise<ProjectCatalog> {
+  const value = record((await storage.readJson(PROJECT_CATALOG_PATH)).value);
+  if (value.schemaVersion !== 3 || !Array.isArray(value.heads)
+    || Object.keys(value).some(key => !['schemaVersion', 'heads'].includes(key))) throw new Error('OVERTONE_PROJECT_CATALOG_INVALID');
+  const heads = value.heads.map(parseProjectHead);
+  if (new Set(heads.map(head => head.projectId)).size !== heads.length) throw new Error('OVERTONE_PROJECT_CATALOG_INVALID');
+  return { schemaVersion: 3, heads };
+}
+export async function readProjectHead(storage: Storage, projectId: string): Promise<ProjectHead> {
   if (!id(projectId)) throw new Error('OVERTONE_PROJECT_INVALID');
-  const project = parseSongProject((await storage.readJson(`workspace/projects/${projectId}.json`)).value);
-  if (project.projectId !== projectId) throw new Error('OVERTONE_PROJECT_INVALID');
+  const head = (await readProjectCatalog(storage)).heads.find(item => item.projectId === projectId);
+  if (!head) throw new Error('OVERTONE_PROJECT_HEAD_MISSING');
+  return head;
+}
+async function writeCatalog(storage: Storage, catalog: ProjectCatalog): Promise<void> {
+  await storage.writeJson(PROJECT_CATALOG_PATH, catalog as unknown as JsonValue);
+}
+export async function removeProjectHeads(storage: Storage, projectIds: ReadonlySet<string>): Promise<void> {
+  const catalog = await readProjectCatalog(storage);
+  await writeCatalog(storage, { ...catalog, heads: catalog.heads.filter(head => !projectIds.has(head.projectId)) });
+}
+async function catalogForWrite(storage: Storage): Promise<ProjectCatalog> {
+  try { return await readProjectCatalog(storage); }
+  catch (cause) { if (!isStorageMissing(cause)) throw cause; }
+  // Initialize only empty storage. A missing catalog in an existing workspace
+  // is corruption or an unsupported development format, not an empty project.
+  let hasCurrent = true;
+  try { await storage.readJson(CURRENT); }
+  catch (cause) { if (!isStorageMissing(cause)) throw cause; hasCurrent = false; }
+  if (hasCurrent || (await storage.assets.list({ prefix: PROJECT_DOCUMENT_PREFIX, pageSize: 1 })).assets.length) {
+    throw new Error('OVERTONE_PROJECT_CATALOG_MISSING');
+  }
+  const catalog: ProjectCatalog = { schemaVersion: 3, heads: [] };
+  await writeCatalog(storage, catalog);
+  return catalog;
+}
+async function documentDigest(bytes: Uint8Array): Promise<string> {
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>));
+  return `sha256:${[...hash].map(value => value.toString(16).padStart(2, '0')).join('')}`;
+}
+export function projectDocumentSize(project: SongProject): number {
+  return new TextEncoder().encode(JSON.stringify(project)).byteLength;
+}
+export async function readProject(storage: Storage, projectId: string): Promise<SongProject> {
+  return readProjectDocument(storage, await readProjectHead(storage, projectId));
+}
+export async function readProjectDocument(storage: Storage, head: ProjectHead): Promise<SongProject> {
+  const source = await storage.assets.read({ relativePath: head.document.relativePath });
+  if (source.asset.mediaType !== head.document.mimeType || source.asset.sizeBytes !== head.document.sizeBytes || source.asset.sha256 !== head.document.sha256) throw new Error('OVERTONE_PROJECT_DOCUMENT_CHANGED');
+  const bytes = new Uint8Array(head.document.sizeBytes); let offset = 0;
+  for await (const chunk of source.body) {
+    if (offset + chunk.byteLength > bytes.length) throw new Error('OVERTONE_PROJECT_DOCUMENT_CHANGED');
+    bytes.set(chunk, offset); offset += chunk.byteLength;
+  }
+  if (offset !== bytes.length || await documentDigest(bytes) !== head.document.sha256) throw new Error('OVERTONE_PROJECT_DOCUMENT_CHANGED');
+  const project = parseSongProject(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)));
+  if (project.projectId !== head.projectId) throw new Error('OVERTONE_PROJECT_INVALID');
   return project;
 }
 export async function readCurrentProject(storage: Storage): Promise<SongProject | null> {
@@ -424,11 +494,38 @@ export async function readCurrentProject(storage: Storage): Promise<SongProject 
   if (!id(pointer.projectId)) throw new Error('OVERTONE_PROJECT_INVALID');
   return readProject(storage, pointer.projectId);
 }
-export async function writeProject(storage: Storage, project: SongProject): Promise<void> {
+export async function writeProject(storage: Storage, project: SongProject): Promise<{ cleanupWarning?: string }> {
   const value = JSON.parse(JSON.stringify(project)) as JsonValue;
   parseSongProject(value);
-  if (new TextEncoder().encode(JSON.stringify(value)).byteLength > 240 * 1024) throw new Error('OVERTONE_PROJECT_TOO_LARGE');
-  await storage.writeJson(`workspace/projects/${project.projectId}.json`, value);
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  if (bytes.byteLength > MAX_PROJECT_DOCUMENT_BYTES) throw new Error('OVERTONE_PROJECT_TOO_LARGE');
+  const catalog = await catalogForWrite(storage);
+  const prior = catalog.heads.find(head => head.projectId === project.projectId);
+  const relativePath = `${PROJECT_DOCUMENT_PREFIX}${project.projectId}/${makeId('document')}.json`;
+  const sha256 = await documentDigest(bytes);
+  const asset = await storage.assets.write({ relativePath, mediaType: 'application/json', body: bytes, overwrite: false });
+  try {
+    if (asset.relativePath !== relativePath || asset.mediaType !== 'application/json' || asset.sizeBytes !== bytes.byteLength || asset.sha256 !== sha256) throw new Error('OVERTONE_PROJECT_DOCUMENT_CHANGED');
+    const head: ProjectHead = { schemaVersion: 3, projectId: project.projectId,
+      document: { relativePath, mimeType: 'application/json', sizeBytes: bytes.byteLength, sha256 } };
+    await writeCatalog(storage, { ...catalog, heads: [...catalog.heads.filter(item => item.projectId !== project.projectId), head] });
+  } catch (cause) {
+    // An error may follow an actual commit. Delete only after the protected
+    // head proves that this new document is not referenced; otherwise retain it.
+    let unreferenced = false;
+    try { unreferenced = !(await readProjectCatalog(storage)).heads.some(head => head.document.relativePath === relativePath); }
+    catch { /* An unreadable catalog cannot prove that the document is unused. */ }
+    if (unreferenced) {
+      try { await storage.assets.remove(relativePath); }
+      catch (cleanup) { throw new Error(`${String(cause)}; snapshot cleanup: ${String(cleanup)}`); }
+    }
+    throw cause;
+  }
+  if (prior) {
+    try { await storage.assets.remove(prior.document.relativePath); }
+    catch (cause) { return { cleanupWarning: String(cause) }; }
+  }
+  return {};
 }
 export async function selectCurrentProject(storage: Storage, projectId: string): Promise<void> {
   if (!id(projectId)) throw new Error('OVERTONE_PROJECT_INVALID');

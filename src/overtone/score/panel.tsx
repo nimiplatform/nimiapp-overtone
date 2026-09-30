@@ -4,7 +4,7 @@ import { Midi } from '@tonejs/midi';
 import { Button, FieldShell, InlineAlert, SelectField, TextareaField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
-import { useOvertoneActions, useOvertoneState } from '../store.js';
+import { useOvertoneActions, useOvertoneState, useOvertonePersistence } from '../store.js';
 import { readOwnedAsset } from '../runtime-workflow.js';
 import { makeId, type ScoreDocument } from '../types.js';
 import { listABCVoices, parseABCLeadSheet, serializeABCLeadSheet } from './abc.js';
@@ -24,6 +24,7 @@ function parseABC(source: string) {
 // @nimi-authority: rule.overtone.score.r001
 // @nimi-authority: rule.overtone.score.r004
 export function ScorePanel() {
+  const persistence = useOvertonePersistence();
   const { t } = useTranslation();
   const { project, activeJobs, readiness } = useOvertoneState();
   const { addScore, selectScore, useScoreForGeneration, setScoreBudget } = useOvertoneActions();
@@ -35,7 +36,7 @@ export function ScorePanel() {
   const [conversion, setConversion] = useState<(ReturnType<typeof prepareMidiConversion> & { parent: ScoreDocument }) | null>(null);
   const picker = useRef<HTMLInputElement>(null); const notation = useRef<HTMLDivElement>(null);
   const selected = project?.scores.find(score => score.scoreId === project.selectedScoreId);
-  const generationBusy = Object.keys(activeJobs).length > 0;
+  const generationBusy = Object.keys(activeJobs).length > 0 || persistence.operationCount > 0 || persistence.maintenance.busy;
   const profile = readiness.musicInput?.generation.find(item => item.scoreMode === 'required');
   useEffect(() => {
     const controller = new AbortController();
@@ -59,32 +60,38 @@ export function ScorePanel() {
     try { abcjs.renderAbc(notation.current, source, { responsive: 'resize', staffwidth: 700, ariaLabel: t('Overtone.score.originalNotation') }); }
     catch (cause) { setError(String(cause)); }
   }, [source, open, t]);
-  async function saveBytes(bytes: Uint8Array, format: ScoreDocument['format'], title: string, parent?: ScoreDocument, losses: readonly string[] = []) {
+  async function saveBytes(bytes: Uint8Array, format: ScoreDocument['format'], title: string, parent?: ScoreDocument, losses: readonly string[] = [], operationHeld = false) {
     if (!project) return;
     const projectId = project.projectId;
     if (!bytes.length || bytes.length > 1024 * 1024) throw new Error('OVERTONE_SCORE_TOO_LARGE');
     const scoreId = makeId('score');
     const mediaType = format === 'abc' ? 'text/vnd.abc' : 'audio/midi';
-    const asset = await getNimiLocalAppClient().storage.assets.write({ relativePath: `scores/${scoreId}.${format === 'abc' ? 'abc' : 'mid'}`,
-      body: bytes, mediaType, overwrite: false });
-    if (asset.mediaType !== mediaType || asset.sizeBytes !== bytes.length) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
-    await addScore(projectId, { scoreId, title: title.slice(0, 80), format, createdAt: Date.now(),
-      origin: parent ? parent.format === format ? 'author-edit' : 'explicit-conversion' : 'imported',
-      ...(parent ? { parentScoreId: parent.scoreId } : {}), ...(losses.length ? { losses } : {}),
-      asset: { relativePath: asset.relativePath, mimeType: asset.mediaType!, sizeBytes: asset.sizeBytes, sha256: asset.sha256 } });
+    const release = operationHeld ? () => undefined : persistence.beginOperation(projectId);
+    try {
+      const asset = await getNimiLocalAppClient().storage.assets.write({ relativePath: `scores/${scoreId}.${format === 'abc' ? 'abc' : 'mid'}`,
+        body: bytes, mediaType, overwrite: false });
+      if (asset.mediaType !== mediaType || asset.sizeBytes !== bytes.length) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
+      await addScore(projectId, { scoreId, title: title.slice(0, 80), format, createdAt: Date.now(),
+        origin: parent ? parent.format === format ? 'author-edit' : 'explicit-conversion' : 'imported',
+        ...(parent ? { parentScoreId: parent.scoreId } : {}), ...(losses.length ? { losses } : {}),
+        asset: { relativePath: asset.relativePath, mimeType: asset.mediaType!, sizeBytes: asset.sizeBytes, sha256: asset.sha256 } });
+    } finally { release(); }
   }
   async function importFile(file: File) {
+    if (!project) return;
     setBusy(true); setError('');
+    let release: (() => void) | undefined;
     try {
+      release = persistence.beginOperation(project.projectId);
       if (file.size > 1024 * 1024) throw new Error('OVERTONE_SCORE_TOO_LARGE');
       const bytes = new Uint8Array(await file.arrayBuffer());
       const format = /\.abc$/iu.test(file.name) ? 'abc' : /\.midi?$/iu.test(file.name) ? 'midi' : null;
       if (!format) throw new Error('OVERTONE_SCORE_FORMAT_UNSUPPORTED');
       if (format === 'abc') parseABC(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
       else if (!listMidiTracks(new Midi(bytes)).length) throw new Error('OVERTONE_MIDI_EMPTY');
-      await saveBytes(bytes, format, file.name);
+      await saveBytes(bytes, format, file.name, undefined, [], true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
-    finally { setBusy(false); }
+    finally { release?.(); setBusy(false); }
   }
   async function saveEdited(value: string, losses: readonly string[] = []) {
     if (!selected) return;

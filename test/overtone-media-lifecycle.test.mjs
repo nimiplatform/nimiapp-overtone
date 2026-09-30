@@ -56,7 +56,7 @@ test('clearing a project prevents late media from populating its cache', async (
 });
 test('a captured author action survives failed media preparation; observation recovers the same Job and adopts owned media', async () => {
   // Contract fault injection only; actual models and native App acceptance run separately.
-  let state = { project: { schemaVersion: 2, projectId: 'project', createdAt: 1, brief: null, lyrics: null,
+  let state = { project: { schemaVersion: 3, projectId: 'project', createdAt: 1, brief: null, lyrics: null,
     takes: [], scores: [], selectedScoreId: null, selectedTakeId: null, comparedTakeIds: [null, null] }, readiness: { runtimeStatus: 'ready' }, activeJobs: {} };
   const reference = { projectId: 'project', clientSubmissionId: 'author-action', jobId: 'completed-job', title: 'Song', promptSnapshot: 'A bright song',
     lyricsSnapshot: 'The real words', targetDurationSeconds: 20, creationMode: 'sketch', createdAt: 1 };

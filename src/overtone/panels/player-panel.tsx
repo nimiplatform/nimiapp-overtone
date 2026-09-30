@@ -193,10 +193,11 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
         <span>{t(!selectedTake ? 'Overtone.studio.emptyPlayer' : isPlaying ? 'Overtone.playground.playing' : 'Overtone.playground.selectedRecording')}</span></div>
       <div className="overtone-transport__controls">
         <IconToggleAction className="ot-main-play" icon={isPlaying ? <PauseIcon /> : <PlayIcon />} active={isPlaying} onClick={handlePlayPause}
-          disabled={!ready || trimInvalid} aria-label={isPlaying ? t('Overtone.player.pause') : t('Overtone.player.play')} />
+          disabled={!ready || trimInvalid} aria-keyshortcuts="Space" aria-label={isPlaying ? t('Overtone.player.pause') : t('Overtone.player.play')} />
         <Button tone={loop ? 'primary' : 'ghost'} size="sm" onClick={toggleLoop} disabled={!ready || trimInvalid} aria-label={t('Overtone.playground.loop')} aria-pressed={loop}><OvertoneIcon name="loop" /></Button>
       </div>
-      <Waveform peaks={media?.peaks} currentTime={currentTime} duration={duration} trimStart={trimStartSec} trimEnd={trimEndSec} onSeek={handleSeek} />
+      <Waveform peaks={media?.peaks} currentTime={currentTime} duration={duration} trimStart={trimStartSec} trimEnd={trimEndSec} onSeek={handleSeek}
+        label={selectedTake ? t('Overtone.player.seekRecording', { title: selectedTake.title }) : t('Overtone.player.seekWaveform')} />
       <div className="overtone-transport__meta">
         <NimiText as="span" role="caption" className="overtone-transport__time">{formatAudioTime(currentTime)} / {formatAudioTime(duration)}</NimiText>
         <Slider value={volume} min={0} max={100} className="overtone-volume" aria-label={t('Overtone.player.volumeAria')}

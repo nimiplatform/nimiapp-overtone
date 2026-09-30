@@ -1,3 +1,4 @@
+import { scrollIntoView } from '../motion.js';
 import { RecoverableResults } from './recoverable-results.js';
 import { useState } from 'react';
 import { ActionMenu, Button, IconButton, NimiText, Popover, PopoverContent, PopoverTrigger, TextField, type NimiMenuItem } from '@nimiplatform/kit/ui';
@@ -87,7 +88,7 @@ function TakeRow({take,ordinal,isSelected}:{take:SongTake;ordinal:number;isSelec
       <TextField autoFocus aria-label={t('Overtone.takes.rename')} value={draft} maxLength={80} onChange={event=>setDraft(event.target.value)}/>
       <Button type="submit" tone="primary" size="sm">{t('Overtone.takes.save')}</Button><Button type="button" tone="ghost" size="sm" onClick={()=>setEditing(false)}>{t('Overtone.takes.cancel')}</Button>
     </form>:null}
-    <div className="ot-take-row__sound"><TakeWaveformPreview artifactId={take.audio.relativePath}/>
+    <div className="ot-take-row__sound"><TakeWaveformPreview artifactId={take.audio.relativePath} title={take.title}/>
       <div className="ot-take-shortcuts"><Button size="sm" tone="ghost" className="ot-compare-slot" active={slots[0]===take.takeId} aria-pressed={slots[0]===take.takeId} aria-label={t('Overtone.takes.setCompareA')} onClick={()=>compare(0)}>A</Button>
         <Button size="sm" tone="ghost" className="ot-compare-slot" active={slots[1]===take.takeId} aria-pressed={slots[1]===take.takeId} aria-label={t('Overtone.takes.setCompareB')} onClick={()=>compare(1)}>B</Button>
         <IconButton size="sm" tone="ghost" className="ot-favorite" active={take.favorite} aria-label={t(take.favorite?'Overtone.takes.favoriteActive':'Overtone.takes.favoriteInactive')} aria-pressed={take.favorite} onClick={()=>favoriteTake(take.takeId)} icon={<OvertoneIcon name="heart" size={15}/>}/></div>
@@ -99,7 +100,7 @@ function TakeRow({take,ordinal,isSelected}:{take:SongTake;ordinal:number;isSelec
     {take.origin === 'runtime-result' && take.capability === 'audio.voice.convert' ? <VoiceConvertRecord take={take} /> : null}
     {take.scoreId || take.inputScoreId ? <Button tone="ghost" size="sm" onClick={() => {
       selectScore((take.scoreId || take.inputScoreId)!); const panel = document.querySelector<HTMLDetailsElement>('#ot-score-panel');
-      if (panel) { panel.open = true; panel.scrollIntoView({ block: 'nearest' }); }
+      if (panel) { panel.open = true; scrollIntoView(panel, { block: 'nearest' }); }
     }}>{t(take.scoreId ? 'Overtone.score.openGenerated' : 'Overtone.score.openInput')}</Button> : null}
     {isSelected && take.promptSnapshot.trim() ? <Button className="ot-finish-song" tone="secondary" size="sm" disabled={creative.arranging || creative.musicBusy || Object.keys(state.activeJobs).length > 0}
       trailingIcon={<OvertoneIcon name="arrow" size={14}/>} onClick={() => creative.startSong(take)}>
@@ -123,9 +124,9 @@ function VoiceConvertRecord({take}:{take:SongTake}) {
   </div>;
 }
 
-function TakeWaveformPreview({artifactId}:{artifactId:string}) {
+function TakeWaveformPreview({artifactId,title}:{artifactId:string;title:string}) {
   const {t}=useTranslation();
   const media = useAudioSnapshot(artifactId);
   if (!media) return <span className="ot-waveform-status">{t('Overtone.playground.waveformOnListen')}</span>;
-  return <Waveform peaks={media.peaks} currentTime={0} duration={0} trimStart={null} trimEnd={null} onSeek={()=>{}} variant="mini"/>;
+  return <Waveform peaks={media.peaks} currentTime={0} duration={0} trimStart={null} trimEnd={null} onSeek={()=>{}} variant="mini" label={t('Overtone.player.recordingWaveform', { title })}/>;
 }

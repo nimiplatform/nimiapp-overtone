@@ -1,3 +1,4 @@
+import { scrollIntoView } from '../motion.js';
 import { useEffect, useRef, useState } from 'react';
 import { Button, FieldShell, InlineAlert, NimiText, SelectField, TextField } from '@nimiplatform/kit/ui';
 import { ScenarioJobStatus, type ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
@@ -5,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
 import { recoverVoiceConvert, runVoiceConvert, type VoiceConvertStages } from '../voice-convert.js';
 import { buildVoiceConvertTargetChoice, selectionFrames } from '../voice-convert-target.js';
-import { useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
+import { useOvertonePersistence, useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
 import { makeId, type GenerationJob, type RecoverableVoiceConvert, type VoiceConvertTargetChoice } from '../types.js';
 
 const JOB_STATES: Partial<Record<ScenarioJobStatus, GenerationJob['status']>> = {
@@ -16,6 +17,7 @@ const JOB_STATES: Partial<Record<ScenarioJobStatus, GenerationJob['status']>> = 
 // @nimi-authority: rule.overtone.runtime.r005
 export function VoiceConvertPanel() {
   const { t } = useTranslation();
+  const persistence = useOvertonePersistence();
   const { project, readiness, activeJobs } = useOvertoneState();
   const actions = useOvertoneActions();
   const cache = useAudioCache();
@@ -44,7 +46,7 @@ export function VoiceConvertPanel() {
   // without the reference-audio carrier leaves this action unavailable.
   const profile = readiness.voiceConvertInput?.find(item => item.sourceKinds.includes('singing') && item.targetKinds.includes('reference-audio'));
   const available = Boolean(readiness.voiceConvertAvailable && profile);
-  const busy = Boolean(stage); const otherBusy = Object.keys(activeJobs).length > 0;
+  const busy = Boolean(stage); const otherBusy = Object.keys(activeJobs).length > 0 || (!stage && persistence.operationCount > 0) || persistence.maintenance.busy;
 
   const semitoneText = semitone.trim();
   const semitoneValid = semitoneText === '' || (Number.isInteger(Number(semitoneText))
@@ -84,7 +86,9 @@ export function VoiceConvertPanel() {
       actions.setJob({ jobId: job.jobId, capability: 'audio.voice.convert', status });
       if (mounted.current && (status === 'pending' || status === 'running' || status === 'completed')) setStage(status === 'completed' ? 'saving' : status);
     };
+    let release: (() => void) | undefined;
     try {
+      release = persistence.beginOperation(projectId);
       const client = getNimiLocalAppClient();
       const result = recovery ? await recoverVoiceConvert({ client, cache, operation: recovery, mixTitle, signal: controller.signal,
         onStage: stage => { if (mounted.current) setStage(stage); }, onJobUpdate })
@@ -111,7 +115,7 @@ export function VoiceConvertPanel() {
             deltaMs: `${converted.derivation.durationDeltaMs > 0 ? '+' : ''}${converted.derivation.durationDeltaMs}`,
           })} ${t(mix.peak > 1 ? 'Overtone.voiceConvert.mixPeakOver' : 'Overtone.voiceConvert.mixPeak', { peak: mix.peak.toFixed(3) })}`);
         }
-        requestAnimationFrame(() => document.querySelector('.overtone-takes-stack')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        requestAnimationFrame(() => scrollIntoView(document.querySelector('.overtone-takes-stack'), { behavior: 'smooth', block: 'start' }));
       }
     } catch (cause) {
       if (mounted.current && projectIdRef.current === projectId) {
@@ -119,6 +123,7 @@ export function VoiceConvertPanel() {
         else setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
+      release?.();
       if (jobId) actions.removeJob(jobId);
       if (request.current === controller) request.current = null;
       if (mounted.current) { setStage(null); setCanceling(false); }
@@ -135,8 +140,7 @@ export function VoiceConvertPanel() {
       </InlineAlert> : null}
       {available ? <>
         <FieldShell label={t('Overtone.voiceConvert.source')}>
-          <SelectField value={sourceTakeId} disabled={busy || otherBusy} options={[{ value: '', label: t('Overtone.voiceConvert.choose') },
-            ...takes.map(take => ({ value: take.takeId, label: take.title }))]} onChange={event => setSourceTakeId(event.currentTarget.value)} />
+          <SelectField value={sourceTakeId} disabled={busy || otherBusy} placeholder={t('Overtone.voiceConvert.choose')} options={takes.map(take => ({ value: take.takeId, label: take.title }))} onChange={event => setSourceTakeId(event.currentTarget.value)} />
         </FieldShell>
         {profile?.supportsRange ? <FieldShell label={t('Overtone.voiceConvert.range')}>
           <SelectField value={rangeMode} disabled={busy || otherBusy} options={[{ value: 'full', label: t('Overtone.voiceConvert.full') }, { value: 'range', label: t('Overtone.voiceConvert.selection') }]}
@@ -149,8 +153,7 @@ export function VoiceConvertPanel() {
         {sourceRangeInvalid ? <InlineAlert tone="warning">{t('Overtone.voiceConvert.rangeInvalid')}</InlineAlert> : null}
         <>
           <FieldShell label={t('Overtone.voiceConvert.reference')} message={t('Overtone.voiceConvert.referenceHint')}>
-            <SelectField value={targetTakeId} disabled={busy || otherBusy} options={[{ value: '', label: t('Overtone.voiceConvert.choose') },
-              ...takes.filter(take => take.takeId !== sourceTakeId).map(take => ({ value: take.takeId, label: take.title }))]} onChange={event => setTargetTakeId(event.currentTarget.value)} />
+            <SelectField value={targetTakeId} disabled={busy || otherBusy} placeholder={t('Overtone.voiceConvert.choose')} options={takes.filter(take => take.takeId !== sourceTakeId).map(take => ({ value: take.takeId, label: take.title }))} onChange={event => setTargetTakeId(event.currentTarget.value)} />
           </FieldShell>
           {profile?.supportsRange ? <FieldShell label={t('Overtone.voiceConvert.targetRange')}>
             <SelectField value={targetRangeMode} disabled={busy || otherBusy} options={[{ value: 'full', label: t('Overtone.voiceConvert.full') }, { value: 'range', label: t('Overtone.voiceConvert.selection') }]}
@@ -163,8 +166,7 @@ export function VoiceConvertPanel() {
           {targetRangeInvalid ? <InlineAlert tone="warning">{t('Overtone.voiceConvert.targetRangeInvalid')}</InlineAlert> : null}
         </>
         <FieldShell label={t('Overtone.voiceConvert.accompaniment')} message={t('Overtone.voiceConvert.accompanimentHint')}>
-          <SelectField value={accompanimentTakeId} disabled={busy || otherBusy} options={[{ value: '', label: t('Overtone.voiceConvert.choose') },
-            ...takes.filter(take => take.takeId !== sourceTakeId).map(take => ({ value: take.takeId, label: take.title }))]} onChange={event => setAccompanimentTakeId(event.currentTarget.value)} />
+          <SelectField value={accompanimentTakeId} disabled={busy || otherBusy} placeholder={t('Overtone.voiceConvert.choose')} options={takes.filter(take => take.takeId !== sourceTakeId).map(take => ({ value: take.takeId, label: take.title }))} onChange={event => setAccompanimentTakeId(event.currentTarget.value)} />
         </FieldShell>
         {profile?.supportsSemitoneShift || semitoneText ? <FieldShell label={t('Overtone.voiceConvert.semitone')} message={semitoneValid ? t('Overtone.voiceConvert.semitoneHint') : t('Overtone.voiceConvert.semitoneInvalid')} messageTone={semitoneValid ? undefined : 'warning'}>
           <TextField type="number" step={1} min={profile?.supportsSemitoneShift ? profile.minSemitoneShift : -12} max={profile?.supportsSemitoneShift ? profile.maxSemitoneShift : 12}

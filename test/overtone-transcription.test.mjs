@@ -10,7 +10,7 @@ const audio = { relativePath: 'recordings/source.wav', mimeType: 'audio/wav', si
 const operation = { clientSubmissionId: 'transcribe-author', projectId: 'project-one', sourceTakeId: 'take-one', sourceArtifactId: 'source-owned',
   sourceAudio: audio, sourceRange: { startFrame: 240000, endFrame: 720000 }, requestedFormats: ['abc','timeline'], requestedPart: 'lead-sheet', title: 'Recording', createdAt: 1 };
 const take = { takeId: 'take-one', title: 'Recording', origin: 'imported-recording', originalAsset: audio, audio, promptSnapshot: '', favorite: false, discarded: false, createdAt: 1 };
-const project = { schemaVersion: 2, projectId: 'project-one', createdAt: 1, brief: null, lyrics: null, takes: [take], scores: [], selectedScoreId: null, selectedTakeId: take.takeId, comparedTakeIds: [null,null] };
+const project = { schemaVersion: 3, projectId: 'project-one', createdAt: 1, brief: null, lyrics: null, takes: [take], scores: [], selectedScoreId: null, selectedTakeId: take.takeId, comparedTakeIds: [null,null] };
 const signal = () => new AbortController().signal;
 
 function sourceClient() {

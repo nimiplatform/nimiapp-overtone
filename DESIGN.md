@@ -21,7 +21,7 @@ colors:
   selected-dark: "#2e372b"
   transport: "#242922"
   transport-text: "#f6f8ef"
-  transport-muted: "#d5dccd"
+  transport-muted: "#c4cbbb"
 typography:
   display:
     fontFamily: '"Overtone Display", var(--nimi-font-sans)'
@@ -177,3 +177,7 @@ Pending imports use the existing blue-soft plane and ordinary body text in the r
 ## Workspace resilience
 
 A failed local draft write appears below the masthead with a retry action; the notice does not obscure content or promise persistence before the write succeeds. Comparison controls show a stable list recording number below a wrapping title. Transport trim labels use the transport-muted color and remain grouped with their matching controls. Current song versions return to the existing arrangement; starting from another recording is named explicitly.
+
+## Accessible storage and playback controls
+
+Project capacity and save or cleanup failures use Kit InlineAlert without hiding the workspace. Storage cleanup is a confirmed action in preferences; it introduces no project navigation. Focus uses opaque ultramarine on light working surfaces and lime on dark surfaces, the intent field and the fixed transport. Both Explore and Generate primary actions use 9px corners; preferences use the 14px field radius and compact labels have a 10px minimum. Programmatic scrolling follows reduced motion. Recording waveforms include their title, and the full waveform announces seeking rather than generic listening. Playback shortcuts are discoverable in preferences and exposed on the corresponding controls.

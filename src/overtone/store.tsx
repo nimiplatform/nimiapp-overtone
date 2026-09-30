@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { makeId, sameProjectAudio, type FullSongDraft, type GenerationJob, type LyricsDocument, type ReadinessSnapshot, type RecoverableMusicResult, type RecoverableMusicTranscription, type RecoverableVoiceConvert, type RecoverableSeparation, type MusicTranscriptionDocument, type SongBrief, type SongTake, type SeparationSongTake, type ScoreDocument, type SongProject } from './types.js';
 import { MusicAudioCache } from './media-cache.js';
 import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
-import { readCurrentProject, readProject, writeProject, selectCurrentProject } from './project-storage.js';
+import { parseSongProject, readCurrentProject, readProject, writeProject, selectCurrentProject, type ProjectStorage } from './project-storage.js';
+import { cleanupProjectStorage } from './project-cleanup.js';
 
 export interface OvertoneState {
   project: SongProject | null; readiness: ReadinessSnapshot; activeJobs: Record<string, GenerationJob>;
@@ -56,7 +57,7 @@ export function overtoneReducer(state: OvertoneState, action: Action): OvertoneS
     case 'readiness/set': return { ...state, readiness: action.readiness };
     case 'aiSettings/setOpen': return { ...state, aiSettingsOpen: action.open };
     case 'project/start': return { ...state, activeJobs: {}, project: {
-      schemaVersion: 2, scores: [], selectedScoreId: null, projectId: makeId('proj'), createdAt: Date.now(), brief: action.idea ? { title: '', genre: '', mood: '', tempo: '', description: action.idea.slice(0,1500) } : null,
+      schemaVersion: 3, scores: [], selectedScoreId: null, projectId: makeId('proj'), createdAt: Date.now(), brief: action.idea ? { title: '', genre: '', mood: '', tempo: '', description: action.idea.slice(0,1500) } : null,
       lyrics: null, takes: [], selectedTakeId: null, comparedTakeIds: [null,null],
     } };
     case 'brief/set': return withProject(state, project => ({ ...project, brief: action.brief }));
@@ -204,7 +205,7 @@ function useStoreActions(dispatch: React.Dispatch<Action>, cache: MusicAudioCach
     rememberTranscription: (operation: RecoverableMusicTranscription) => mutateProject(operation.projectId, { type: 'transcription/remember', operation }),
     captureTranscriptionJob: (projectId: string, clientSubmissionId: string, jobId: string) => mutateProject(projectId, { type: 'transcription/job', clientSubmissionId, jobId }),
     forgetTranscription: (projectId: string, clientSubmissionId: string) => mutateProject(projectId, { type: 'transcription/forget', clientSubmissionId }),
-    completeTranscription: (projectId: string, result: { document: MusicTranscriptionDocument; scores: ScoreDocument[] }) => mutateProject(projectId, { type: 'transcription/complete', ...result }),
+    completeTranscription: (projectId: string, result: { document: MusicTranscriptionDocument; scores: ScoreDocument[] }) => completeMutation(projectId, { type: 'transcription/complete', ...result }),
     rememberVoiceConvert: (operation: RecoverableVoiceConvert) => mutateProject(operation.projectId, { type: 'voiceConvert/remember', operation }),
     captureVoiceConvertJob: (projectId: string, clientSubmissionId: string, jobId: string) => mutateProject(projectId, { type: 'voiceConvert/job', clientSubmissionId, jobId }),
     forgetVoiceConvert: (projectId: string, clientSubmissionId: string) => mutateProject(projectId, { type: 'voiceConvert/forget', clientSubmissionId }),
@@ -248,14 +249,17 @@ function usePlaybackBridge(dispatch: React.Dispatch<Action>) {
 }
 const PlaybackContext = createContext<ReturnType<typeof usePlaybackBridge> | null>(null);
 type PersistenceState = { status: 'loading' | 'load-failed' | 'saved' | 'saving' | 'failed'; error?: string };
-const PersistenceContext = createContext<(PersistenceState & { retry: () => void; flush: () => Promise<void> }) | null>(null);
+type StorageMaintenance = { busy: boolean; warning?: string; removedAssets?: number };
+const PersistenceContext = createContext<(PersistenceState & { retry: () => void; flush: () => Promise<void>; operationCount: number;
+  beginOperation: (projectId: string) => () => void; maintenance: StorageMaintenance; cleanup: () => Promise<void> }) | null>(null);
 
 // @nimi-authority: rule.overtone.data-model.r008
-export function OvertoneProvider({ children, storage }: { children: ReactNode; storage: Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson'> }) {
+export function OvertoneProvider({ children, storage }: { children: ReactNode; storage: ProjectStorage }) {
   const [state, setState] = useState<OvertoneState>(INITIAL_STATE);
   const [cache] = useState(() => new MusicAudioCache());
   const stateRef = useRef(state);
   const documents = useRef(new Map<string, SongProject>());
+  const pendingLocalCompletions = useRef(new Map<string, Action[]>());
   const written = useRef(new Map<string, SongProject>());
   const savedPointer = useRef('');
   const hydrated = useRef(false);
@@ -264,37 +268,75 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
   const alive = useRef(true);
   const [persistence, setPersistence] = useState<PersistenceState>({ status: 'loading' });
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const operations = useRef(new Map<string, number>());
+  const cleaning = useRef(false);
+  const [operationCount, setOperationCount] = useState(0);
+  const [maintenance, setMaintenance] = useState<StorageMaintenance>({ busy: false });
+  const beginOperation = useCallback((projectId: string) => {
+    if (!hydrated.current) throw new Error('OVERTONE_STORAGE_NOT_READY');
+    if (cleaning.current) throw new Error('OVERTONE_STORAGE_CLEANING');
+    if (operations.current.size) throw new Error('OVERTONE_OPERATION_BUSY');
+    operations.current.set(projectId, (operations.current.get(projectId) ?? 0) + 1);
+    setOperationCount(count => count + 1);
+    let released = false;
+    return () => {
+      if (released) return; released = true;
+      const count = (operations.current.get(projectId) ?? 1) - 1;
+      if (count) operations.current.set(projectId, count); else operations.current.delete(projectId);
+      if (alive.current) setOperationCount(value => value - 1);
+    };
+  }, []);
+  const persistDocument = useCallback(async (project: SongProject) => {
+    const result = await writeProject(storage, project);
+    if (result.cleanupWarning && alive.current) setMaintenance(current => ({ ...current, warning: result.cleanupWarning }));
+  }, [storage]);
   const publish = useCallback((next: OvertoneState) => { stateRef.current = next; setState(next); }, []);
   // One serialized persistence queue for every project. Work reads the
   // project's latest in-memory document when it runs, never a snapshot taken
   // when it was queued, so an edit queued behind a completion cannot write an
   // older document over it.
-  const enqueue = useCallback((projectId: string, work: () => Promise<void>) => {
-    if (stateRef.current.project?.projectId === projectId) setPersistence({ status: 'saving' });
+  const enqueue = useCallback((projectId: string, work: () => Promise<void>, trackSave = true) => {
+    if (trackSave && stateRef.current.project?.projectId === projectId) setPersistence({ status: 'saving' });
     const operation = tail.current.catch(() => undefined).then(async () => {
       if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
       await work();
       if (!alive.current) throw new DOMException('Project window closed', 'AbortError');
-      if (stateRef.current.project?.projectId === projectId && savedPointer.current !== projectId) {
+      if (trackSave && stateRef.current.project?.projectId === projectId && savedPointer.current !== projectId) {
         await selectCurrentProject(storage, projectId); savedPointer.current = projectId;
       }
     });
     tail.current = operation;
-    latestSave.current.set(projectId, operation);
+    if (trackSave) latestSave.current.set(projectId, operation);
     void operation.then(() => {
-      if (alive.current && stateRef.current.project?.projectId === projectId && latestSave.current.get(projectId) === operation) setPersistence({ status: 'saved' });
+      if (trackSave && alive.current && stateRef.current.project?.projectId === projectId && latestSave.current.get(projectId) === operation) {
+        setPersistence(pendingLocalCompletions.current.has(projectId)
+          ? { status: 'failed', error: 'OVERTONE_LOCAL_COMPLETION_NOT_SAVED' } : { status: 'saved' });
+      }
     }, cause => {
-      if (alive.current && stateRef.current.project?.projectId === projectId && latestSave.current.get(projectId) === operation) setPersistence({ status: 'failed', error: String(cause) });
+      if (trackSave && alive.current && stateRef.current.project?.projectId === projectId && latestSave.current.get(projectId) === operation) setPersistence({ status: 'failed', error: String(cause) });
     });
     return operation;
   }, [storage]);
   const save = useCallback((projectId: string) => enqueue(projectId, async () => {
     const project = documents.current.get(projectId);
-    if (!project || written.current.get(projectId) === project) return;
-    await writeProject(storage, project);
-    written.current.set(projectId, project);
-  }), [enqueue, storage]);
+    const pending = pendingLocalCompletions.current.get(projectId) ?? [];
+    if (!project || (!pending.length && written.current.get(projectId) === project)) return;
+    const apply = (base: SongProject) => pending.reduce((value, action) => overtoneReducer({ ...stateRef.current, project: value }, action).project!, base);
+    const next = apply(project);
+    await persistDocument(next);
+    written.current.set(projectId, next);
+    if (pending.length) {
+      const current = documents.current.get(projectId)!;
+      const committed = current === project ? next : apply(current);
+      documents.current.set(projectId, committed);
+      const remaining = (pendingLocalCompletions.current.get(projectId) ?? []).filter(action => !pending.includes(action));
+      if (remaining.length) pendingLocalCompletions.current.set(projectId, remaining);
+      else pendingLocalCompletions.current.delete(projectId);
+      if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: committed });
+    }
+  }), [enqueue, persistDocument, publish]);
   const dispatch = useCallback((action: Action) => {
+    if (action.type === 'project/start' && cleaning.current) throw new Error('OVERTONE_STORAGE_CLEANING');
     if (!hydrated.current && action.type !== 'readiness/set' && action.type !== 'aiSettings/setOpen') throw new Error('OVERTONE_STORAGE_NOT_READY');
     const before = stateRef.current;
     const next = overtoneReducer(before, action);
@@ -319,8 +361,6 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
     if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: next });
     await save(projectId);
   }, [loadDocument, publish, save]);
-  const complete = useCallback((projectId: string, take: SongTake, score?: ScoreDocument) => mutateProject(projectId, { type: 'take/add', take, score }), [mutateProject]);
-  const saveScore = useCallback((projectId: string, score: ScoreDocument) => mutateProject(projectId, { type: 'score/add', score }), [mutateProject]);
   // A completion becomes visible only after a write that contains it
   // succeeds. It is applied inside the queue to the latest document, then
   // re-applied to any edit made while that write was pending, whose own queued
@@ -332,14 +372,29 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
     await enqueue(projectId, async () => {
       const base = documents.current.get(projectId)!;
       const next = apply(base);
-      await writeProject(storage, next);
+      await persistDocument(next);
       written.current.set(projectId, next);
       const current = documents.current.get(projectId)!;
       const committed = current === base ? next : apply(current);
       documents.current.set(projectId, committed);
       if (stateRef.current.project?.projectId === projectId) publish({ ...stateRef.current, project: committed });
     });
-  }, [storage, publish, enqueue, loadDocument]);
+  }, [persistDocument, publish, enqueue, loadDocument]);
+  // @nimi-authority: rule.overtone.data-model.r008
+  // Imports and author-created scores have no Runtime submission to recover.
+  // Keep the exact completion out of the visible project until a save commits
+  // it; both save retry and later author edits use this same pending work.
+  const completeLocalMutation = useCallback(async (projectId: string, action: Action) => {
+    const project = await loadDocument(projectId);
+    const pending = [...(pendingLocalCompletions.current.get(projectId) ?? []), structuredClone(action)];
+    parseSongProject(pending.reduce((value, item) => overtoneReducer({ ...stateRef.current, project: value }, item).project!, project));
+    pendingLocalCompletions.current.set(projectId, pending);
+    await save(projectId);
+  }, [loadDocument, save]);
+  const complete = useCallback((projectId: string, take: SongTake, score?: ScoreDocument) => take.origin === 'runtime-result'
+    ? completeMutation(projectId, { type: 'take/add', take, score })
+    : completeLocalMutation(projectId, { type: 'take/add', take, score }), [completeMutation, completeLocalMutation]);
+  const saveScore = useCallback((projectId: string, score: ScoreDocument) => completeLocalMutation(projectId, { type: 'score/add', score }), [completeLocalMutation]);
   useEffect(() => {
     let active = true;
     setPersistence({ status: 'loading' });
@@ -355,10 +410,27 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
     if (!hydrated.current) setLoadAttempt(value => value + 1);
     else if (stateRef.current.project) void save(stateRef.current.project.projectId);
   }, [save]);
+  const cleanup = useCallback(async () => {
+    if (!hydrated.current || !stateRef.current.project) throw new Error('OVERTONE_STORAGE_NOT_READY');
+    if (cleaning.current || operations.current.size) throw new Error('OVERTONE_STORAGE_BUSY');
+    cleaning.current = true; setMaintenance({ busy: true });
+    const projectId = stateRef.current.project.projectId;
+    try {
+      await enqueue(projectId, async () => {
+        const result = await cleanupProjectStorage(storage, stateRef.current.project!.projectId,
+          new Set([...operations.current.keys(), ...pendingLocalCompletions.current.keys()]));
+        for (const retired of result.removedProjects) { documents.current.delete(retired); written.current.delete(retired); latestSave.current.delete(retired); }
+        if (alive.current) setMaintenance({ busy: false, removedAssets: result.removedAssets });
+      }, false);
+    } catch (cause) {
+      if (alive.current) setMaintenance({ busy: false, warning: String(cause) });
+      throw cause;
+    } finally { cleaning.current = false; }
+  }, [enqueue, storage]);
   const actions = useStoreActions(dispatch, cache, stateRef, flush, complete, saveScore, mutateProject, completeMutation);
   const playback = usePlaybackBridge(dispatch);
   useEffect(() => { alive.current = true; return () => { alive.current = false; cache.clear(); }; }, [cache]);
-  return <CacheContext.Provider value={cache}><ActionsContext.Provider value={actions}><PlaybackContext.Provider value={playback}><PersistenceContext.Provider value={{ ...persistence, retry, flush }}><StateContext.Provider value={state}>{children}</StateContext.Provider></PersistenceContext.Provider></PlaybackContext.Provider></ActionsContext.Provider></CacheContext.Provider>;
+  return <CacheContext.Provider value={cache}><ActionsContext.Provider value={actions}><PlaybackContext.Provider value={playback}><PersistenceContext.Provider value={{ ...persistence, retry, flush, operationCount, beginOperation, maintenance, cleanup }}><StateContext.Provider value={state}>{children}</StateContext.Provider></PersistenceContext.Provider></PlaybackContext.Provider></ActionsContext.Provider></CacheContext.Provider>;
 }
 export function useOvertoneState() { const value = useContext(StateContext); if (!value) throw Error('OvertoneProvider required'); return value; }
 export function useOvertoneActions() { const value = useContext(ActionsContext); if (!value) throw Error('OvertoneProvider required'); return value; }

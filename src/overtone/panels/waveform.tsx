@@ -12,9 +12,10 @@ interface WaveformProps {
   trimEnd: number | null;
   onSeek: (time: number) => void;
   variant?: 'full' | 'mini';
+  label?: string;
 }
 
-export function Waveform({ peaks = [], currentTime, duration, trimStart, trimEnd, onSeek, variant = 'full' }: WaveformProps) {
+export function Waveform({ peaks = [], currentTime, duration, trimStart, trimEnd, onSeek, variant = 'full', label }: WaveformProps) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isMini = variant === 'mini';
@@ -78,11 +79,11 @@ export function Waveform({ peaks = [], currentTime, duration, trimStart, trimEnd
   }, []);
 
   const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isMini || duration <= 0) return;
+    if (isMini || !peaks.length || duration <= 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     onSeek(ratio * duration);
-  }, [duration, isMini, onSeek]);
+  }, [duration, isMini, onSeek, peaks.length]);
 
   return (
     <canvas
@@ -90,15 +91,16 @@ export function Waveform({ peaks = [], currentTime, duration, trimStart, trimEnd
       className={isMini ? 'overtone-waveform overtone-waveform--mini' : 'overtone-waveform'}
       onClick={handleClick}
       role={isMini ? 'img' : 'slider'}
-      aria-label={t('Overtone.playground.audition')}
-      aria-disabled={!peaks.length || undefined}
+      aria-label={label || t('Overtone.player.seekWaveform')}
+      aria-disabled={!isMini && (!peaks.length || duration <= 0) || undefined}
       aria-valuemin={isMini ? undefined : 0}
       aria-valuemax={isMini ? undefined : duration}
       aria-valuenow={isMini ? undefined : currentTime}
       aria-valuetext={isMini ? undefined : formatAudioTime(currentTime)}
-      tabIndex={!isMini && peaks.length ? 0 : undefined}
+      tabIndex={!isMini && peaks.length && duration > 0 ? 0 : undefined}
+      aria-keyshortcuts={isMini ? undefined : 'ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight'}
       onKeyDown={(event) => {
-        if (isMini || !peaks.length) return;
+        if (isMini || !peaks.length || duration <= 0) return;
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
           event.preventDefault();
           event.stopPropagation();
@@ -113,18 +115,18 @@ export function Waveform({ peaks = [], currentTime, duration, trimStart, trimEnd
 function waveformColors(element?: Element) {
   if (typeof document === 'undefined') {
     return {
-      played: '#8b5cf6',
+      played: '#3546df',
       resting: 'rgba(148, 163, 184, 0.28)',
       playhead: '#ffffff',
-      trim: 'rgba(139, 92, 246, 0.12)',
+      trim: '#e9edff',
     };
   }
   const style = getComputedStyle(element ?? document.documentElement);
   return {
-    played: readCssVar(style, '--nimi-action-primary-bg', '#8b5cf6'),
+    played: readCssVar(style, '--nimi-action-primary-bg', '#3546df'),
     resting: readCssVar(style, '--nimi-text-secondary', '#64748b'),
     playhead: readCssVar(style, '--nimi-text-primary', '#ffffff'),
-    trim: readCssVar(style, '--nimi-surface-active', 'rgba(139, 92, 246, 0.12)'),
+    trim: readCssVar(style, '--nimi-surface-active', '#e9edff'),
   };
 }
 

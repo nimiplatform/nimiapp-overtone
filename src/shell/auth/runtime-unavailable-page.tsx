@@ -1,6 +1,7 @@
 import type { OfflineTier } from '@nimiplatform/kit/core/offline-coordinator';
 import { Button, InlineAlert, StatusBadge, Surface } from '@nimiplatform/kit/ui';
 import { appTitle, type RuntimePlatformUnavailableProjection } from './runtime-platform.js';
+import { useTranslation } from 'react-i18next';
 
 type RuntimeUnavailablePageProps = {
   projection?: RuntimePlatformUnavailableProjection;
@@ -10,23 +11,26 @@ type RuntimeUnavailablePageProps = {
 };
 
 export function RuntimeUnavailablePage({ projection, message, offlineTier, onRetry }: RuntimeUnavailablePageProps) {
-  const body = message || projection?.message || 'Runtime session projection is not ready.';
+  const { t } = useTranslation();
+  const body = message || (projection ? t(`Overtone.host.reasons.${projection.reasonCode}`, { defaultValue: t('Overtone.host.fallback') }) : t('Overtone.host.fallback'));
   return (
     <main className="runtime-unavailable-screen">
       <Surface className="runtime-unavailable-panel" material="glass-thick" tone="panel" elevation="floating">
         <div className="runtime-unavailable-heading">
-          <StatusBadge tone="warning" shape="dot">action required</StatusBadge>
+          <StatusBadge tone="warning" shape="dot">{t('Overtone.host.actionRequired')}</StatusBadge>
           <h1>{appTitle}</h1>
         </div>
         <InlineAlert tone="warning">
           <div className="runtime-alert-copy">
-            <strong>Runtime session unavailable</strong>
+            <strong>{t('Overtone.host.unavailable')}</strong>
             <span>{body}</span>
           </div>
         </InlineAlert>
-        {offlineTier ? <p className="runtime-action-hint">Offline tier: {offlineTier}</p> : null}
-        {projection?.actionHint ? <p className="runtime-action-hint">{projection.actionHint}</p> : null}
-        <Button type="button" tone="primary" onClick={onRetry}>Retry Runtime check</Button>
+        <details className="runtime-action-hint"><summary>{t('Overtone.playground.errorDetails')}</summary>
+          {offlineTier ? <p>{t('Overtone.host.offlineTier', { tier: offlineTier })}</p> : null}
+          {projection ? <p>{projection.reasonCode} · {projection.actionHint}</p> : null}
+        </details>
+        <Button type="button" tone="primary" onClick={onRetry}>{t('Overtone.host.retry')}</Button>
       </Surface>
     </main>
   );

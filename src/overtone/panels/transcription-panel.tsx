@@ -1,9 +1,10 @@
+import { scrollIntoView } from '../motion.js';
 import { useEffect, useRef, useState } from 'react';
 import { Button, FieldShell, InlineAlert, NimiText, SelectField, TextField } from '@nimiplatform/kit/ui';
 import { ScenarioJobStatus, type ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { useTranslation } from 'react-i18next';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
-import { useOvertoneActions, useOvertonePlayback, useOvertoneState } from '../store.js';
+import { useOvertonePersistence, useOvertoneActions, useOvertonePlayback, useOvertoneState } from '../store.js';
 import { recoverRecordingTranscription, transcribeRecording } from '../transcription.js';
 import { makeId, type GenerationJob, type RecoverableMusicTranscription } from '../types.js';
 import { formatAudioTime } from '../exploration.js';
@@ -17,6 +18,7 @@ type Stage = 'preparing' | 'recovering' | 'pending' | 'running' | 'saving';
 // @nimi-authority: rule.overtone.transcription.r001
 // @nimi-authority: rule.overtone.transcription.r002
 export function TranscriptionPanel() {
+  const persistence = useOvertonePersistence();
   const { t } = useTranslation(); const { project, readiness, activeJobs } = useOvertoneState(); const actions = useOvertoneActions();
   const playback = useOvertonePlayback();
   const [stage, setStage] = useState<Stage | null>(null); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
@@ -33,12 +35,12 @@ export function TranscriptionPanel() {
   const selectedPart = profile?.parts.includes(part as RecoverableMusicTranscription['requestedPart']) ? part as RecoverableMusicTranscription['requestedPart']
     : profile?.parts.includes('lead-sheet') ? 'lead-sheet' : profile?.parts[0];
   const available = readiness.musicTranscriptionAvailable && Boolean(profile);
-  const busy = Boolean(stage); const otherBusy = Object.keys(activeJobs).length > 0;
+  const busy = Boolean(stage); const otherBusy = Object.keys(activeJobs).length > 0 || (!stage && persistence.operationCount > 0) || persistence.maintenance.busy;
   const estimates = project?.transcriptions?.filter(item => item.sourceTakeId === source?.takeId) ?? [];
   function openScore(scoreId: string) {
     actions.selectScore(scoreId);
     const panel = document.querySelector<HTMLDetailsElement>('#ot-score-panel');
-    if (panel) { panel.open = true; panel.scrollIntoView({ block: 'nearest' }); }
+    if (panel) { panel.open = true; scrollIntoView(panel, { block: 'nearest' }); }
   }
   async function run(recovery?: RecoverableMusicTranscription) {
     if (!project || request.current || (!recovery && (!source || !profile || !selectedPart))) return;
@@ -66,7 +68,9 @@ export function TranscriptionPanel() {
       actions.setJob({ jobId: job.jobId, capability: 'music.transcribe', status });
       if (mounted.current && (status === 'pending' || status === 'running' || status === 'completed')) setStage(status === 'completed' ? 'saving' : status);
     };
+    let release: (() => void) | undefined;
     try {
+      release = persistence.beginOperation(projectId);
       const client = getNimiLocalAppClient();
       const result = recovery ? await recoverRecordingTranscription({ client, operation: recovery, signal: controller.signal, onJobUpdate })
         : await transcribeRecording({ client, operation, signal: controller.signal, onPrepared: actions.rememberTranscription, onJobUpdate });
@@ -76,7 +80,7 @@ export function TranscriptionPanel() {
       if (mounted.current && projectIdRef.current === projectId) {
         setNotice(t('Overtone.transcription.saved'));
         const panel = document.querySelector<HTMLDetailsElement>('#ot-score-panel');
-        if (panel) { panel.open = true; panel.scrollIntoView({ block: 'nearest' }); }
+        if (panel) { panel.open = true; scrollIntoView(panel, { block: 'nearest' }); }
       }
     } catch (cause) {
       if (mounted.current && projectIdRef.current === projectId) {
@@ -84,6 +88,7 @@ export function TranscriptionPanel() {
         else setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
+      release?.();
       if (jobId) actions.removeJob(jobId);
       if (request.current === controller) request.current = null;
       if (mounted.current) { setStage(null); setCanceling(false); }

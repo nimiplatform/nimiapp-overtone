@@ -1,3 +1,4 @@
+import { scrollIntoView } from './motion.js';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,6 +25,7 @@ import { TakesPanel } from './panels/takes-panel.js';
 import { VoiceConvertPanel } from './panels/voice-convert-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
 import { DraftSaveNotice } from './panels/draft-save-notice.js';
+import { StorageCleanupDialog } from './panels/storage-cleanup-dialog.js';
 import { probeReadiness } from './readiness.js';
 import { getNimiLocalAppClient } from '../shell/auth/local-app-client.js';
 import { usePlaybackShortcuts } from './use-playback-shortcuts.js';
@@ -78,7 +80,7 @@ function WorkspaceInner() {
   }, [state.project, state.readiness.runtimeStatus, startProject, persistence.status]);
 
   useEffect(() => {
-    if (creative.notesOpen) document.getElementById('ot-notebook')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (creative.notesOpen) scrollIntoView(document.getElementById('ot-notebook'), { block: 'nearest', behavior: 'smooth' });
   }, [creative.notesOpen]);
 
   useEffect(() => {
@@ -112,9 +114,9 @@ function WorkspaceInner() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (projectAction !== null || event.defaultPrevented) return;
+      if (projectAction !== null || event.defaultPrevented || event.isComposing || persistence.status === 'loading' || persistence.status === 'load-failed' || persistence.maintenance.busy) return;
       const target = event.target as HTMLElement | null;
-      if (target?.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if (isInput) return;
 
@@ -123,7 +125,7 @@ function WorkspaceInner() {
         clearCompare();
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
         if (state.project) setProjectAction('restart');
         else startProject();
@@ -131,7 +133,7 @@ function WorkspaceInner() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [clearCompare, hasCompare, projectAction, startProject, state.project]);
+  }, [clearCompare, hasCompare, projectAction, startProject, state.project, persistence.status, persistence.maintenance.busy]);
 
   if (state.readiness.runtimeStatus === 'unavailable') {
     return (
@@ -204,6 +206,8 @@ function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onC
   const { t, i18n } = useTranslation();
   const { readiness } = useOvertoneState();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const persistence = useOvertonePersistence();
   const documentLocale = normalizeOvertoneLocale(i18n.resolvedLanguage || i18n.language);
   useEffect(() => applyOvertoneDocumentLocale(documentLocale), [documentLocale]);
   return (
@@ -213,7 +217,9 @@ function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onC
         <span className="ot-header-purpose">{t('Overtone.studio.headerPurpose')}</span>
         <div className="overtone-language-bar">
           <span className="ot-connection" data-ready={readiness.runtimeStatus === 'ready'}><i />{t(readiness.runtimeStatus === 'ready' ? 'Overtone.studio.connected' : readiness.runtimeStatus === 'checking' ? 'Overtone.common.status.checking' : 'Overtone.common.status.unavailable')}</span>
-          {onCloseProject ? <Button className="ot-tool-button ot-new-session" tone="ghost" size="sm" leadingIcon={<OvertoneIcon name="plus" size={16} />} onClick={onCloseProject}>{t('Overtone.studio.newSession')}</Button> : null}
+          {onCloseProject ? <Button className="ot-tool-button ot-new-session" tone="ghost" size="sm" aria-keyshortcuts="Control+N Meta+N"
+            disabled={persistence.status === 'loading' || persistence.status === 'load-failed' || persistence.maintenance.busy}
+            leadingIcon={<OvertoneIcon name="plus" size={16} />} onClick={onCloseProject}>{t('Overtone.studio.newSession')}</Button> : null}
           <AIConfigPanel />
           <Popover open={preferencesOpen} onOpenChange={setPreferencesOpen}>
             <PopoverTrigger asChild><Button className="ot-settings-button" tone="ghost" size="sm" aria-label={t('Overtone.studio.preferences')}><OvertoneIcon name="settings" size={19} /></Button></PopoverTrigger>
@@ -226,10 +232,17 @@ function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onC
                 <span className="ot-preferences__label"><OvertoneIcon name="chat" size={14} />{t('Overtone.language.ariaLabel')}</span>
                 <LanguageSwitcher />
               </div>
+              <div className="ot-preferences__row">
+                <Button tone="secondary" size="sm" disabled={!onCloseProject || persistence.status !== 'saved' || persistence.operationCount > 0 || persistence.maintenance.busy}
+                  onClick={() => { setPreferencesOpen(false); setCleanupOpen(true); }}>{t('Overtone.storage.cleanup')}</Button>
+                {persistence.maintenance.removedAssets !== undefined ? <NimiText role="helper">{t('Overtone.storage.cleaned', { count: persistence.maintenance.removedAssets })}</NimiText> : null}
+                <NimiText role="helper">{t('Overtone.player.shortcuts')}</NimiText>
+              </div>
             </PopoverContent>
           </Popover>
         </div>
       </header>
+      <StorageCleanupDialog open={cleanupOpen} onClose={() => setCleanupOpen(false)} />
       <DraftSaveNotice />
       {children}
     </div>

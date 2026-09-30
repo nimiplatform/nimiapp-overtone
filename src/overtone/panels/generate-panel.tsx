@@ -1,10 +1,11 @@
+import { scrollIntoView } from '../motion.js';
 import { useEffect, useRef, useState } from 'react';
 import { ScenarioJobStatus, ScenarioType } from '@nimiplatform/sdk/runtime/generated';
 import { Button, FieldShell, InlineAlert, NimiText, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
 import { createMusicVersion, generateRuntimeMusic, SKETCH_DURATION_SECONDS } from '../runtime-workflow.js';
-import { useOvertoneActions, useOvertoneState, useAudioCache } from '../store.js';
+import { useOvertonePersistence, useOvertoneActions, useOvertoneState, useAudioCache } from '../store.js';
 import { makeId, scoreSourceTakeId, type GenerationJob, type RecoverableMusicResult } from '../types.js';
 import { buildMusicPrompt, musicInputValid } from '../exploration.js';
 import { useExploration, useMusicIntent } from '../exploration-context.js';
@@ -21,6 +22,7 @@ const JOB_STATUS: Partial<Record<ScenarioJobStatus, GenerationJob['status']>> = 
 // @nimi-authority: rule.overtone.workflow.r004
 export function GeneratePanel() {
   const { t } = useTranslation();
+  const persistence = useOvertonePersistence();
   const { project, readiness } = useOvertoneState();
   const { addTake, setJob, removeJob, rememberResult, captureJob, setAISettingsOpen } = useOvertoneActions();
   const creative = useExploration();
@@ -46,7 +48,7 @@ export function GeneratePanel() {
   const seed = seedInput.trim() ? Number(seedInput) : undefined;
   const seedValid = seed === undefined || (profile?.supportsSeed && Number.isSafeInteger(seed) && seed >= 0 && seed <= 4294967295);
   const hasRecoverable = project?.recoverableResults?.some(result => result.promptSnapshot === prompt && result.lyricsSnapshot === lyrics) ?? false;
-  const canGenerate = Boolean(seedValid && (inputScore ? prompt.trim() && (profile?.lyricsMode !== 'required' || lyrics.trim()) : musicInputValid(prompt, lyrics)) && readiness.musicCapabilityAvailable && profile
+  const canGenerate = Boolean(!persistence.maintenance.busy && persistence.operationCount === 0 && seedValid && (inputScore ? prompt.trim() && (profile?.lyricsMode !== 'required' || lyrics.trim()) : musicInputValid(prompt, lyrics)) && readiness.musicCapabilityAvailable && profile
     && (!inputScore || profile.scoreFormats.includes(inputScore.format))
     && (song ? songValid && !creative.songCandidate && !creative.arranging : inputScore || !creative.ideaDirty));
   const nextExplore = !inputScore && !generating && creative.ideaDirty && !creative.proposalsCurrent;
@@ -72,6 +74,7 @@ export function GeneratePanel() {
     setNotice('');
     let jobId = '';
     let completed = false;
+    let release: (() => void) | undefined;
     const submission: Omit<RecoverableMusicResult, 'jobId'> = {
       clientSubmissionId: makeId('music'), projectId: project.projectId,
       title: t(song ? 'Overtone.song.takeTitle' : 'Overtone.generate.takeTitle', { title, number: project.takes.length + (project.recoverableResults?.length ?? 0) + 1 }).slice(0,80),
@@ -82,6 +85,7 @@ export function GeneratePanel() {
       ...(seed !== undefined ? { seed } : {}),
     };
     try {
+      release = persistence.beginOperation(project.projectId);
       await rememberResult(submission, project.projectId);
       controller.signal.throwIfAborted();
       const result = await generateRuntimeMusic({
@@ -104,7 +108,7 @@ export function GeneratePanel() {
       if (song) setNotice(t(songFallsShort(result.durationSeconds, durationSeconds) ? 'Overtone.song.shortResultNotice' : 'Overtone.song.readyNotice', {
         actual: Math.round(result.durationSeconds), target: durationSeconds,
       }));
-      requestAnimationFrame(() => document.querySelector('.overtone-takes-stack')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      requestAnimationFrame(() => scrollIntoView(document.querySelector('.overtone-takes-stack'), { behavior: 'smooth', block: 'start' }));
     } catch (cause) {
       const reason = (cause as { reasonCode?: string })?.reasonCode;
       const message = cause instanceof Error ? cause.message : String(cause);
@@ -116,6 +120,7 @@ export function GeneratePanel() {
         completed ? t('Overtone.recovery.failedAfterGeneration') : reason === 'ai-media-option-unsupported' ? t('Overtone.playground.musicRejected') : message,
       ].filter(Boolean).join(': '));
     } finally {
+      release?.();
       if (jobId) removeJob(jobId);
       active.current = null;
       setGenerating(false);

@@ -1,3 +1,4 @@
+import { scrollIntoView } from './motion.js';
 import { createCreativeIntent } from './creative-intent.js';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +51,7 @@ function useCreativeSession() {
     setError('');
     requestAnimationFrame(() => {
       const progress = document.querySelector<HTMLElement>('.ot-waiting');
-      progress?.scrollIntoView({ block: 'nearest' });
+      scrollIntoView(progress, { block: 'nearest' });
       progress?.focus({ preventScroll: true });
     });
     const seed = source ? `${source.promptSnapshot}\n${twist ?? ''}` : idea.trim();
@@ -71,13 +72,13 @@ function useCreativeSession() {
       setFocusedDirection(0);
       setProposalParentId(source?.takeId);
       setProposalIdea(visibleIdea);
-      requestAnimationFrame(() => document.querySelector('.ot-direction-detail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+      requestAnimationFrame(() => scrollIntoView(document.querySelector('.ot-direction-detail'), { behavior: 'smooth', block: 'nearest' }));
     } catch (cause) {
       if (request !== invocation.current) return;
       const message = cause instanceof Error ? cause.message : String(cause);
       const reason = (cause as { reasonCode?: string })?.reasonCode;
       setError(message.includes('OVERTONE_DIRECTIONS_INVALID') || cause instanceof SyntaxError
-        ? t('Overtone.playground.invalidDirections') : textFailureMessage(cause, t));
+        ? 'Overtone.playground.invalidDirections' : textFailureMessage(cause, t));
     } finally {
       if (request === invocation.current) setExploring(false);
     }
@@ -106,7 +107,7 @@ function useCreativeSession() {
     textRequest.current?.abort();
     invocation.current += 1;
     setExploring(false);
-    setError(t('Overtone.playground.stopped'));
+    setError('Overtone.playground.stopped');
   }
 
   function applyOwnIdea() {
@@ -129,7 +130,7 @@ function useCreativeSession() {
     });
     setPendingSong(null);
     setStage('song');
-    requestAnimationFrame(() => document.querySelector('.ot-song-composer')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+    requestAnimationFrame(() => scrollIntoView(document.querySelector('.ot-song-composer'), { block: 'start', behavior: 'smooth' }));
   }
 
   function startSong(source: SongTake) {
@@ -170,7 +171,7 @@ function useCreativeSession() {
       setSongCandidate(null);
     }, idea, setIdea, directions, chosen,
     focusedDirection, setFocusedDirection, notesOpen, setNotesOpen,
-    exploring, error, explore, chooseDirection, applyDirection, pendingDirection, setPendingDirection,
+    exploring, error: error.startsWith('Overtone.') ? t(error) : error, explore, chooseDirection, applyDirection, pendingDirection, setPendingDirection,
     cancelExploration, parentTakeId, applyOwnIdea, ideaDirty: idea.trim() !== appliedIdea.trim(),
     proposalsCurrent: directions.length > 0 && idea.trim() === proposalIdea.trim(),
     restoreAppliedIdea: () => setIdea(appliedIdea) };

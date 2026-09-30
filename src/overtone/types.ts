@@ -280,7 +280,7 @@ export interface ReadinessSnapshot {
 }
 
 export interface SongProject {
-  schemaVersion: 2;
+  schemaVersion: 3;
   projectId: string;
   createdAt: number;
   brief: SongBrief | null;

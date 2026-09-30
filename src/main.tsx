@@ -7,11 +7,13 @@ import {
   createRendererEntryModuleLoader,
 } from '@nimiplatform/kit/shell/renderer/bootstrap';
 import { resolveInitialOvertoneScheme } from './overtone/theme-scheme.js';
+import { applyOvertoneDocumentLocale, resolveInitialOvertoneLocale } from './overtone/i18n.js';
 import './styles.css';
 
 // Install the Kit-owned standard shell bridge before the protected Local App
 // client is constructed. The host owns the carrier and its session posture.
 installNimiShellRuntimeBridge();
+applyOvertoneDocumentLocale(resolveInitialOvertoneLocale());
 
 const entryModuleLoader = createRendererEntryModuleLoader({
   retryDelaysMs: DEFAULT_DEV_RENDERER_ENTRY_IMPORT_RETRY_DELAYS_MS,

@@ -135,7 +135,10 @@ const REQUIRED_DYNAMIC_KEYS = [
   "Overtone.separation.stems.background",
   "Overtone.separation.stems.drums",
   "Overtone.separation.stems.bass",
-  "Overtone.separation.stems.other"
+  "Overtone.separation.stems.other",
+  "Overtone.host.reasons.local-development-registration-required",
+  "Overtone.host.reasons.local-development-session-revoked",
+  "Overtone.host.reasons.local-development-project-changed"
 ];
 
 function toRepoPath(filePath) {
@@ -327,7 +330,7 @@ function collectRawCopyFindingsForSource(relPath, source) {
 }
 
 function collectRawCopyFindings() {
-  const files = [...collectTsxFiles(overtoneRoot), productAreaPath].sort();
+  const files = [...collectTsxFiles(overtoneRoot), ...collectTsxFiles(path.join(repoRoot, 'src/shell/auth')), productAreaPath].sort();
   return files.flatMap((filePath) => {
     const relPath = toRepoPath(filePath);
     return collectRawCopyFindingsForSource(relPath, readFileSync(filePath, 'utf8'));
@@ -409,7 +412,7 @@ function collectTranslationKeyUsagesForSource(relPath, source) {
 
 function collectTranslationKeyUsages() {
   const files = [
-    ...collectTsxFiles(overtoneRoot),
+    ...collectTsxFiles(overtoneRoot), ...collectTsxFiles(path.join(repoRoot, 'src/shell/auth')),
     i18nPath,
     productAreaPath,
   ].sort();

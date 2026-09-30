@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadSource } from './load-source.mjs';
+import { attachProjectAssets } from './project-storage-fixture.mjs';
 const { createVoiceConvertVersions } = await loadSource('../src/overtone/runtime-workflow.ts');
 const { parseSongProject, writeProject } = await loadSource('../src/overtone/project-storage.ts');
 const { overtoneReducer } = await loadSource('../src/overtone/store.tsx');
@@ -47,20 +48,22 @@ const adopted = (overrides = {}) => ({
   mixOutputFrameCount: Math.max(derivedAudio.frameCount, accompanimentAudio.frameCount), mixPeak: 0.875,
   ...overrides,
 });
-const project = takes => ({ schemaVersion: 2, projectId: 'project-one', createdAt: 1, brief: null, lyrics: null,
+const project = takes => ({ schemaVersion: 3, projectId: 'project-one', createdAt: 1, brief: null, lyrics: null,
   takes, scores: [], selectedScoreId: null, selectedTakeId: null, comparedTakeIds: [null, null] });
 
 function mockStorage(failFirstWrite = false) {
   const written = [];
+  const documents = new Map();
   let failures = failFirstWrite ? 1 : 0;
-  return {
+  return attachProjectAssets({
     written,
-    async readJson() { throw Object.assign(new Error('not found'), { reasonCode: 'not_found' }); },
+    async readJson(path) { if (!documents.has(path)) throw Object.assign(new Error('not found'), { reasonCode: 'not_found' }); return { value: structuredClone(documents.get(path)) }; },
     async writeJson(path, value) {
       if (failures > 0) { failures -= 1; throw new Error('storage write failed'); }
       written.push({ path, value: JSON.parse(JSON.stringify(value)) });
+      documents.set(path, structuredClone(value));
     },
-  };
+  }, documents);
 }
 
 test('a voice conversion creates one runtime version plus a local mix without touching the source takes', () => {
@@ -186,9 +189,11 @@ test('voice conversion completes atomically: one transition, one valid write, pe
   assert.doesNotThrow(() => parseSongProject(before));
 
   const retry = mockStorage();
+  await writeProject(retry, before);
+  retry.written.length = 0;
   await writeProject(retry, state.project);
   assert.equal(retry.written.length, 1);
-  const persisted = parseSongProject(retry.written[0].value);
+  const persisted = parseSongProject(JSON.parse(new TextDecoder().decode(retry.assetBodies.get(retry.written[0].value.heads[0].document.relativePath))));
   assert.equal(persisted.takes.length, 5);
   assert.equal(persisted.recoverableVoiceConversions?.length ?? 0, 0);
 

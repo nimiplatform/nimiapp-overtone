@@ -1,9 +1,10 @@
+import { scrollIntoView } from '../motion.js';
 import { useEffect, useRef, useState } from 'react';
 import { Button, FieldShell, InlineAlert, NimiText, SelectField, TextField } from '@nimiplatform/kit/ui';
 import { ScenarioJobStatus, type ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { useTranslation } from 'react-i18next';
 import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
-import { useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
+import { useOvertonePersistence, useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
 import { recoverSeparation, runSeparation, type SeparationStages } from '../separation.js';
 import { makeId, type GenerationJob, type RecoverableSeparation, type SeparationStem } from '../types.js';
 
@@ -16,6 +17,7 @@ const STEMS: readonly SeparationStem[] = ['vocals', 'background', 'drums', 'bass
 // @nimi-authority: rule.overtone.runtime.r005
 export function SeparationPanel() {
   const { t } = useTranslation();
+  const persistence = useOvertonePersistence();
   const { project, readiness, activeJobs } = useOvertoneState();
   const actions = useOvertoneActions();
   const cache = useAudioCache();
@@ -34,7 +36,7 @@ export function SeparationPanel() {
   const takes = project?.takes.filter(take => !take.discarded) ?? [];
   const source = takes.find(take => take.takeId === sourceTakeId);
   const available = Boolean(readiness.audioSeparateAvailable);
-  const busy = Boolean(stage); const otherBusy = Object.keys(activeJobs).length > 0;
+  const busy = Boolean(stage); const otherBusy = Object.keys(activeJobs).length > 0 || (!stage && persistence.operationCount > 0) || persistence.maintenance.busy;
   const secondsValid = (value: string) => value.trim() === '' || (Number.isFinite(Number(value)) && Number(value) >= 0);
   const rangesValid = secondsValid(start) && secondsValid(end);
   const ready = available && Boolean(source) && rangesValid;
@@ -72,7 +74,9 @@ export function SeparationPanel() {
       actions.setJob({ jobId: job.jobId, capability: 'audio.separate', status });
       if (mounted.current && (status === 'pending' || status === 'running' || status === 'completed')) setStage(status === 'completed' ? 'saving' : status);
     };
+    let release: (() => void) | undefined;
     try {
+      release = persistence.beginOperation(projectId);
       const client = getNimiLocalAppClient();
       const result = recovery ? await recoverSeparation({ client, cache, operation: recovery, titles: recovery ? recoveryTitles(recovery) : titles(), signal: controller.signal,
         onStage: stage => { if (mounted.current) setStage(stage); }, onJobUpdate })
@@ -83,7 +87,7 @@ export function SeparationPanel() {
       await actions.completeSeparation(projectId, [...result.takes]);
       if (mounted.current && projectIdRef.current === projectId) {
         setNotice(t('Overtone.separation.saved', { count: String(result.takes.length) }));
-        requestAnimationFrame(() => document.querySelector('.overtone-takes-stack')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        requestAnimationFrame(() => scrollIntoView(document.querySelector('.overtone-takes-stack'), { behavior: 'smooth', block: 'start' }));
       }
     } catch (cause) {
       if (mounted.current && projectIdRef.current === projectId) {
@@ -92,6 +96,7 @@ export function SeparationPanel() {
         else setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
+      release?.();
       if (jobId) actions.removeJob(jobId);
       if (request.current === controller) request.current = null;
       if (mounted.current) { setStage(null); setCanceling(false); }
@@ -112,8 +117,7 @@ export function SeparationPanel() {
       </InlineAlert> : null}
       {available ? <>
         <FieldShell label={t('Overtone.separation.source')}>
-          <SelectField value={sourceTakeId} disabled={busy || otherBusy} options={[{ value: '', label: t('Overtone.separation.choose') },
-            ...takes.map(take => ({ value: take.takeId, label: take.title }))]} onChange={event => setSourceTakeId(event.currentTarget.value)} />
+          <SelectField value={sourceTakeId} disabled={busy || otherBusy} placeholder={t('Overtone.separation.choose')} options={takes.map(take => ({ value: take.takeId, label: take.title }))} onChange={event => setSourceTakeId(event.currentTarget.value)} />
         </FieldShell>
         <FieldShell label={t('Overtone.separation.range')}>
           <SelectField value={rangeMode} disabled={busy || otherBusy} options={[{ value: 'full', label: t('Overtone.separation.full') }, { value: 'range', label: t('Overtone.separation.selection') }]}

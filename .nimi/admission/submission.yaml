@@ -10,12 +10,15 @@ submission_role: developer-submitted-input
 capability_contract_refs:
   - text.generate
   - music.generate
+  - music.transcribe
+  - audio.voice.convert
+  - audio.separate
 required_standardized_feature_refs: []
 storage_policy:
   kind: app-owned-os-storage
   os_storage_disclosure:
     - path_pattern: <Electron userData>/Local Storage/**
-      purpose: Non-secret language, theme and volume preferences, plus retired browser draft metadata retained for explicit one-time recovery. Current projects, adopted audio and score assets use protected Nimi-mediated App storage. Browser preferences and retired drafts remain when the app is uninstalled from Nimi.
+      purpose: Non-secret language, theme and volume preferences. Current projects and adopted audio and score assets use protected Nimi-mediated App storage. Retired browser drafts are unsupported development residue, not a recovery feature; this unlaunched candidate does not preserve prior development projects. Browser preferences may remain when the app is uninstalled from Nimi.
       expected_size_band: Typically KiB to a few MiB of JSON, subject to browser storage quota.
 safety_profile:
   ai:
