@@ -1,5 +1,15 @@
 # Nimi Overtone
 
+## Published dependency and Catalog acceptance (2026-10-13)
+
+Current public release: [0.1.8](https://github.com/nimiplatform/nimiapp-overtone/releases/tag/v0.1.8); [Registry admission #81](https://github.com/nimiplatform/nimi-app-registry/pull/81) is merged for macOS arm64 and Windows x64. Frozen locks use published SDK 0.21.0, Kit/native 0.19.3, App Tools 0.12.1 and nimi-coding 0.6.5; no local Nimi archive or source-link resolution is required.
+
+Repository checks and managed production builds, package provenance and immutable Release checks passed for both declared targets. Actual Catalog download, installation and AI acceptance ran on macOS arm64 through source Nimi Home and its matching protected Runtime (Nimi main 35498102b). Runtime identity and App Access checks remain enforced.
+
+Real text generation returned three musical directions. The adopted direction generated a 30.772-second music asset through the configured music resource, played to the end, survived a full Home stop/launch and exported a separate WAV through the actual UI. The description-only resource rejected retained lyrics until they were explicitly cleared.
+
+**NOT-VERIFIED:** Windows GUI installation and AI use. Full-song generation, transcription, separation and voice conversion were not rerun; this verifies a sketch rather than a complete song.
+
 Overtone is a music playground in the Nimi ecosystem. Start with a scene or an improbable combination, explore three AI musical directions, choose an arrangement and lyric sketch, and make an actual recording. Each new recording remains a separate take.
 
 The workspace supports editable sound notes and lyrics, text-based reinterpretations of a selected take, immediate audition and A/B selection, loop and speed controls, trim preview, original-audio download and trimmed WAV export. Playback speed changes the listening pitch and duration; downloads retain the source speed and pitch. Text reinterpretations use a take's words and do not preserve or remix its audio melody.
@@ -12,10 +22,9 @@ Projects, adopted audio and score documents are saved through protected Nimi App
 
 ## Development
 
-当前开发候选尚未发布到 registry。先从平台包提供方取得 lockfile 指定的 SDK 0.19.0、Kit 0.16.0、App Tools 0.11.4 和本机 Kit native 完整 npm archive，放在同一目录。准备命令仅依赖 Node 和系统 tar，可在没有 node_modules 的新检出执行，并验证 archive 名称、版本及 lockfile integrity。当前锁定的 native archive 是 macOS arm64；Windows 需要另行选择、验证并锁定对应原生包，不能把本机验证视为 Windows 安装证明。
+当前冻结锁文件直接解析 npm 发布版 SDK 0.21.0、Kit/native 0.19.3、App Tools 0.12.1 和 nimi-coding 0.6.5。新检出可直接安装，不需要取得本地 Nimi archive。
 
 ```bash
-node scripts/setup-local-packages.mjs /path/to/reviewed-candidate-archives
 pnpm install --frozen-lockfile
 pnpm exec nimi-app sync
 pnpm dev -- --cdp-port 9222
@@ -38,9 +47,9 @@ For Nimi listing review, keep `nimi.app.yaml`, `.nimi/admission/submission.yaml`
 
 Upstream Platform/Runtime review produces release descriptors, ordinary visibility, install truth, and App Access authorization. This scaffold does not mint those outcomes.
 
-## Windows package and release
+## macOS and Windows package and release
 
-The production target is Windows x86_64 using Desktop-supervised Electron.
+The declared production targets are macOS arm64 and Windows x86_64, using Desktop-supervised Electron.
 Build and inspect the package from this repository:
 
 ```bash
@@ -59,7 +68,9 @@ The publisher then submits the immutable Release to [Nimi App Registry](https://
 
 试听版本旁的“完成这首歌”会锁定这段录音的文字方向，打开独立的成曲草稿。选 1 分半、2 分钟或 3 分钟，点击“展开完整编排”，编辑每个段落的编曲意图和歌词，再点击“生成完整歌曲”。提交前需补全歌名和每段编排，且至少四段各有三行或更多歌词；未完成的草稿会保留并显示补全提示。结果保留实际时长；明显短于目标的音频会标为短版结果。原试听可随时对照，成曲可用播放器下载。这里重新创作音乐，不保证延续试听中的旋律。
 
-本次音乐迭代从 cb9debb2fa56cad3af8a78663fa02bec62de831a 开始，保留 MIT 许可证、音乐探索机制和既定视觉系统。当前开发组合为 SDK 0.19.0、Kit/native 0.16.0、App Tools 0.11.4、nimi-coding 0.6.3；完整 archive 放在 `.nimi/local/packages` 的已锁定组合目录（本轮 `current`／`current-sdk`），由 `pnpm-workspace.yaml` 和 lockfile 固定，不依赖源码链接。该目录不入库，新检出必须先准备完全相同的候选包字节，之后可用 frozen lockfile 安装。公开发行仍需相应依赖发布到 registry 并通过 production preflight。
+以下为 2026-09-30 前音乐迭代的历史说明；当前发行和验收以本页发布版记录为准。
+
+该次音乐迭代从 cb9debb2fa56cad3af8a78663fa02bec62de831a 开始，保留 MIT 许可证、音乐探索机制和既定视觉系统。当前开发组合为 SDK 0.19.0、Kit/native 0.16.0、App Tools 0.11.4、nimi-coding 0.6.3；完整 archive 放在 `.nimi/local/packages` 的已锁定组合目录（本轮 `current`／`current-sdk`），由 `pnpm-workspace.yaml` 和 lockfile 固定，不依赖源码链接。该目录不入库，新检出必须先准备完全相同的候选包字节，之后可用 frozen lockfile 安装。公开发行仍需相应依赖发布到 registry 并通过 production preflight。
 
 候选版本尚未发布，本轮不执行发布、部署或 Registry 提交。打包、安装、启动与准入分别验收；本机检查通过不代表这些结果。
 
@@ -105,7 +116,7 @@ Schema 3 以受保护资产保存完整项目 JSON，`workspace/projects.json` �
 
 中文／英文、深色界面、弹窗关闭与后台退出、波形标签和快捷键提示已查看。现有本机文字模型已实际调用，但本次未返回三个符合合同的方向，产品正确拒绝并保留草稿；这不是成功的方向探索验收。音乐生成、转谱、换声当前没有可选的本机配置，成功模型旅程为 NOT-VERIFIED；本轮不安装新模型或自动选择其他提供方。Windows、生产打包安装、公开发行与 Registry 准入为 NOT-VERIFIED。开发 CSP 提示与较大 bundle 提示仍存在。
 
-## 当前修复验收（2026-09-30，存储审计修复）
+## 历史修复验收（2026-09-30，存储审计修复）
 
 修复了清理重试绕过确认、导入录音与手工乐谱保存失败后无法重试原结果，以及通过存活资产推断项目全集导致的误删。完整 head 目录取代此前独立 head，沿用未发布项目的硬切约定。待提交的本地结果只在当前窗口保留，保存成功后才显示；关闭未保存的窗口仍不能保证恢复。
 
