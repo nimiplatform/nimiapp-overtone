@@ -150,7 +150,7 @@ test('the full-song action withholds incomplete edited arrangements and recovers
       arrangement: 'Piano enters', lyrics: 'One\nTwo\nThree\nFour' })) };
   await change(({ actions, creative }) => {
     actions.startProject(); actions.setFullSong(draft);
-    actions.setReadiness({ runtimeStatus: 'ready', textCapabilityAvailable: true, musicCapabilityAvailable: true, musicInput: { generation: [{ scoreMode: 'unsupported' }] } });
+    actions.setReadiness({ runtimeStatus: 'ready', textCapabilityAvailable: true, musicCapabilityAvailable: true, musicInput: { generation: [{ scoreMode: 'unsupported', lyricsMode: 'required', maxDurationSeconds: 600, defaultDurationSeconds: 20, maxPromptBytes: 32768, maxLyricsBytes: 32768 }] } });
     creative.setStage('song');
   });
   const generate = () => document.querySelector('[data-next-action="generate-song"]');

@@ -14,6 +14,7 @@ test('directions require three distinct, complete, bounded AI proposals',()=>{
   assert.throws(()=>parseMusicDirections(JSON.stringify({directions:[{...direction('Moon'),description:'x'.repeat(1501)},direction('Orbit'),direction('Earth')]})));
   assert.throws(()=>parseMusicDirections('not JSON'));
 });
+const requiredLyrics = { lyricsMode: 'required', maxPromptBytes: 32768, maxLyricsBytes: 32768 };
 test('sound intent reaches the actual prompt and invalid music input is withheld',()=>{
   const brief=direction('Moon');
   const calm=buildMusicPrompt(brief,'acoustic',10,10);
@@ -21,10 +22,10 @@ test('sound intent reaches the actual prompt and invalid music input is withheld
   assert.match(calm,/gentle and spacious/);
   assert.match(wild,/unexpected instrumentation/);
   assert.match(wild,/Warm bass/);
-  assert.equal(musicInputValid(wild,brief.lyrics),true);
-  assert.equal(musicInputValid(wild,''),false);
-  assert.equal(musicInputValid(wild,'\0'),false);
-  assert.equal(musicInputValid(wild,'声'.repeat(11000)),false);
+  assert.equal(musicInputValid(wild,brief.lyrics,requiredLyrics),true);
+  assert.equal(musicInputValid(wild,'',requiredLyrics),false);
+  assert.equal(musicInputValid(wild,'\0',requiredLyrics),false);
+  assert.equal(musicInputValid(wild,'声'.repeat(11000),requiredLyrics),false);
 });
 test('AI lyric headings use standalone tags without changing sung words',()=>{
   assert.equal(normalizeGeneratedLyrics('[Verse] 月球酒吧，灯光微弱\n[Chorus]\n我思念你'), '[verse]\n月球酒吧，灯光微弱\n[chorus]\n我思念你');
@@ -60,4 +61,13 @@ test('full-song render preserves source and every edited section, with a real du
  assert.equal(input.lyrics,'[verse]\nMy edited line\n\n[outro]\nHome at last');
  assert.equal(songFallsShort(20,120),true);
  assert.equal(songFallsShort(120.01,120),false);
+});
+
+test('published music profiles accept prompt-only input and reject unsupported lyrics without losing them',()=>{
+  const promptOnly={lyricsMode:'unsupported',maxPromptBytes:32,maxLyricsBytes:0};
+  assert.equal(musicInputValid('Instrumental piano','',promptOnly),true);
+  assert.equal(musicInputValid('Instrumental piano','Authored words',promptOnly),false);
+  assert.equal(musicInputValid('x'.repeat(33),'',promptOnly),false);
+  assert.equal(musicInputValid('Instrumental piano','',requiredLyrics),false);
+  assert.equal(musicInputValid('Instrumental piano','',{...requiredLyrics,lyricsMode:'optional'}),true);
 });

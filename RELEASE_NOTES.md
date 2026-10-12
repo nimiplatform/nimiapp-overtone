@@ -1,3 +1,7 @@
+## 0.1.8 · Published platform dependencies
+
+Uses public npm SDK 0.21.0, Kit/native 0.19.3, App Tools 0.12.1 and nimi-coding 0.6.5 with frozen registry lockfiles. Local Nimi tarball overrides are removed; Desktop-supervised development and installed Apps use the same published carrier.
+
 # Nimi Overtone 0.1.7
 
 这是尚未发布的源码候选，当前开发组合为 SDK 0.19、Kit／本机原生载体 0.16、App Tools 0.11.4。发行与 Registry 准入独立进行，声明不构成安全认证。

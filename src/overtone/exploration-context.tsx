@@ -63,7 +63,6 @@ function useCreativeSession() {
         input: JSON.stringify({ idea: seed.slice(0, 4000), energy, surprise,
           language: i18n.language.startsWith('zh') ? '简体中文' : 'English',
           sourceLyrics: source?.lyricsSnapshot?.slice(0, 4000) }),
-        temperature: 0.95, maxTokens: 3000,
       });
       if (request !== invocation.current) return;
       const next = parseMusicDirections(response);
@@ -152,7 +151,7 @@ function useCreativeSession() {
       const text = await generateRuntimeText({ client: getNimiLocalAppClient(), signal: controller.signal, system: FULL_SONG_SYSTEM,
         input: JSON.stringify({ sourcePrompt: draft.sourcePrompt, sourceLyrics: draft.sourceLyrics,
           targetDurationSeconds: draft.durationSeconds, language: i18n.language.startsWith('zh') ? '简体中文。歌词、标题、段落名称和编排全部用简体中文。' : 'English' }),
-        temperature: .8, maxTokens: 3600 });
+      });
       if (id !== songInvocation.current) return;
       const result = parseFullSong(text);
       if (draft.sections.length || songRevision.current !== draft) setSongCandidate(result);

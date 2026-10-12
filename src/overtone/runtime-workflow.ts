@@ -21,7 +21,11 @@ export async function generateRuntimeText(input: RuntimeTextGenerationInput): Pr
   signal.addEventListener('abort', cancel, { once: true });
   try {
     signal.throwIfAborted();
-    const opening = input.client.ai.text.streamTurn({ messages: [{ role: 'system', text: input.system }, { role: 'user', text: input.input }], temperature: input.temperature, maxTokens: input.maxTokens });
+    const opening = input.client.ai.text.streamTurn({
+      messages: [{ role: 'system', text: input.system }, { role: 'user', text: input.input }],
+      ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
+      ...(input.maxTokens !== undefined ? { maxTokens: input.maxTokens } : {}),
+    });
     void opening.then(value => { if (signal.aborted) void value.cancel().catch(() => undefined); }).catch(() => undefined);
     subscription = await waitForAbort(opening, signal);
     const consume = async () => {

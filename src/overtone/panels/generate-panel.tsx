@@ -29,6 +29,7 @@ export function GeneratePanel() {
   const intent = useMusicIntent();
   const cache = useAudioCache();
   const [styleTags, setStyleTags] = useState('');
+  const [sketchBudget, setSketchBudget] = useState<number | null>(null);
   const [seedInput, setSeedInput] = useState('');
   const { musicBusy: generating, setMusicBusy: setGenerating } = creative;
   const [submittedTitle, setSubmittedTitle] = useState('');
@@ -45,10 +46,12 @@ export function GeneratePanel() {
   const inputScore = song ? undefined : project?.scores.find(score => score.scoreId === project.generationScoreId);
   const prompt = songInput?.prompt ?? (brief ? buildMusicPrompt(brief, styleTags, intent.energy, intent.surprise) : inputScore ? 'Create a new arrangement from the supplied musical score.' : '');
   const profile = readiness.musicInput?.generation.find(item => item.scoreMode === (inputScore ? 'required' : 'unsupported'));
+  const durationSeconds = inputScore ? project?.scoreBudgetSeconds ?? 20 : song?.durationSeconds ?? sketchBudget ?? profile?.defaultDurationSeconds ?? SKETCH_DURATION_SECONDS;
+  const budgetValid = !!profile && Number.isInteger(durationSeconds) && durationSeconds > 0 && durationSeconds <= profile.maxDurationSeconds;
   const seed = seedInput.trim() ? Number(seedInput) : undefined;
   const seedValid = seed === undefined || (profile?.supportsSeed && Number.isSafeInteger(seed) && seed >= 0 && seed <= 4294967295);
   const hasRecoverable = project?.recoverableResults?.some(result => result.promptSnapshot === prompt && result.lyricsSnapshot === lyrics) ?? false;
-  const canGenerate = Boolean(!persistence.maintenance.busy && persistence.operationCount === 0 && seedValid && (inputScore ? prompt.trim() && (profile?.lyricsMode !== 'required' || lyrics.trim()) : musicInputValid(prompt, lyrics)) && readiness.musicCapabilityAvailable && profile
+  const canGenerate = Boolean(!persistence.maintenance.busy && persistence.operationCount === 0 && seedValid && budgetValid && profile && musicInputValid(prompt, lyrics, profile) && readiness.musicCapabilityAvailable && profile
     && (!inputScore || profile.scoreFormats.includes(inputScore.format))
     && (song ? songValid && !creative.songCandidate && !creative.arranging : inputScore || !creative.ideaDirty));
   const nextExplore = !inputScore && !generating && creative.ideaDirty && !creative.proposalsCurrent;
@@ -66,7 +69,6 @@ export function GeneratePanel() {
     active.current = controller;
     setGenerating(true);
     const title = inputScore?.title || song?.title || brief?.title || t('Overtone.playground.ownDirection');
-    const durationSeconds = inputScore ? project.scoreBudgetSeconds ?? 20 : song?.durationSeconds ?? SKETCH_DURATION_SECONDS;
     setSubmittedTitle(title);
     setError('');
     setFailedResultId('');
@@ -79,7 +81,7 @@ export function GeneratePanel() {
       clientSubmissionId: makeId('music'), projectId: project.projectId,
       title: t(song ? 'Overtone.song.takeTitle' : 'Overtone.generate.takeTitle', { title, number: project.takes.length + (project.recoverableResults?.length ?? 0) + 1 }).slice(0,80),
       parentTakeId: inputScore ? scoreSourceTakeId(project, inputScore.scoreId) : song?.sourceTakeId ?? creative.parentTakeId, promptSnapshot: prompt, lyricsSnapshot: lyrics, styleSnapshot: song ? undefined : styleTags,
-      targetDurationSeconds: durationSeconds, creationMode: song || durationSeconds > 20 ? 'song' : 'sketch', createdAt: Date.now(),
+      targetDurationSeconds: durationSeconds, creationMode: song || (inputScore && durationSeconds > 20) ? 'song' : 'sketch', createdAt: Date.now(),
       ...(inputScore ? { inputScoreId: inputScore.scoreId, scoreConditioning: 'melody-and-harmony' as const } : {}),
       returnGeneratedScore: profile?.supportsGeneratedScore === true,
       ...(seed !== undefined ? { seed } : {}),
@@ -154,6 +156,10 @@ export function GeneratePanel() {
         <Button tone="ghost" size="sm" onClick={creative.restoreAppliedIdea}>{t('Overtone.playground.keepDirection')}</Button></div>
         : !nextApply && !canGenerate && !generating && (!brief?.description.trim() || !lyrics || readiness.musicCapabilityAvailable)
           ? <NimiText role="helper">{t(!brief?.description.trim() ? 'Overtone.playground.needDirection' : !lyrics ? 'Overtone.playground.needLyrics' : 'Overtone.playground.invalidInput')}</NimiText> : null}
+      {!inputScore && !song && profile ? <FieldShell label={t('Overtone.score.budget')} message={t('Overtone.generate.budgetHint', { seconds: profile.defaultDurationSeconds })}>
+        <TextField type="number" min={1} max={profile.maxDurationSeconds} step={1} value={durationSeconds} disabled={generating} onChange={event => setSketchBudget(Number(event.target.value))} />
+      </FieldShell> : null}
+      {profile?.lyricsMode === 'unsupported' && lyrics.trim() ? <InlineAlert tone="warning">{t('Overtone.generate.lyricsUnsupported')}</InlineAlert> : null}
       {errorMessage ? <InlineAlert tone="warning">{errorMessage}{errorDetail ? <details><summary>{t('Overtone.playground.errorDetails')}</summary>{errorDetail}</details> : null}</InlineAlert> : null}
       <div className="ot-generation-tools"><Button className="ot-tool-button" tone="ghost" size="sm" aria-expanded={creative.notesOpen} aria-controls="ot-notebook" leadingIcon={<OvertoneIcon name="notes" size={15} />} onClick={() => creative.setNotesOpen(!creative.notesOpen)}>{t('Overtone.studio.editDraft')}</Button>
       <details className="overtone-style-details"><summary>{t('Overtone.score.options')}</summary><FieldShell label={t('Overtone.generate.styleTags')}>

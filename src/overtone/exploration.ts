@@ -1,3 +1,4 @@
+import type { NimiMusicGenerationInputProfile } from '@nimiplatform/sdk/app';
 import { normalizeGeneratedLyrics } from './lyrics.js';
 import type { SongBrief } from './types.js';
 
@@ -62,10 +63,14 @@ export function buildMusicPrompt(brief: SongBrief, styleTags: string, energy: nu
   ].filter(Boolean).join('\n').trim();
 }
 
-export function musicInputValid(prompt: string, lyrics: string): boolean {
+// @nimi-authority: rule.overtone.runtime.r003
+export function musicInputValid(prompt: string, lyrics: string, profile: NimiMusicGenerationInputProfile): boolean {
   const bytes = new TextEncoder();
-  return !!prompt.trim() && !!lyrics.trim() && !prompt.includes('\0') && !lyrics.includes('\0')
-    && bytes.encode(prompt).byteLength <= 32 * 1024 && bytes.encode(lyrics).byteLength <= 32 * 1024;
+  return !!prompt.trim() && !prompt.includes('\0') && !lyrics.includes('\0')
+    && (profile.lyricsMode !== 'required' || !!lyrics.trim())
+    && (profile.lyricsMode !== 'unsupported' || !lyrics.trim())
+    && bytes.encode(prompt).byteLength <= profile.maxPromptBytes
+    && bytes.encode(lyrics).byteLength <= profile.maxLyricsBytes;
 }
 
 export function formatAudioTime(seconds: number): string {

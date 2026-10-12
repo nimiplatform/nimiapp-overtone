@@ -540,6 +540,8 @@ export const overtoneI18nResources = {
           "placeholder": "Write or paste lyrics here. Manual edits always win over regenerated text."
         },
         "generate": {
+          "budgetHint": "The model recommends a {{seconds}} second upper budget. Actual audio length is measured after generation.",
+          "lyricsUnsupported": "This model accepts a description only. Clear the separate lyrics for this submission or choose a model that accepts lyrics.",
           "styleTags": "Style tags",
           "stylePlaceholder": "indie, dreamy, acoustic",
           "cancel": "Cancel generation",
@@ -1175,6 +1177,8 @@ export const overtoneI18nResources = {
           "placeholder": "在这里写入或粘贴歌词。手动编辑始终优先于重新生成的文本。"
         },
         "generate": {
+          "budgetHint": "模型建议使用 {{seconds}} 秒上限预算；生成后显示音频的实际时长。",
+          "lyricsUnsupported": "当前模型仅接受描述。请清空这次提交的独立歌词，或选择支持歌词的模型。",
           "styleTags": "风格标签",
           "stylePlaceholder": "indie, dreamy, acoustic",
           "cancel": "取消生成",

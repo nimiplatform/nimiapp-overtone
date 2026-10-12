@@ -1,6 +1,6 @@
 app_id: nimi.overtone
 display_name: Nimi Overtone
-version: 0.1.7
+version: 0.1.8
 profile: standalone
 manifest_role: submitted-input
 app_access:
@@ -56,5 +56,10 @@ storage_policy:
   kind: app-owned-os-storage
   os_storage_disclosure:
     - path_pattern: <Electron userData>/Local Storage/**
-      purpose: Non-secret language, theme and volume preferences. Current projects and adopted audio and score assets use protected Nimi-mediated App storage. Retired browser drafts are unsupported development residue, not a recovery feature; this unlaunched candidate does not preserve prior development projects. Browser preferences may remain when the app is uninstalled from Nimi.
+      purpose: Non-secret language, theme and volume preferences. Current projects and
+        adopted audio and score assets use protected Nimi-mediated App storage.
+        Retired browser drafts are unsupported development residue, not a
+        recovery feature; this unlaunched candidate does not preserve prior
+        development projects. Browser preferences may remain when the app is
+        uninstalled from Nimi.
       expected_size_band: Typically KiB to a few MiB of JSON, subject to browser storage quota.
