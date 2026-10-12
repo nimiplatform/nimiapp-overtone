@@ -10,6 +10,8 @@ Real text generation returned three musical directions. The adopted direction ge
 
 **NOT-VERIFIED:** Windows GUI installation and AI use. Full-song generation, transcription, separation and voice conversion were not rerun; this verifies a sketch rather than a complete song.
 
+Adjacent Home finding: Show window returned `runtime-service-untrusted` when focusing this already-running Catalog package in this macOS source setup. Native process activation uses this generic error; that focus operation does not call Runtime identity validation. Launch, stop, App Access, actual AI, playback, export and saved-data reopening passed. The focus failure remains unresolved.
+
 Overtone is a music playground in the Nimi ecosystem. Start with a scene or an improbable combination, explore three AI musical directions, choose an arrangement and lyric sketch, and make an actual recording. Each new recording remains a separate take.
 
 The workspace supports editable sound notes and lyrics, text-based reinterpretations of a selected take, immediate audition and A/B selection, loop and speed controls, trim preview, original-audio download and trimmed WAV export. Playback speed changes the listening pitch and duration; downloads retain the source speed and pitch. Text reinterpretations use a take's words and do not preserve or remix its audio melody.
