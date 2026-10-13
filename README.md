@@ -10,7 +10,7 @@ Real text generation returned three musical directions. The adopted direction ge
 
 **NOT-VERIFIED:** Windows GUI installation and AI use. Full-song generation, transcription, separation and voice conversion were not rerun; this verifies a sketch rather than a complete song.
 
-Adjacent Home observation: background CDP automation of Show window returned `runtime-service-untrusted` for this already-running Catalog package. Native process activation uses this generic error; that focus operation does not call Runtime identity validation. Foreground native Home behavior is NOT-VERIFIED because Computer Use could not bind the source Home window; manual confirmation is pending. Launch, stop, App Access, actual AI, playback, export and saved-data reopening passed.
+Adjacent Home observation: background CDP automation of Show window returned `runtime-service-untrusted` for this already-running Catalog package. Native process activation uses this generic error; that focus operation does not call Runtime identity validation. On 2026-10-13, the user confirmed that bringing Nimi Home to the foreground and manually clicking Show window displays Overtone normally. This foreground journey passed by manual confirmation. Computer Use could not bind the source Home window; the background automation error does not establish a Runtime identity failure. Launch, stop, App Access, actual AI, playback, export and saved-data reopening passed.
 
 Overtone is a music playground in the Nimi ecosystem. Start with a scene or an improbable combination, explore three AI musical directions, choose an arrangement and lyric sketch, and make an actual recording. Each new recording remains a separate take.
 
