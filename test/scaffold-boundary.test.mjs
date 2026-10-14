@@ -82,5 +82,5 @@ test('manifest declares current App Access and Electron development origin', () 
 test('admission request remains submitted input', () => {
   assert.match(admission, /developer-submitted listing request/);
   assert.match(admission, /not an approval, release descriptor, permission grant, or install truth/);
-  assert.match(admission, /Nimi Platform review owns final admission/);
+  assert.match(admission, /Nimi Registry \/ Platform review\*\* governs catalog admission/);
 });
