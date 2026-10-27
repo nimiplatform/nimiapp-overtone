@@ -26,6 +26,9 @@ const IS_PRODUCTION_BUNDLE = typeof __NIMI_ELECTRON_PRODUCTION__ !== 'undefined'
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(currentDir, '..');
+if (process.platform === 'win32') app.setAppUserModelId(`ai.nimi.${app.isPackaged ? '' : 'dev.'}apps.nimi.overtone`);
+// Native presentation is separate from metadata.icon artwork shown in Nimi Home.
+const nativeAppIconPath = path.join(appRoot, 'assets', 'native', process.platform === 'win32' ? 'windows.ico' : process.platform === 'darwin' ? 'macos.png' : 'app.png');
 const preloadPath = path.join(currentDir, 'preload.cjs');
 const productionRendererUrl = pathToFileURL(path.join(appRoot, 'dist', 'index.html')).toString();
 const developmentRendererUrl = readDevelopmentRendererUrl();
@@ -42,6 +45,7 @@ Menu.setApplicationMenu(Menu.buildFromTemplate(
 registerNimiElectronAppAssetProtocolScheme(protocol);
 
 void app.whenReady().then(async () => {
+  if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(nativeAppIconPath);
   registerNimiElectronAppBridge({
     appId: APP_ID,
     allowedRendererUrls,
@@ -77,6 +81,7 @@ function resetAccountScopedRenderer(): void {
 
 async function createMainWindow(): Promise<void> {
   const window = new BrowserWindow({
+    icon: nativeAppIconPath,
     width: 1180,
     height: 900,
     minWidth: 360,

@@ -11,7 +11,6 @@ local_development:
 metadata:
   summary: 整理音乐创作项目、歌词与音频候选，比较和管理创作版本。
   icon: assets/app-icon.png
-  readme: APP_GUIDE.md
   release_notes: RELEASE_NOTES.md
   author: Nimi Overtone
   homepage_url: https://github.com/nimiplatform/nimiapp-overtone

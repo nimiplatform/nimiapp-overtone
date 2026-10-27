@@ -11,7 +11,7 @@ import { initReactI18next } from 'react-i18next';
 // Real React/Kit components, with isolated storage and an audio sink that records
 // playback commands. These tests do not claim Runtime, decoding or speaker success.
 const dom = new JSDOM('<div id="root"></div>', { url: 'http://component-test.invalid/' });
-for (const name of ['window', 'document', 'HTMLElement', 'HTMLCanvasElement', 'HTMLInputElement', 'Node', 'NodeFilter', 'CustomEvent', 'MutationObserver', 'localStorage', 'getComputedStyle']) globalThis[name] = dom.window[name];
+for (const name of ['window', 'document', 'Element', 'HTMLElement', 'HTMLCanvasElement', 'HTMLInputElement', 'Node', 'NodeFilter', 'CustomEvent', 'MutationObserver', 'localStorage', 'getComputedStyle']) globalThis[name] = dom.window[name];
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.ResizeObserver = class { observe() {} disconnect() {} };
 globalThis.requestAnimationFrame = () => 1;
