@@ -768,7 +768,7 @@ packages:
     hasBin: true
 
   '@nimiplatform/sdk@file:.nimi/local/packages/nimiplatform-sdk-0.22.2.tgz':
-    resolution: {integrity: sha512-03x4BiT6RdYFwiyIvZBxKiETHeLuMcTeu0CXgLv0lQhw9dyYVouW56+qW2WrbW8Vxbk2I1tAK8YsBQnrLAC2Xg==, tarball: file:.nimi/local/packages/nimiplatform-sdk-0.22.2.tgz}
+    resolution: {integrity: sha512-nO/kL85ETo9LZRQAQQWL64VioDhtwHESnNKEqkcQYQquaGWdGgRTzvU8fUxgRF/3ZK4OmXspLeLKoi92q3NA3g==, tarball: file:.nimi/local/packages/nimiplatform-sdk-0.22.2.tgz}
     version: 0.22.2
     peerDependencies:
       '@grpc/grpc-js': ^1.14.4
