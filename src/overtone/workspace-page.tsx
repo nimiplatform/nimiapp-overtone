@@ -1,3 +1,4 @@
+import { NimiAccountControl } from '@nimiplatform/kit/auth/app';
 import { scrollIntoView } from './motion.js';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +16,7 @@ import {
   useNimiTheme,
   type NimiThemeScheme,
 } from '@nimiplatform/kit/ui';
-import { OvertoneProvider, useOvertoneActions, useOvertonePlayback, useOvertoneState, useOvertonePersistence } from './store.js';
+import { useOvertoneActions, useOvertonePlayback, useOvertoneState, useOvertonePersistence } from './store.js';
 import { BriefPanel, SoundNotes } from './panels/brief-panel.js';
 import { LyricsPanel } from './panels/lyrics-panel.js';
 import { GeneratePanel } from './panels/generate-panel.js';
@@ -27,7 +28,7 @@ import { PlayerPanel } from './panels/player-panel.js';
 import { DraftSaveNotice } from './panels/draft-save-notice.js';
 import { StorageCleanupDialog } from './panels/storage-cleanup-dialog.js';
 import { probeReadiness } from './readiness.js';
-import { getNimiLocalAppClient } from '../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../shell/auth/app-session.js';
 import { usePlaybackShortcuts } from './use-playback-shortcuts.js';
 import { persistOvertoneScheme } from './theme-scheme.js';
 import { ExplorationProvider, useExploration } from './exploration-context.js';
@@ -47,10 +48,10 @@ import './overtone.css';
 
 export function WorkspacePage() {
   return (
-    <OvertoneProvider storage={getNimiLocalAppClient().storage}>
+    <>
       <CreativeWorkspace />
       <NimiToaster />
-    </OvertoneProvider>
+    </>
   );
 }
 
@@ -60,6 +61,8 @@ function CreativeWorkspace() {
 }
 
 function WorkspaceInner() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t } = useTranslation();
   const state = useOvertoneState();
   const persistence = useOvertonePersistence();
@@ -88,7 +91,7 @@ function WorkspaceInner() {
     let revision = 0;
     const refresh = () => {
       const current = ++revision;
-      void probeReadiness()
+      void probeReadiness(client, scope.signal)
       .then((snapshot) => { if (!cancelled && current === revision) setReadiness(snapshot); })
       .catch((error) => {
         if (!cancelled && current === revision) {
@@ -102,19 +105,19 @@ function WorkspaceInner() {
       });
     };
     const visible = () => { if (document.visibilityState === 'visible') refresh(); };
-    refresh(); window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', visible);
-    return () => { cancelled = true; window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible); };
-  }, [reloadKey, setReadiness]);
+    refresh(); scope.signal.addEventListener('abort', refresh, { once: true }); window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', visible);
+    return () => { cancelled = true; scope.signal.removeEventListener('abort', refresh); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible); };
+  }, [reloadKey, setReadiness, client, scope]);
 
   usePlaybackShortcuts({
-    enabled: projectAction === null && !!state.project,
+    enabled: !scope.signal.aborted && projectAction === null && !!state.project,
     onTogglePlayback: playback.togglePlayback,
     onSeekDelta: playback.seekBy,
   });
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (projectAction !== null || event.defaultPrevented || event.isComposing || persistence.status === 'loading' || persistence.status === 'load-failed' || persistence.maintenance.busy) return;
+      if (scope.signal.aborted || projectAction !== null || event.defaultPrevented || event.isComposing || persistence.status === 'loading' || persistence.status === 'load-failed' || persistence.maintenance.busy) return;
       const target = event.target as HTMLElement | null;
       if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
       const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
@@ -133,7 +136,7 @@ function WorkspaceInner() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [clearCompare, hasCompare, projectAction, startProject, state.project, persistence.status, persistence.maintenance.busy]);
+  }, [clearCompare, hasCompare, projectAction, startProject, state.project, persistence.status, persistence.maintenance.busy, scope]);
 
   if (state.readiness.runtimeStatus === 'unavailable') {
     return (
@@ -203,6 +206,7 @@ function WorkspaceInner() {
 }
 
 function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onCloseProject?: () => void }) {
+  const { host } = useOvertoneSession();
   const { t, i18n } = useTranslation();
   const { readiness } = useOvertoneState();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
@@ -224,6 +228,7 @@ function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onC
           <Popover open={preferencesOpen} onOpenChange={setPreferencesOpen}>
             <PopoverTrigger asChild><Button className="ot-settings-button" tone="ghost" size="sm" aria-label={t('Overtone.studio.preferences')}><OvertoneIcon name="settings" size={19} /></Button></PopoverTrigger>
             <PopoverContent align="end" className="ot-preferences">
+              <section><NimiAccountControl language={documentLocale} />{host.kind === 'web' && <NimiText role="helper">{t('Overtone.session.signOutHint')}</NimiText>}</section>
               <div className="ot-preferences__row">
                 <span className="ot-preferences__label"><OvertoneIcon name="sun" size={14} />{t('Overtone.scheme.ariaLabel')}</span>
                 <SchemeToggle />

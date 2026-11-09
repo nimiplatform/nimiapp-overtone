@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const productAreaSource = read('../src/shell/routes/product-area.tsx');
-const localAppClientSource = read('../src/shell/auth/local-app-client.ts');
+const localAppClientSource = read('../src/shell/auth/app-session.tsx');
 const workspaceSource = read('../src/overtone/workspace-page.tsx');
 const i18nSource = read('../src/overtone/i18n.ts');
 const storeSource = read('../src/overtone/store.tsx');
@@ -20,7 +20,7 @@ const playerSource = read('../src/overtone/panels/player-panel.tsx');
 const takesSource = read('../src/overtone/panels/takes-panel.tsx');
 const stylesSource = read('../src/styles.css');
 const overtoneCssSource = read('../src/overtone/overtone.css');
-const mainSource = read('../src/main.tsx');
+const mainSource = read('../src/shell/mount-overtone.tsx');
 const manifest = read('../nimi.app.yaml');
 const runtimeAuthority = read('../.nimi/spec/overtone/canonical/runtime.authority.yaml');
 
@@ -56,8 +56,8 @@ test('manifest declares Overtone identity and current App Access', () => {
 
 test('runtime identity authority is host-bound and has no legacy app-prefixed ids', () => {
   assert.match(runtimeAuthority, /app_id nimi\.overtone/);
-  assert.match(runtimeAuthority, /NimiLocalAppClient/);
-  assert.match(runtimeAuthority, /Kit host-injected standard shell surface/);
+  assert.match(runtimeAuthority, /NimiAppRuntimeClient/);
+  assert.match(runtimeAuthority, /shared Kit platform session/);
   assert.doesNotMatch(runtimeAuthority, /app\.nimi\.overtone|local-developer|ACCOUNT_CALLER_MODE_LOCAL_DEVELOPER_APP/);
 });
 
@@ -84,7 +84,7 @@ test('workspace has no app-owned token, caller, connector, or model custody', ()
 });
 
 test('readiness is derived from protected session posture and App AIConfig', () => {
-  assert.match(readinessSource, /client\.auth\.status\(\)/);
+  assert.match(readinessSource, /signal\.throwIfAborted\(\)/);
   assert.match(readinessSource, /client\.aiConfig\.get\(\)/);
   assert.match(readinessSource, /capabilityContract === 'text\.generate'/);
   assert.match(readinessSource, /musicCapabilityAvailable:\s*false/);
@@ -93,8 +93,8 @@ test('readiness is derived from protected session posture and App AIConfig', () 
 
 test('brief and lyrics assistance use cancelable protected Local App text streams', () => {
   assert.match(runtimeWorkflowSource, /client\.ai\.text\.streamTurn\(/);
-  assert.match(explorationSource, /getNimiLocalAppClient\(\)/);
-  assert.match(lyricsSource, /getNimiLocalAppClient\(\)/);
+  assert.match(explorationSource, /useOvertoneSession\(\)/);
+  assert.match(lyricsSource, /useOvertoneSession\(\)/);
   assert.match(explorationSource + lyricsSource, /generateRuntimeText\(/);
   assert.doesNotMatch(runtimeWorkflowSource, /ScenarioType|ExecutionMode|runtime\.ai\.|buildMusic/);
 });

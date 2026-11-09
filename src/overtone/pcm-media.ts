@@ -1,10 +1,10 @@
-import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import type { NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import { buildPcmWaveform, createPcmWorkerClient, encodePcmWav, inspectCanonicalWav, PCM_BLOCK_FRAMES, readPcmFrames,
   type CanonicalWav, type PcmAudioInfo } from '@nimiplatform/kit/core/audio';
 import type { OwnedAsset, ProjectAudio } from './types.js';
 import { waitForAbort } from './media-cache.js';
 
-type MediaClient = Pick<NimiLocalAppClient, 'storage'>;
+type MediaClient = Pick<NimiAppRuntimeClient, 'storage'>;
 
 export type ProjectPcm = CanonicalWav & { readonly dispose: () => Promise<void> };
 
@@ -137,7 +137,7 @@ export async function renderProjectMix(input: {
   } finally { worker.close(); await Promise.all(tracks.map(track => track.source.dispose())); }
 }
 
-function owned(asset: Awaited<ReturnType<NimiLocalAppClient['storage']['assets']['write']>>): OwnedAsset {
+function owned(asset: Awaited<ReturnType<NimiAppRuntimeClient['storage']['assets']['write']>>): OwnedAsset {
   if (asset.mediaType !== 'audio/wav') throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
   return { relativePath: asset.relativePath, mimeType: asset.mediaType, sha256: asset.sha256, sizeBytes: asset.sizeBytes };
 }

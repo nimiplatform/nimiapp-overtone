@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, FieldShell, InlineAlert, NimiText, SelectField, TextField } from '@nimiplatform/kit/ui';
 import { ScenarioJobStatus, type ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { useOvertonePersistence, useOvertoneActions, useOvertonePlayback, useOvertoneState } from '../store.js';
 import { recoverRecordingTranscription, transcribeRecording } from '../transcription.js';
 import { makeId, type GenerationJob, type RecoverableMusicTranscription } from '../types.js';
@@ -18,6 +18,8 @@ type Stage = 'preparing' | 'recovering' | 'pending' | 'running' | 'saving';
 // @nimi-authority: rule.overtone.transcription.r001
 // @nimi-authority: rule.overtone.transcription.r002
 export function TranscriptionPanel() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const persistence = useOvertonePersistence();
   const { t } = useTranslation(); const { project, readiness, activeJobs } = useOvertoneState(); const actions = useOvertoneActions();
   const playback = useOvertonePlayback();
@@ -71,9 +73,8 @@ export function TranscriptionPanel() {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(projectId);
-      const client = getNimiLocalAppClient();
-      const result = recovery ? await recoverRecordingTranscription({ client, operation: recovery, signal: controller.signal, onJobUpdate })
-        : await transcribeRecording({ client, operation, signal: controller.signal, onPrepared: actions.rememberTranscription, onJobUpdate });
+      const result = recovery ? await recoverRecordingTranscription({ client, operation: recovery, signal: AbortSignal.any([controller.signal, scope.signal]), onJobUpdate })
+        : await transcribeRecording({ client, operation, signal: AbortSignal.any([controller.signal, scope.signal]), onPrepared: actions.rememberTranscription, onJobUpdate });
       await savedJob; controller.signal.throwIfAborted();
       if (mounted.current) setStage('saving');
       await actions.completeTranscription(projectId, result);

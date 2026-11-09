@@ -585,3 +585,24 @@ test('voice conversion tracks carry the listening position through the song time
   assert.match(document.querySelector('[data-testid="voice-convert-tracks"]').textContent, /Overtone\.voiceConvert\.trackDiscarded/);
   assert.equal(playTrack(2).disabled, false);
 });
+
+
+test('reconnecting storage retains unsaved writing and waits for an explicit save retry', async () => {
+  await startProject('Retained writing');
+  const projectId = observed.state.project.projectId;
+  writeFailure = true;
+  await act(async () => { observed.actions.setLyrics('Keep this unsaved verse', 'manual'); await assert.rejects(observed.persistence.flush()); });
+  let reads = 0, writes = 0;
+  const nextStorage = { ...storage,
+    async readJson(...args) { reads++; return storage.readJson(...args); },
+    async writeJson(...args) { writes++; return storage.writeJson(...args); },
+  };
+  await act(async () => root.render(React.createElement(ComponentHarness, { storage: nextStorage, openMedia, observe: value => { observed = value; } })));
+  assert.equal(observed.state.project.projectId, projectId);
+  assert.equal(observed.state.project.lyrics.text, 'Keep this unsaved verse');
+  assert.equal(observed.persistence.status, 'failed');
+  assert.equal(reads, 0); assert.equal(writes, 0);
+  writeFailure = false;
+  await act(async () => { observed.persistence.retry(); await observed.persistence.flush(); });
+  assert.equal(saved(projectId).lyrics.text, 'Keep this unsaved verse');
+});

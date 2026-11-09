@@ -1,4 +1,4 @@
-import { createNimiLocalAppRuntimeScenarioJobClient, type NimiLocalAppClient, type NimiLocalAppAudioSeparation } from '@nimiplatform/sdk/app';
+import { createNimiLocalAppRuntimeScenarioJobClient, type NimiAppRuntimeClient, type NimiLocalAppAudioSeparation } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeAudioSeparation, runRuntimeAudioSeparation, type RuntimeAudioSeparationResult } from '@nimiplatform/kit/features/generation/runtime';
 import { adoptMusicArtifacts, loadProjectAudio } from './runtime-workflow.js';
@@ -8,7 +8,7 @@ import { sameProjectAudio, makeId, type AudioInfoFacts, type OwnedAsset, type Pr
 export type SeparationSubmit = Omit<RecoverableSeparation, 'jobId' | 'sourceArtifactId'>;
 export type AdoptedSeparationRun = { readonly takes: readonly SongTake[] };
 export type SeparationStages = 'preparing' | 'recovering' | 'pending' | 'running' | 'saving';
-type Client = Pick<NimiLocalAppClient, 'ai' | 'storage'>;
+type Client = Pick<NimiAppRuntimeClient, 'ai' | 'storage'>;
 
 const STEM_BY_PART: Record<string, SeparationStem> = { DRUMS: 'drums', BASS: 'bass', OTHER: 'other' };
 // The native separation implementation's declared input domain: an already

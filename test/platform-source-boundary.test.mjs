@@ -52,7 +52,7 @@ test('boundary inspection catches new transports while ignoring strings and comm
   assert.equal(inspectBoundary('sample.ts', "import { createNimiClient as make } from '@nimiplatform/sdk'; make({}); make({});").clientConstructions, 2);
 });
 
-test('all product and shell sources retain one protected client without direct transport or generic IPC', () => {
+test('all product and shell sources delegate client construction to Kit without direct transport or generic IPC', () => {
   const root = path.resolve(import.meta.dirname, '..');
   const files = [...sources(path.join(root, 'src')), ...sources(path.join(root, 'src-electron'))];
   let constructions = 0;
@@ -60,5 +60,5 @@ test('all product and shell sources retain one protected client without direct t
     const result = inspectBoundary(file, readFileSync(file, 'utf8'));
     assert.deepEqual(result.errors, [], path.relative(root, file)); constructions += result.clientConstructions;
   }
-  assert.equal(constructions, 1);
+  assert.equal(constructions, 0);
 });

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, InlineAlert, NimiText } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { useOvertonePersistence, useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
 import { importRecording, type RecordingImportStage } from '../import-recording.js';
 import './import-recording.css';
 
 export function ImportRecording() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const persistence = useOvertonePersistence();
   const { t } = useTranslation(); const { project } = useOvertoneState(); const { addTake } = useOvertoneActions(); const cache = useAudioCache();
   const picker = useRef<HTMLInputElement>(null); const operation = useRef<AbortController | null>(null);
@@ -24,7 +26,7 @@ export function ImportRecording() {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(projectId);
-      const take = await importRecording({ client: getNimiLocalAppClient(), cache, file, signal: controller.signal, onStage: setStage });
+      const take = await importRecording({ client: client, cache, file, signal: AbortSignal.any([controller.signal, scope.signal]), onStage: setStage });
       controller.signal.throwIfAborted(); setStage('saving');
       setPendingTakeId(take.takeId);
       await addTake(projectId, take);

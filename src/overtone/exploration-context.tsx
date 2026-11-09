@@ -2,7 +2,7 @@ import { scrollIntoView } from './motion.js';
 import { createCreativeIntent } from './creative-intent.js';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../shell/auth/app-session.js';
 import { useOvertoneActions, useOvertoneState } from './store.js';
 import { generateRuntimeText, textFailureMessage } from './runtime-workflow.js';
 import { DIRECTION_SYSTEM, parseMusicDirections, type MusicDirection } from './exploration.js';
@@ -10,6 +10,8 @@ import type { SongTake } from './types.js';
 import { belongsToSongDraft, FULL_SONG_SYSTEM, parseFullSong } from './full-song.js';
 
 function useCreativeSession() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t, i18n } = useTranslation();
   const { project, readiness } = useOvertoneState();
   const { setBrief, setLyrics, setFullSong } = useOvertoneActions();
@@ -59,7 +61,7 @@ function useCreativeSession() {
     if (source) setIdea(visibleIdea);
     try {
       const response = await generateRuntimeText({
-        client: getNimiLocalAppClient(), signal: controller.signal, system: `${DIRECTION_SYSTEM}\n${i18n.language.startsWith('zh') ? '重要：title、description、twist 和 lyrics 全部用简体中文创作，不要使用英文。歌词每个方向只要四句。' : 'Write all titles, descriptions, twists and lyrics in English.'}`,
+        client: client, signal: AbortSignal.any([controller.signal, scope.signal]), system: `${DIRECTION_SYSTEM}\n${i18n.language.startsWith('zh') ? '重要：title、description、twist 和 lyrics 全部用简体中文创作，不要使用英文。歌词每个方向只要四句。' : 'Write all titles, descriptions, twists and lyrics in English.'}`,
         input: JSON.stringify({ idea: seed.slice(0, 4000), energy, surprise,
           language: i18n.language.startsWith('zh') ? '简体中文' : 'English',
           sourceLyrics: source?.lyricsSnapshot?.slice(0, 4000) }),
@@ -148,7 +150,7 @@ function useCreativeSession() {
     setSongError('');
     setSongCandidate(null);
     try {
-      const text = await generateRuntimeText({ client: getNimiLocalAppClient(), signal: controller.signal, system: FULL_SONG_SYSTEM,
+      const text = await generateRuntimeText({ client: client, signal: AbortSignal.any([controller.signal, scope.signal]), system: FULL_SONG_SYSTEM,
         input: JSON.stringify({ sourcePrompt: draft.sourcePrompt, sourceLyrics: draft.sourceLyrics,
           targetDurationSeconds: draft.durationSeconds, language: i18n.language.startsWith('zh') ? '简体中文。歌词、标题、段落名称和编排全部用简体中文。' : 'English' }),
       });

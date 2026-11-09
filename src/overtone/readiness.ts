@@ -1,10 +1,10 @@
 // Readiness is derived only from the protected Local App session and portable
 // App AIConfig.
 
-import { getNimiLocalAppClient } from '../shell/auth/local-app-client.js';
+import type { NimiAppRuntimeClient } from '@nimiplatform/sdk';
 import type { ReadinessSnapshot } from './types.js';
 
-export async function probeReadiness(): Promise<ReadinessSnapshot> {
+export async function probeReadiness(client: NimiAppRuntimeClient, signal: AbortSignal): Promise<ReadinessSnapshot> {
   const base: ReadinessSnapshot = {
     runtimeStatus: 'checking',
     textCapabilityAvailable: false,
@@ -12,16 +12,9 @@ export async function probeReadiness(): Promise<ReadinessSnapshot> {
   };
 
   try {
-    const client = getNimiLocalAppClient();
-    const status = await client.auth.status();
-    if (!status.sessionBound) {
-      return {
-        ...base,
-        runtimeStatus: 'unavailable',
-        runtimeErrorMessage: status.reasonCode,
-      };
-    }
+    signal.throwIfAborted();
     const config = await client.aiConfig.get();
+    signal.throwIfAborted();
     const text = config.effectiveSelections.find(item => item.capabilityContract === 'text.generate');
     const music = config.effectiveSelections.find(item => item.capabilityContract === 'music.generate');
     const transcription = config.effectiveSelections.find(item => item.capabilityContract === 'music.transcribe');

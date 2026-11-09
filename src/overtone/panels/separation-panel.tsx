@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, FieldShell, InlineAlert, NimiText, SelectField, TextField } from '@nimiplatform/kit/ui';
 import { ScenarioJobStatus, type ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { useOvertonePersistence, useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
 import { recoverSeparation, runSeparation, type SeparationStages } from '../separation.js';
 import { makeId, type GenerationJob, type RecoverableSeparation, type SeparationStem } from '../types.js';
@@ -16,6 +16,8 @@ const STEMS: readonly SeparationStem[] = ['vocals', 'background', 'drums', 'bass
 
 // @nimi-authority: rule.overtone.runtime.r005
 export function SeparationPanel() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t } = useTranslation();
   const persistence = useOvertonePersistence();
   const { project, readiness, activeJobs } = useOvertoneState();
@@ -77,10 +79,9 @@ export function SeparationPanel() {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(projectId);
-      const client = getNimiLocalAppClient();
-      const result = recovery ? await recoverSeparation({ client, cache, operation: recovery, titles: recovery ? recoveryTitles(recovery) : titles(), signal: controller.signal,
+      const result = recovery ? await recoverSeparation({ client, cache, operation: recovery, titles: recovery ? recoveryTitles(recovery) : titles(), signal: AbortSignal.any([controller.signal, scope.signal]),
         onStage: stage => { if (mounted.current) setStage(stage); }, onJobUpdate })
-        : await runSeparation({ client, cache, operation, titles: titles(), signal: controller.signal,
+        : await runSeparation({ client, cache, operation, titles: titles(), signal: AbortSignal.any([controller.signal, scope.signal]),
           onStage: stage => { if (mounted.current) setStage(stage); }, onPrepared: actions.rememberSeparation, onJobUpdate });
       await savedJob; controller.signal.throwIfAborted();
       if (mounted.current) setStage('saving');

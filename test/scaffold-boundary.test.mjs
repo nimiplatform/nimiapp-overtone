@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const runtimePlatformSource = readFileSync(new URL('../src/shell/auth/runtime-platform.ts', import.meta.url), 'utf8');
-const localAppClientSource = readFileSync(new URL('../src/shell/auth/local-app-client.ts', import.meta.url), 'utf8');
-const authGateSource = readFileSync(new URL('../src/shell/auth/auth-gate.tsx', import.meta.url), 'utf8');
+const sessionSource = readFileSync(new URL('../src/shell/mount-overtone.tsx', import.meta.url), 'utf8');
+const webMainSource = readFileSync(new URL('../src/main.web.tsx', import.meta.url), 'utf8');
 const productSource = readFileSync(new URL('../src/shell/routes/product-area.tsx', import.meta.url), 'utf8');
 const rendererMainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 const electronMainSource = readFileSync(new URL('../src-electron/main.ts', import.meta.url), 'utf8');
@@ -12,37 +11,13 @@ const electronPreloadSource = readFileSync(new URL('../src-electron/preload.cts'
 const manifest = readFileSync(new URL('../nimi.app.yaml', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const admission = readFileSync(new URL('../ADMISSION.md', import.meta.url), 'utf8');
-const appSource = [runtimePlatformSource, localAppClientSource, authGateSource, productSource].join('\n');
+const appSource = [sessionSource, webMainSource, productSource].join('\n');
 
-test('renderer consumes only the host-protected Local App client', () => {
-  assert.match(localAppClientSource, /createNimiClient/);
-  assert.match(localAppClientSource, /createNimiLocalAppStandardShellSurface/);
-  assert.match(runtimePlatformSource, /getNimiLocalAppClient\(\)\.auth\.status\(\)/);
-  assert.match(runtimePlatformSource, /sessionBound/);
-  assert.doesNotMatch(appSource, /createNimiRuntimeFullAppRegistration|createNimiLocalFirstPartyRuntimeAccountCaller/);
-  assert.doesNotMatch(appSource, /runtime\.account\.|beginLogin|completeLogin|accessToken|refreshToken/);
-  assert.doesNotMatch(appSource, /createNimiAppRuntimePlatformClient|createPlatformClient\s*\(/);
-});
-
-test('auth gate fails closed and retries the protected session projection', () => {
-  assert.match(authGateSource, /projection\.status !== 'ready'/);
-  assert.match(authGateSource, /clearRuntimePlatformProjection\(\)/);
-  assert.match(authGateSource, /<RuntimeUnavailablePage/);
-  assert.doesNotMatch(authGateSource, /RuntimeLoginPage|developer-session|dev-standalone/);
-});
-
-test('renderer bootstrap installs Kit runtime bridge before render', () => {
-  assert.match(
-    rendererMainSource,
-    /import \{[^}]*installNimiShellRuntimeBridge[^}]*\} from '@nimiplatform\/kit\/shell\/renderer\/bridge'/,
-  );
-  const bootstrapAt = rendererMainSource.indexOf('installNimiShellRuntimeBridge()');
-  const renderAt = rendererMainSource.indexOf('.render(');
-  assert.ok(bootstrapAt > -1, 'main.tsx must call installNimiShellRuntimeBridge()');
-  assert.match(rendererMainSource, /createRendererEntryModuleLoader/);
-  assert.ok(renderAt > -1, 'main.tsx must render the app');
-  assert.ok(bootstrapAt < renderAt, 'bootstrap must run before render');
-  assert.doesNotMatch(rendererMainSource, /__NIMI_TAURI_RUNTIME__/);
+test('platform entries delegate Nimi session handling to Kit', () => {
+  assert.match(rendererMainSource, /createDesktopNimiAppSession/);
+  assert.match(webMainSource, /createWebNimiAppSession/);
+  assert.match(sessionSource, /NimiAppSessionProvider/);
+  assert.doesNotMatch(appSource, /prepareRuntimeClientLogin|completeRuntimeClientLogin|createNimiRuntimeFullAppRegistration/);
 });
 
 test('Electron shell uses the protected Kit bridge and asset protocol', () => {

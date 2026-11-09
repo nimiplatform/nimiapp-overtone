@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, InlineAlert } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { useAudioCache, useOvertoneActions, useOvertoneState, useOvertonePersistence } from '../store.js';
 import { createMusicVersion, recoverRuntimeMusic } from '../runtime-workflow.js';
 import type { RecoverableMusicResult } from '../types.js';
@@ -12,6 +12,8 @@ export function RecoverableResults() {
   return <>{project?.recoverableResults?.filter(result => !result.jobId || !activeJobs[result.jobId]).map(result => <RecoverableResult key={result.clientSubmissionId} result={result}/>)}</>;
 }
 function RecoverableResult({ result }: { result: RecoverableMusicResult }) {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t } = useTranslation();
   const persistence = useOvertonePersistence();
   const cache = useAudioCache();
@@ -26,7 +28,7 @@ function RecoverableResult({ result }: { result: RecoverableMusicResult }) {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(result.projectId);
-      const audio = await recoverRuntimeMusic({ client: getNimiLocalAppClient(), cache, operation: result, signal: controller.signal });
+      const audio = await recoverRuntimeMusic({ client: client, cache, operation: result, signal: AbortSignal.any([controller.signal, scope.signal]) });
       controller.signal.throwIfAborted();
       const version = createMusicVersion(result, audio);
       await addTake(result.projectId, version.take, version.score);

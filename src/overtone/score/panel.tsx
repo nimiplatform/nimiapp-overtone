@@ -3,7 +3,7 @@ import abcjs from 'abcjs';
 import { Midi } from '@tonejs/midi';
 import { Button, FieldShell, InlineAlert, SelectField, TextareaField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { useOvertoneActions, useOvertoneState, useOvertonePersistence } from '../store.js';
 import { readOwnedAsset } from '../runtime-workflow.js';
 import { makeId, type ScoreDocument } from '../types.js';
@@ -24,6 +24,8 @@ function parseABC(source: string) {
 // @nimi-authority: rule.overtone.score.r001
 // @nimi-authority: rule.overtone.score.r004
 export function ScorePanel() {
+  const { scope, host } = useOvertoneSession();
+  const client = scope.client;
   const persistence = useOvertonePersistence();
   const { t } = useTranslation();
   const { project, activeJobs, readiness } = useOvertoneState();
@@ -43,7 +45,7 @@ export function ScorePanel() {
     setSource(''); setMidi(null); setDraft(null); setConversion(null); setError('');
     if (!open || !selected) return () => controller.abort();
     setLoading(true);
-    void readOwnedAsset(getNimiLocalAppClient(), selected.asset, controller.signal, 1024 * 1024).then(bytes => {
+    void readOwnedAsset(client, selected.asset, AbortSignal.any([controller.signal, scope.signal]), 1024 * 1024).then(bytes => {
       if (controller.signal.aborted) return;
       if (selected.format === 'abc') {
         const abc = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
@@ -54,7 +56,7 @@ export function ScorePanel() {
     }).catch(cause => { if (!controller.signal.aborted) setError(String(cause)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [open, selected]);
+  }, [open, selected, client, scope]);
   useEffect(() => {
     if (!notation.current || !source || !open) return;
     try { abcjs.renderAbc(notation.current, source, { responsive: 'resize', staffwidth: 700, ariaLabel: t('Overtone.score.originalNotation') }); }
@@ -68,8 +70,10 @@ export function ScorePanel() {
     const mediaType = format === 'abc' ? 'text/vnd.abc' : 'audio/midi';
     const release = operationHeld ? () => undefined : persistence.beginOperation(projectId);
     try {
-      const asset = await getNimiLocalAppClient().storage.assets.write({ relativePath: `scores/${scoreId}.${format === 'abc' ? 'abc' : 'mid'}`,
+      scope.signal.throwIfAborted();
+      const asset = await client.storage.assets.write({ relativePath: `scores/${scoreId}.${format === 'abc' ? 'abc' : 'mid'}`,
         body: bytes, mediaType, overwrite: false });
+      scope.signal.throwIfAborted();
       if (asset.mediaType !== mediaType || asset.sizeBytes !== bytes.length) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
       await addScore(projectId, { scoreId, title: title.slice(0, 80), format, createdAt: Date.now(),
         origin: parent ? parent.format === format ? 'author-edit' : 'explicit-conversion' : 'imported',
@@ -122,7 +126,7 @@ export function ScorePanel() {
         <div className="overtone-row"><Button tone="primary" active={project?.generationScoreId === selected.scoreId} aria-pressed={project?.generationScoreId === selected.scoreId}
           disabled={busy || generationBusy || !profile?.scoreFormats.includes(selected.format)} onClick={() => useScoreForGeneration(selected.scoreId)}>{t(project?.generationScoreId === selected.scoreId ? 'Overtone.score.usingScore' : 'Overtone.score.useScore')}</Button>
           {project?.generationScoreId ? <Button tone="ghost" onClick={() => useScoreForGeneration(null)}>{t('Overtone.score.clearCondition')}</Button> : null}
-          <Button tone="ghost" onClick={() => void getNimiLocalAppClient().storage.assets.reveal(selected.asset.relativePath).catch(cause => setError(String(cause)))}>{t('Overtone.score.reveal')}</Button>
+          <Button tone="ghost" onClick={() => void host.deliver(scope, selected.asset.relativePath, selected.asset.relativePath.split('/').at(-1)!).catch(cause => setError(String(cause)))}>{host.kind === 'web' ? t('Overtone.score.download') : t('Overtone.score.reveal')}</Button>
         </div>
         {!profile?.scoreFormats.includes(selected.format) ? <p>{t('Overtone.score.configurationNeeded')}</p> : <FieldShell label={t('Overtone.score.budget')}>
           <SelectField value={String(project?.scoreBudgetSeconds ?? 20)} disabled={generationBusy}

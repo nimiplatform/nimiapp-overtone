@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, IconToggleAction, InlineAlert, NimiText, NumberStepper, SegmentedControl, Slider, Surface } from '@nimiplatform/kit/ui';
-import { openNimiLocalAppAssetMediaUrl } from '@nimiplatform/kit/shell/renderer/bridge';
 import { useTranslation } from 'react-i18next';
 import { useAudioCache, useAudioSnapshot, useOvertonePlayback, useOvertoneState } from '../store.js';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { loadProjectAudio } from '../runtime-workflow.js';
 import { renderProjectMix } from '../pcm-media.js';
 import { makeId, type ProjectAudio } from '../types.js';
@@ -14,7 +13,9 @@ import { OvertoneIcon } from './icons.js';
 
 // @nimi-authority: rule.overtone.ia.r006
 // @nimi-authority: rule.overtone.data-model.r005
-export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { openMedia?: typeof openNimiLocalAppAssetMediaUrl } = {}) {
+export function PlayerPanel({ openMedia }: { openMedia?: (path: string) => Promise<import('../../shell/auth/app-session.js').AssetMediaHandle> } = {}) {
+  const { scope, host } = useOvertoneSession();
+  const client = scope.client;
   const { t } = useTranslation();
   const state = useOvertoneState(); const cache = useAudioCache(); const playback = useOvertonePlayback();
   const selectedTake = state.project?.takes.find(take => take.takeId === state.project?.selectedTakeId && !take.discarded) ?? null;
@@ -48,15 +49,16 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
   useEffect(() => {
     stopPlayback(); setReady(false); setCurrentTime(0); setAudioError('');
     if (!selectedTake) { setLoadingAudio(false); return; }
-    const controller = new AbortController(); const element = new Audio(); elementRef.current = element;
+    const controller = new AbortController(); const signal = AbortSignal.any([controller.signal, scope.signal]); const element = new Audio(); elementRef.current = element;
     element.preload = 'metadata'; element.volume = volumeRef.current / 100; element.playbackRate = speedRef.current;
+    signal.addEventListener('abort', stopPlayback, { once: true });
     setLoadingAudio(true);
-    let handle: Awaited<ReturnType<typeof openMedia>> | undefined;
+    let handle: import('../../shell/auth/app-session.js').AssetMediaHandle | undefined;
     let refresh: ReturnType<typeof setTimeout> | undefined;
     let loadDeadline: ReturnType<typeof setTimeout> | undefined;
     let restoreTime = 0; let restorePlaying = false;
     const fail = (error: unknown) => {
-      if (controller.signal.aborted) return;
+      if (signal.aborted) return;
       element.pause(); setReady(false); setLoadingAudio(false); setAudioError(String(error));
     };
     const sync = () => {
@@ -75,24 +77,24 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
     element.addEventListener('error', () => fail(new Error('OVERTONE_MEDIA_PLAYBACK_FAILED')));
     element.addEventListener('loadedmetadata', () => {
       clearTimeout(loadDeadline);
-      if (controller.signal.aborted) return;
+      if (signal.aborted) return;
       if (!Number.isFinite(element.duration) || Math.abs(element.duration - duration) > 0.002) { fail(new Error('OVERTONE_AUDIO_FACTS_CHANGED')); return; }
       element.currentTime = Math.max(bounds.current.start, Math.min(restoreTime, bounds.current.end));
       setReady(true); setLoadingAudio(false);
       if (restorePlaying) void element.play().catch(fail);
     });
     const open = async (renew = false) => {
-      const cached = await loadProjectAudio({ client: getNimiLocalAppClient(), cache, audio: selectedTake.audio, signal: controller.signal });
+      const cached = await loadProjectAudio({ client: client, cache, audio: selectedTake.audio, signal: AbortSignal.any([controller.signal, scope.signal]) });
       if (cached.sha256 !== selectedTake.audio.sha256) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
-      const fresh = await openMedia(selectedTake.audio.relativePath);
-      if (controller.signal.aborted) { await fresh.revoke(); return; }
+      const fresh = await (openMedia ? openMedia(selectedTake.audio.relativePath) : host.openMedia(scope, selectedTake.audio.relativePath));
+      if (signal.aborted) { await fresh.revoke(); return; }
       restoreTime = renew ? element.currentTime : 0; restorePlaying = renew && !element.paused;
       setReady(false); element.pause(); const previous = handle; handle = fresh;
       element.src = fresh.url; element.load();
       if (previous) await previous.revoke();
       loadDeadline = setTimeout(() => fail(new Error('OVERTONE_AUDIO_READ_TIMEOUT')), 30_000);
       // Renew the technical handle before its ten-minute expiry; never replay AI work.
-      refresh = setTimeout(() => { void open(true).catch(fail); }, 9 * 60_000);
+      if (host.kind === 'desktop') refresh = setTimeout(() => { void open(true).catch(fail); }, 9 * 60_000);
     };
     void open().catch(fail);
     return () => {
@@ -100,7 +102,7 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
       element.pause(); element.removeAttribute('src'); element.load(); if (elementRef.current === element) elementRef.current = null;
       if (handle) void handle.revoke().catch(() => undefined);
     };
-  }, [selectedTake?.takeId, audioRetry, cache, openMedia, duration, position, stopPlayback]);
+  }, [selectedTake?.takeId, audioRetry, cache, openMedia, duration, position, stopPlayback, client, scope, host]);
 
   useEffect(() => () => {
     exportController.current?.abort();
@@ -146,14 +148,14 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
       let audio = selectedTake.audio;
       if (trimmed) {
         const sourceStartFrame = Math.floor(trimStart * audio.sampleRateHz), sourceEndFrame = Math.min(audio.frameCount, Math.floor(trimEnd * audio.sampleRateHz));
-        const result = await renderProjectMix({ client: getNimiLocalAppClient(), tracks: [{ audio, gain: 1, startFrame: 0, sourceStartFrame, sourceEndFrame }],
+        const result = await renderProjectMix({ client: client, tracks: [{ audio, gain: 1, startFrame: 0, sourceStartFrame, sourceEndFrame }],
           output: { sampleRateHz: audio.sampleRateHz, channels: audio.channels as 1 | 2, frameCount: sourceEndFrame - sourceStartFrame },
-          relativePath: 'music/exports/' + makeId('trim') + '.wav', signal: controller.signal });
+          relativePath: 'music/exports/' + makeId('trim') + '.wav', signal: AbortSignal.any([controller.signal, scope.signal]) });
         audio = result.audio;
       }
       controller.signal.throwIfAborted();
       if (trimmed) setLastExport({ sourceTakeId: selectedTake.takeId, audio });
-      else await getNimiLocalAppClient().storage.assets.reveal(audio.relativePath);
+      else await host.deliver(scope, audio.relativePath, audio.relativePath.split('/').at(-1)!);
     } catch (error) { if (!controller.signal.aborted) setAudioError(String(error)); }
     finally { if (exportController.current === controller) { exportController.current = null; setExporting(false); } }
   }
@@ -161,12 +163,12 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
     if (!selectedTake || exporting) return;
     const controller = new AbortController(); exportController.current = controller; setExporting(true); setAudioError('');
     try {
-      const result = await renderProjectMix({ client: getNimiLocalAppClient(), tracks: [{ audio, gain: 1, startFrame: 0, sourceStartFrame: 0, sourceEndFrame: audio.frameCount }],
+      const result = await renderProjectMix({ client: client, tracks: [{ audio, gain: 1, startFrame: 0, sourceStartFrame: 0, sourceEndFrame: audio.frameCount }],
         output: { sampleRateHz: audio.sampleRateHz, channels: audio.channels as 1 | 2, frameCount: audio.frameCount },
-        relativePath: 'music/exports/' + makeId('export') + '.wav', signal: controller.signal });
+        relativePath: 'music/exports/' + makeId('export') + '.wav', signal: AbortSignal.any([controller.signal, scope.signal]) });
       controller.signal.throwIfAborted();
       setLastExport({ sourceTakeId: selectedTake.takeId, audio: result.audio });
-      await getNimiLocalAppClient().storage.assets.reveal(result.audio.relativePath);
+      await host.deliver(scope, result.audio.relativePath, result.audio.relativePath.split('/').at(-1)!);
     } catch (error) { if (!controller.signal.aborted) setAudioError(String(error)); }
     finally { if (exportController.current === controller) { exportController.current = null; setExporting(false); } }
   }
@@ -230,11 +232,11 @@ export function PlayerPanel({ openMedia = openNimiLocalAppAssetMediaUrl }: { ope
           <Button tone="ghost" size="sm" disabled={!ready} onClick={() => { stopPlayback(); setTrim(null); }}>{t('Overtone.player.clearTrim')}</Button>
           <Button tone="secondary" size="sm" loading={exporting} disabled={!ready || trimInvalid || exporting} onClick={() => void exportAudio(true)}>{t('Overtone.playground.exportTrim')}</Button>
           {exporting ? <Button tone="ghost" size="sm" onClick={() => exportController.current?.abort()}>{t('Overtone.takes.cancel')}</Button> : null}
-          {lastExport?.sourceTakeId === selectedTake.takeId ? <Button tone="secondary" size="sm" onClick={() => void getNimiLocalAppClient().storage.assets.reveal(lastExport.audio.relativePath).catch(error => setAudioError(String(error)))}>{t('Overtone.playground.openExport')}</Button> : null}
+          {lastExport?.sourceTakeId === selectedTake.takeId ? <Button tone="secondary" size="sm" onClick={() => void host.deliver(scope, lastExport.audio.relativePath, lastExport.audio.relativePath.split('/').at(-1)!).catch(error => setAudioError(String(error)))}>{host.kind === 'web' ? t('Overtone.playground.downloadExport') : t('Overtone.playground.openExport')}</Button> : null}
         </div>
         <NimiText role="caption" className="ot-trim-hint">{t('Overtone.playground.exportHint')}</NimiText>
       </details>
-      <Button tone="ghost" size="sm" disabled={!ready || exporting} onClick={() => void exportAudio(false)}><OvertoneIcon name="download" size={15} />{t('Overtone.playground.exportOriginal')}</Button>
+      <Button tone="ghost" size="sm" disabled={!ready || exporting} onClick={() => void exportAudio(false)}><OvertoneIcon name="download" size={15} />{host.kind === 'web' ? t('Overtone.playground.downloadOriginal') : t('Overtone.playground.exportOriginal')}</Button>
     </div> : null}
     {trimInvalid ? <NimiText role="helper" className="overtone-trim-error">{t('Overtone.player.invalidTrim')}</NimiText> : null}
   </Surface>;

@@ -1,4 +1,4 @@
-import { createNimiLocalAppRuntimeScenarioJobClient, type NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import { createNimiLocalAppRuntimeScenarioJobClient, type NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeMusicGeneration, runRuntimeMusicGenerate, type RuntimeMusicGenerateResult } from '@nimiplatform/kit/features/generation/runtime';
 import type { RuntimeVoiceConvertResult } from '@nimiplatform/kit/features/generation/runtime';
@@ -8,7 +8,7 @@ import { projectWaveform, renderProjectMix } from './pcm-media.js';
 
 export const TEXT_WAIT_TIMEOUT_MS = 90_000;
 export interface RuntimeTextGenerationInput {
-  readonly client: Pick<NimiLocalAppClient, 'ai'>; readonly input: string; readonly system: string;
+  readonly client: Pick<NimiAppRuntimeClient, 'ai'>; readonly input: string; readonly system: string;
   readonly temperature?: number; readonly maxTokens?: number; readonly signal?: AbortSignal;
 }
 // @nimi-authority: rule.overtone.runtime.r002
@@ -16,7 +16,7 @@ export async function generateRuntimeText(input: RuntimeTextGenerationInput): Pr
   const deadline = new AbortController();
   const timer = setTimeout(() => deadline.abort(new DOMException('Text generation timed out', 'TimeoutError')), TEXT_WAIT_TIMEOUT_MS);
   const signal = input.signal ? AbortSignal.any([input.signal, deadline.signal]) : deadline.signal;
-  let subscription: Awaited<ReturnType<NimiLocalAppClient['ai']['text']['streamTurn']>> | undefined;
+  let subscription: Awaited<ReturnType<NimiAppRuntimeClient['ai']['text']['streamTurn']>> | undefined;
   const cancel = () => { if (subscription) void subscription.cancel().catch(() => undefined); };
   signal.addEventListener('abort', cancel, { once: true });
   try {
@@ -54,7 +54,7 @@ export function textFailureMessage(cause: unknown, t: (key: string) => string): 
   return [error.reasonCode, error.message !== error.reasonCode ? error.message : '', error.actionHint].filter(Boolean).join(' · ') || String(cause);
 }
 export const SKETCH_DURATION_SECONDS = 20;
-type MusicClient = Pick<NimiLocalAppClient, 'ai' | 'storage'>;
+type MusicClient = Pick<NimiAppRuntimeClient, 'ai' | 'storage'>;
 export interface AdoptedMusicResult {
   readonly jobId: string;
   readonly audio: ProjectAudio;
@@ -92,7 +92,7 @@ export async function generateRuntimeMusic(input: {
     score = { artifactId: uploaded.artifactId, format: 'abc' };
   }
   const ai = input.client.ai;
-  const capturedAI: NimiLocalAppClient['ai'] = { ...ai, scenarioJobs: { ...ai.scenarioJobs,
+  const capturedAI: NimiAppRuntimeClient['ai'] = { ...ai, scenarioJobs: { ...ai.scenarioJobs,
     submit: (spec, options) => ai.scenarioJobs.submit(spec, { ...options, clientSubmissionId: operation.clientSubmissionId }),
   } };
   const result = await runRuntimeMusicGenerate({
@@ -176,7 +176,7 @@ export async function adoptMusicArtifacts<T>(input: { client: MusicClient; cache
 }
 
 // @nimi-authority: rule.overtone.data-model.r005
-export async function readOwnedAsset(client: Pick<NimiLocalAppClient, 'storage'>, asset: OwnedAsset, signal: AbortSignal, maxBytes: number): Promise<Uint8Array> {
+export async function readOwnedAsset(client: Pick<NimiAppRuntimeClient, 'storage'>, asset: OwnedAsset, signal: AbortSignal, maxBytes: number): Promise<Uint8Array> {
   signal.throwIfAborted();
   if (!Number.isSafeInteger(asset.sizeBytes) || asset.sizeBytes < 1 || asset.sizeBytes > maxBytes) throw new Error('OVERTONE_ASSET_TOO_LARGE');
   const source = await client.storage.assets.read({ relativePath: asset.relativePath });
@@ -190,7 +190,7 @@ export async function readOwnedAsset(client: Pick<NimiLocalAppClient, 'storage'>
   if (offset !== bytes.length) throw new Error('OVERTONE_ARTIFACT_METADATA_CHANGED');
   signal.throwIfAborted(); return bytes;
 }
-export async function loadProjectAudio(input: { client: Pick<NimiLocalAppClient, 'storage'>; cache: MusicAudioCache; audio: ProjectAudio; signal: AbortSignal }) {
+export async function loadProjectAudio(input: { client: Pick<NimiAppRuntimeClient, 'storage'>; cache: MusicAudioCache; audio: ProjectAudio; signal: AbortSignal }) {
   return input.cache.load(input.audio.relativePath, async signal => {
     const { info, peaks } = await projectWaveform(input.client, input.audio, signal);
     return { info, peaks, mimeType: input.audio.mimeType, sizeBytes: input.audio.sizeBytes, sha256: input.audio.sha256 };

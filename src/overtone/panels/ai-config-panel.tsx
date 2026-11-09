@@ -7,7 +7,7 @@ import {
 } from '@nimiplatform/kit/features/model-config';
 import { Button, OverlayShell } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { probeReadiness } from '../readiness.js';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
 
@@ -29,6 +29,8 @@ function reasonCodeOf(cause: unknown): string {
 }
 
 export function AIConfigPanel() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t, i18n } = useTranslation();
   const { readiness, aiSettingsOpen } = useOvertoneState();
   const { setReadiness, setAISettingsOpen } = useOvertoneActions();
@@ -48,17 +50,19 @@ export function AIConfigPanel() {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try { setSnapshot(await getNimiLocalAppClient().aiConfig.get()); }
-    catch (cause) { setError(describeError(cause, 'Overtone.configuration.loadFailed')); }
-    finally { setLoading(false); }
-  }, [describeError]);
+    try { scope.signal.throwIfAborted(); const next = await client.aiConfig.get(); scope.signal.throwIfAborted(); setSnapshot(next); }
+    catch (cause) { if (!scope.signal.aborted) setError(describeError(cause, 'Overtone.configuration.loadFailed')); }
+    finally { if (!scope.signal.aborted) setLoading(false); }
+  }, [describeError, client, scope]);
   useEffect(() => { if (open) void refresh(); }, [open, refresh]);
   const overwrite = useCallback<ModelConfigOverwrite>(async (input) => {
-    const result = await getNimiLocalAppClient().aiConfig.overwrite(input);
+    scope.signal.throwIfAborted();
+    const result = await client.aiConfig.overwrite(input);
+    scope.signal.throwIfAborted();
     await refresh();
-    setReadiness(await probeReadiness());
+    setReadiness(await probeReadiness(client, scope.signal));
     return result;
-  }, [refresh, setReadiness]);
+  }, [refresh, setReadiness, client, scope]);
   const formatError = useCallback((cause: unknown): ModelConfigFormattedError => ({
     message: describeError(cause, 'Overtone.configuration.saveFailed'),
     technicalDetail: reasonCodeOf(cause),
@@ -83,7 +87,7 @@ export function AIConfigPanel() {
       <ModelConfigAIConfigSurface className="ot-ai-config" context={CONTEXT} capabilityContracts={['text.generate', 'music.generate', 'music.transcribe', 'audio.voice.convert', 'audio.separate']}
         capabilities={snapshot ? snapshot.config?.capabilities ?? null : undefined}
         revision={snapshot?.revision} effectiveSelections={snapshot?.effectiveSelections}
-        listOptions={(query) => getNimiLocalAppClient().aiConfig.listOptions(query)}
+        listOptions={(query) => client.aiConfig.listOptions(query)}
         loading={loading} loadError={error} onRetry={() => void refresh()} onOverwrite={overwrite}
         formatError={formatError}
         copy={{

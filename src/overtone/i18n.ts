@@ -10,6 +10,7 @@ export const overtoneI18nResources = {
   "en": {
     "translation": {
       "Overtone": {
+        "session": { "signOutHint": "Save before signing out. Unsaved edits remain only in this page.", "offlineDraft": "Unsaved edits remain in this page. Reconnect and explicitly retry saving. Signing out or closing the page discards them." },
         "transcription": {
           "title": "Find the score in a recording", "intro": "Make an editable score draft from a recording. Notes and chords are estimates; lyrics need to be provided separately. Compare the draft with the original before making a new arrangement.",
           "source": "Recording: {{title}}", "selectRecording": "Select one of your saved recordings first.",
@@ -112,7 +113,7 @@ export const overtoneI18nResources = {
           "seed": "Random seed (optional, 0–4294967295)",
           "seedInvalid": "Enter a whole-number seed within the shown range, or leave blank.",
           "clearCondition": "Return to words only",
-          "reveal": "Show saved score file",
+          "reveal": "Show saved score file", "download": "Download saved score",
           "regenerationHint": "This creates new audio from the score. It does not preserve the previous accompaniment or untouched audio regions.",
           "voice": "Melody voice or track",
           "deriveHint": "Choose one melody for an editable copy. Other voices stay in the original. Saving the copy accepts the listed changes.",
@@ -352,7 +353,7 @@ export const overtoneI18nResources = {
           "loop": "Loop selection",
           "exportOriginal": "Show original audio file",
           "exportTrim": "Export trimmed WAV",
-          "openExport": "Open the exported WAV location",
+          "openExport": "Open the exported WAV location", "downloadExport": "Download exported WAV", "downloadOriginal": "Download original audio",
           "trim": "Trim & export",
           "exportHint": "Trimming saves a separate WAV file, which you can open in its folder once saved. Playback speed and volume won't affect the exported audio.",
           "selectedRecording": "Now selected",
@@ -647,6 +648,7 @@ export const overtoneI18nResources = {
   "zh": {
     "translation": {
       "Overtone": {
+        "session": { "signOutHint": "退出账号前请保存，未保存改动只留在此页面。", "offlineDraft": "未保存的改动仍留在当前页。重连后请重试保存；退出账号或关闭页面会清除这些改动。" },
         "transcription": {
           "title": "从录音提取乐谱", "intro": "从录音中提取可编辑的乐谱草稿。音符与和弦由模型估算，歌词需另行填写。改编前请先对照原曲核实。",
           "source": "当前录音：{{title}}", "selectRecording": "请先选中一段已保存的录音。",
@@ -749,7 +751,7 @@ export const overtoneI18nResources = {
           "seed": "随机种子（可选，0–4294967295）",
           "seedInvalid": "请填写当前配置支持范围内的整数种子，或留空。",
           "clearCondition": "改回仅用文字创作",
-          "reveal": "打开已保存的乐谱文件位置",
+          "reveal": "打开已保存的乐谱文件位置", "download": "下载已保存的乐谱",
           "regenerationHint": "按谱生成会创作全新的音频，不会保留原有伴奏或所选范围之外的音频采样。",
           "voice": "旋律声部或音轨",
           "deriveHint": "选择一条旋律声部创建可编辑副本，其余声部仍保留在原谱中。保存副本即表示接受下方列出的调整。",
@@ -989,7 +991,7 @@ export const overtoneI18nResources = {
           "loop": "循环播放选段",
           "exportOriginal": "打开原音频文件位置",
           "exportTrim": "导出裁剪 WAV",
-          "openExport": "打开已导出 WAV 的位置",
+          "openExport": "打开已导出 WAV 的位置", "downloadExport": "下载已导出的 WAV", "downloadOriginal": "下载原音频",
           "trim": "裁剪与导出",
           "exportHint": "裁剪结果将另存为独立 WAV 文件，完成后可打开文件位置。试听速度与音量不影响导出的音频样本。",
           "selectedRecording": "当前选择",

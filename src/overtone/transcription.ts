@@ -1,11 +1,11 @@
-import { createNimiLocalAppRuntimeScenarioJobClient, type NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import { createNimiLocalAppRuntimeScenarioJobClient, type NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeMusicTranscription, runRuntimeMusicTranscribe, type RuntimeMusicTranscribeResult } from '@nimiplatform/kit/features/generation/runtime';
 import { adoptMusicArtifacts } from './runtime-workflow.js';
 import { makeId, sameProjectAudio, type MusicTranscriptionDocument, type RecoverableMusicTranscription, type ScoreDocument } from './types.js';
 
 export type AdoptedTranscription = { readonly document: MusicTranscriptionDocument; readonly scores: ScoreDocument[] };
-type Client = Pick<NimiLocalAppClient, 'ai' | 'aiConfig' | 'storage'>;
+type Client = Pick<NimiAppRuntimeClient, 'ai' | 'aiConfig' | 'storage'>;
 
 // @nimi-authority: rule.overtone.transcription.r001
 export async function transcribeRecording(input: {

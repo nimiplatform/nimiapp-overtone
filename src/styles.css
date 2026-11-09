@@ -36,52 +36,6 @@ body {
   background: var(--nimi-surface-canvas);
 }
 
-.runtime-check-screen,
-.runtime-unavailable-screen {
-  min-height: 100vh;
-  position: relative;
-}
-
-.runtime-check-screen,
-.runtime-unavailable-screen {
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
-.runtime-alert-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.runtime-alert-copy strong,
-.runtime-alert-copy span {
-  min-width: 0;
-}
-
-.runtime-unavailable-panel {
-  width: min(560px, 100%);
-  display: grid;
-  gap: 18px;
-}
-
-.runtime-unavailable-heading {
-  display: grid;
-  gap: 10px;
-}
-
-.runtime-unavailable-heading h1 {
-  margin: 0;
-  letter-spacing: 0;
-}
-
-.runtime-action-hint {
-  margin: 0;
-  color: var(--nimi-text-secondary);
-  font-size: 13px;
-}
-
 /* Protected carrier frame; product regions manage their own scrolling. */
 .app-shell {
   position: relative;
@@ -93,3 +47,9 @@ body {
   isolation: isolate;
   background: var(--nimi-surface-canvas);
 }
+
+/* The session bar does not become an alternate workspace or account system. */
+.ot-session-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
+.ot-session-content { flex: 1; min-height: 0; overflow: clip; }
+.ot-session-content > .app-shell { height: 100%; }
+.ot-session-disconnected { padding: 1rem; }

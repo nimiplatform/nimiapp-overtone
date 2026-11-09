@@ -1,4 +1,4 @@
-import { createNimiLocalAppRuntimeScenarioJobClient, type NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import { createNimiLocalAppRuntimeScenarioJobClient, type NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeVoiceConversion, runRuntimeVoiceConvert, type RuntimeVoiceConvertInput, type RuntimeVoiceConvertResult } from '@nimiplatform/kit/features/generation/runtime';
 import { adoptVoiceConversion, createVoiceConvertVersions, type AdoptedVoiceConversion } from './runtime-workflow.js';
@@ -9,7 +9,7 @@ import { sameProjectAudio, type RecoverableVoiceConvert, type SongTake, type Voi
 export type AdoptedVoiceConvertRun = { readonly take: SongTake; readonly mixTake: SongTake };
 export type VoiceConvertSubmit = Omit<RecoverableVoiceConvert, 'jobId' | 'sourceArtifactId' | 'targetVoice' | 'retainedAccompanimentArtifactId'>
   & { readonly targetChoice: VoiceConvertTargetChoice };
-type Client = Pick<NimiLocalAppClient, 'ai' | 'aiConfig' | 'storage'>;
+type Client = Pick<NimiAppRuntimeClient, 'ai' | 'aiConfig' | 'storage'>;
 
 export type VoiceConvertStages = 'preparing' | 'recovering' | 'pending' | 'running' | 'deriving' | 'mixing' | 'saving';
 

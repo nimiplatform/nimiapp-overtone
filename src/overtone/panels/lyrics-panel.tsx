@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, InlineAlert, NimiText, TextareaField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneActions, useOvertoneState } from '../store.js';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { generateRuntimeText, textFailureMessage } from '../runtime-workflow.js';
 import { normalizeGeneratedLyrics } from '../lyrics.js';
 
@@ -10,6 +10,8 @@ const LYRICS_SYSTEM = 'You are a songwriting collaborator. Write 4-12 short sing
 
 // @nimi-authority: rule.overtone.workflow.r003
 export function LyricsPanel() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t, i18n } = useTranslation();
   const { project, readiness } = useOvertoneState();
   const { setLyrics, setAISettingsOpen } = useOvertoneActions();
@@ -33,7 +35,7 @@ export function LyricsPanel() {
     setGenerating(true);
     setError('');
     try {
-      const text = await generateRuntimeText({ client: getNimiLocalAppClient(), signal: controller.signal, system: `${LYRICS_SYSTEM}\n${chinese ? '用简体中文写歌词，不要使用英文。' : 'Write the lyrics in English.'}`,
+      const text = await generateRuntimeText({ client: client, signal: AbortSignal.any([controller.signal, scope.signal]), system: `${LYRICS_SYSTEM}\n${chinese ? '用简体中文写歌词，不要使用英文。' : 'Write the lyrics in English.'}`,
         input: JSON.stringify({ brief, language: chinese ? 'Chinese' : 'English' }), temperature: .85, maxTokens: 800 });
       if (id !== invocation.current) return;
       if (revision.current === before) setLyrics(normalizeGeneratedLyrics(text), 'assistant');

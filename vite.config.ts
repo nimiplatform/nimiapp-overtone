@@ -53,6 +53,7 @@ export default defineConfig({
   base: './',
   cacheDir: '.vite',
   plugins: [react(), tailwindcss()],
+  server: { watch: { ignored: ['**/.nimi/**', '**/dist/**', '**/dist-web/**', '**/dist-electron/**'] } },
   resolve: {
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
   },

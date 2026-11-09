@@ -1,4 +1,4 @@
-import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import type { NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import type { MusicAudioCache } from './media-cache.js';
 import { loadProjectAudio } from './runtime-workflow.js';
 import { makeId, type OwnedAsset, type ProjectAudio, type SongTake } from './types.js';
@@ -7,7 +7,7 @@ export type RecordingImportStage = 'copying' | 'preparing' | 'checking';
 
 // @nimi-authority: rule.overtone.workflow.r013-import-recording
 export async function importRecording(input: {
-  readonly client: NimiLocalAppClient; readonly cache: MusicAudioCache; readonly file: File;
+  readonly client: NimiAppRuntimeClient; readonly cache: MusicAudioCache; readonly file: File;
   readonly signal: AbortSignal; readonly onStage?: (stage: RecordingImportStage) => void;
 }): Promise<SongTake> {
   const { client, cache, file, signal } = input;

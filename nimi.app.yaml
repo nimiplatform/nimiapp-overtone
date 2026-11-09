@@ -8,6 +8,14 @@ app_access:
 local_development:
   electron:
     renderer_origin: http://127.0.0.1:1507
+  web:
+    origin: https://127.0.0.1:4474
+    redirect_uri: https://127.0.0.1:4474/
+    client_id: nimi.overtone.web.dev
+    realm_environment_id: dev
+    realm_url: http://127.0.0.1:3002
+    official_web_url: http://localhost:3000
+    command: pnpm run dev:web-renderer
 metadata:
   summary: 整理音乐创作项目、歌词与音频候选，比较和管理创作版本。
   icon: assets/app-icon.png

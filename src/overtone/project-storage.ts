@@ -1,8 +1,8 @@
-import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import type { NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import type { JsonValue } from '@nimiplatform/sdk/types';
 import { makeId, sameProjectAudio, type AudioInfoFacts, type AudioPreparationRecord, type DerivedAudioRecord, type OwnedAsset, type ProjectAudio, type SongProject, type VoiceConvertDerivation, type VoiceMixRecord } from './types.js';
 
-export type ProjectStorage = Pick<NimiLocalAppClient['storage'], 'readJson' | 'writeJson' | 'removeJson' | 'assets'>;
+export type ProjectStorage = Pick<NimiAppRuntimeClient['storage'], 'readJson' | 'writeJson' | 'removeJson' | 'assets'>;
 type Storage = ProjectStorage;
 const CURRENT = 'workspace/current.json';
 export const MAX_PROJECT_DOCUMENT_BYTES = 16 * 1024 * 1024;

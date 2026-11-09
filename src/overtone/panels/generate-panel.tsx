@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScenarioJobStatus, ScenarioType } from '@nimiplatform/sdk/runtime/generated';
 import { Button, FieldShell, InlineAlert, NimiText, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { createMusicVersion, generateRuntimeMusic, SKETCH_DURATION_SECONDS } from '../runtime-workflow.js';
 import { useOvertonePersistence, useOvertoneActions, useOvertoneState, useAudioCache } from '../store.js';
 import { makeId, scoreSourceTakeId, type GenerationJob, type RecoverableMusicResult } from '../types.js';
@@ -21,6 +21,8 @@ const JOB_STATUS: Partial<Record<ScenarioJobStatus, GenerationJob['status']>> = 
 
 // @nimi-authority: rule.overtone.workflow.r004
 export function GeneratePanel() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t } = useTranslation();
   const persistence = useOvertonePersistence();
   const { project, readiness } = useOvertoneState();
@@ -91,7 +93,7 @@ export function GeneratePanel() {
       await rememberResult(submission, project.projectId);
       controller.signal.throwIfAborted();
       const result = await generateRuntimeMusic({
-        client: getNimiLocalAppClient(), cache, operation: submission, score: inputScore, signal: controller.signal,
+        client: client, cache, operation: submission, score: inputScore, signal: AbortSignal.any([controller.signal, scope.signal]),
         onJobUpdate(job) {
           const status = JOB_STATUS[job.status];
           if (jobId !== job.jobId) captureJob(submission.clientSubmissionId, job.jobId);

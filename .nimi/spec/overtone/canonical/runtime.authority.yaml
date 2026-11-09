@@ -5,7 +5,7 @@ units:
   - id: definition.overtone.runtime.binding-f001
     kind: definition
     title: Runtime readiness binding
-    meaning: Feature F-001 binds readiness to NimiLocalAppClient.auth.status and the portable App AIConfig projection, with ReadinessSnapshot as the expected output and no credit-consuming probe.
+    meaning: Feature F-001 binds readiness to NimiAppRuntimeClient.auth.status and the portable App AIConfig projection, with ReadinessSnapshot as the expected output and no credit-consuming probe.
   - id: definition.overtone.runtime.binding-f002
     kind: definition
     title: Text generation binding
@@ -25,20 +25,20 @@ units:
   - id: definition.overtone.runtime.binding-f008
     kind: definition
     title: Image generation binding
-    meaning: Feature F-008 may bind only to NimiLocalAppClient.ai.scenario.execute with an admitted image-generate spec and remains optional.
+    meaning: Feature F-008 may bind only to NimiAppRuntimeClient.ai.scenario.execute with an admitted image-generate spec and remains optional.
   - id: definition.overtone.runtime.binding-f009
     kind: definition
     title: Speech synthesis binding
-    meaning: Feature F-009 may bind only to NimiLocalAppClient.ai.scenarioJobs and voiceAssets with admitted speech-synthesize inputs and remains optional.
+    meaning: Feature F-009 may bind only to NimiAppRuntimeClient.ai.scenarioJobs and voiceAssets with admitted speech-synthesize inputs and remains optional.
   - id: definition.overtone.runtime.account-caller
     kind: definition
-    title: Protected Local App carrier identity
-    meaning: The Overtone carrier identity is app_id nimi.overtone bound by Nimi Desktop to the canonical project root and Electron process; Desktop and Runtime own all caller, session, proof, and credential material, and the renderer receives none of it.
+    title: Verified App carrier identity
+    meaning: Overtone consumes as app_id nimi.overtone for the verified Nimi user. Native Host proof is owned by Desktop and Runtime; Web source qualification and scoped context are owned by Realm, Runtime and SDK/Kit. Product code receives the current common App client and no caller-selectable identity.
   - id: rule.overtone.runtime.r001
     kind: rule
     title: App-scoped runtime entry
     modality: must
-    statement: Obtain protected platform access through one NimiLocalAppClient created from the Kit host-injected standard shell surface, without constructing a generic Runtime client.
+    statement: Obtain the captured NimiAppRuntimeClient from the shared Kit platform session and keep all AI, configuration and managed storage operations on that carrier, without constructing a generic Runtime client.
     condition: When the renderer obtains runtime access.
     failure: Fail client bootstrap and expose a typed runtime-unavailable state rather than constructing a private or legacy client.
     relations:
@@ -50,7 +50,7 @@ units:
     kind: rule
     title: Protected text candidate binding
     modality: must
-    statement: Run writing assistance through protected NimiLocalAppClient.ai.text.streamTurn with bounded system and user content. Aggregate deltas only to a completed candidate, apply a 90-second app waiting deadline, and call the subscription cancel operation on cancellation, timeout or project close. Never present partial or failed text as a finished proposal; preserve manual edits and typed failures.
+    statement: Run writing assistance through protected NimiAppRuntimeClient.ai.text.streamTurn with bounded system and user content. Aggregate deltas only to a completed candidate, apply a 90-second app waiting deadline, and call the subscription cancel operation on cancellation, timeout or project close. Never present partial or failed text as a finished proposal; preserve manual edits and typed failures.
     condition: When brief or lyrics assistance is dispatched.
     failure: Withhold dispatch and surface a typed text-capability unavailable or not-configured state.
     relations:
@@ -104,7 +104,7 @@ units:
     kind: rule
     title: Credit-free readiness probes
     modality: must
-    statement: Probe session posture with NimiLocalAppClient.auth.status and read configured text and music intent from NimiLocalAppClient.aiConfig.get; never submit a generation request or read connector or model custody as a readiness probe.
+    statement: Probe session posture with NimiAppRuntimeClient.auth.status and read configured text and music intent from NimiAppRuntimeClient.aiConfig.get; never submit a generation request or read connector or model custody as a readiness probe.
     condition: When computing runtime readiness.
     failure: Return a typed unavailable or not-configured readiness projection and dispatch no probe generation.
     relations:
@@ -116,7 +116,7 @@ units:
     kind: rule
     title: Optional P1 protected scenarios
     modality: must_not
-    statement: Use an execution surface other than NimiLocalAppClient.ai.scenario or scenarioJobs for optional image and speech work, or make either optional surface gate the base workspace.
+    statement: Use an execution surface other than NimiAppRuntimeClient.ai.scenario or scenarioJobs for optional image and speech work, or make either optional surface gate the base workspace.
     condition: When P1 cover-art or guide-vocal generation is offered.
     failure: Keep the P1 surface unavailable on failure while leaving the P0 creation loop operational.
     relations:
@@ -128,7 +128,7 @@ units:
     kind: rule
     title: Experimental voice assets
     modality: must_not
-    statement: Use a surface other than NimiLocalAppClient.ai.scenarioJobs and voiceAssets for admitted experimental voice work, or require any base or optional feature to depend on voice clone or voice design.
+    statement: Use a surface other than NimiAppRuntimeClient.ai.scenarioJobs and voiceAssets for admitted experimental voice work, or require any base or optional feature to depend on voice clone or voice design.
     condition: When P2 voice clone or voice design experimentation is offered.
     failure: Keep the experimental surface unavailable on failure and preserve every P0 and P1 path.
     relations:

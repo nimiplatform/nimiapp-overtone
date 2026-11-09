@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { makeId, sameProjectAudio, type FullSongDraft, type GenerationJob, type LyricsDocument, type ReadinessSnapshot, type RecoverableMusicResult, type RecoverableMusicTranscription, type RecoverableVoiceConvert, type RecoverableSeparation, type MusicTranscriptionDocument, type SongBrief, type SongTake, type SeparationSongTake, type ScoreDocument, type SongProject } from './types.js';
 import { MusicAudioCache } from './media-cache.js';
-import type { NimiLocalAppClient } from '@nimiplatform/sdk/app';
+import type { NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import { parseSongProject, readCurrentProject, readProject, writeProject, selectCurrentProject, type ProjectStorage } from './project-storage.js';
 import { cleanupProjectStorage } from './project-cleanup.js';
 
@@ -396,6 +396,7 @@ export function OvertoneProvider({ children, storage }: { children: ReactNode; s
     : completeLocalMutation(projectId, { type: 'take/add', take, score }), [completeMutation, completeLocalMutation]);
   const saveScore = useCallback((projectId: string, score: ScoreDocument) => completeLocalMutation(projectId, { type: 'score/add', score }), [completeLocalMutation]);
   useEffect(() => {
+    if (hydrated.current) return;
     let active = true;
     setPersistence({ status: 'loading' });
     void readCurrentProject(storage).then(project => {

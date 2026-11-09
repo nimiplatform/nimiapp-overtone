@@ -4,15 +4,15 @@ scope: overtone.auth
 units:
   - id: definition.overtone.auth.runtime-account-session
     kind: definition
-    title: Protected Local App session
-    meaning: The Overtone session is the Desktop-supervised protected Local App session exposed through NimiLocalAppClient.auth.status; Desktop and Runtime own process binding and credential custody, while the renderer receives only bounded session posture.
+    title: Nimi App session
+    meaning: Overtone uses the verified Nimi App session from the shared Kit Desktop or Web factory. Desktop and Runtime own native process binding; the admitted Web source uses official Nimi login and direct Runtime access. The App observes bounded identity and connection scopes and owns no alternative account authority.
   - id: rule.overtone.auth.r001
     kind: rule
-    title: Exact host session posture
+    title: Verified identity and connected scope
     modality: must
-    statement: Consume the exact session posture returned by NimiLocalAppClient.auth.status and treat only sessionBound true as ready without constructing or submitting a renderer-owned caller identity.
+    statement: Consume the shared Kit session snapshot; expose private workspace state only for its verified identity and execute Nimi operations only through the captured connected scope. A connection loss retains same-identity draft state but prevents new operations; identity loss or account change clears private workspace state.
     condition: When resolving application session readiness.
-    failure: Keep the app gate blocked and surface the returned reason code when the protected session is not bound.
+    failure: Show the shared account or connection recovery action without inferring permission from cached UI state.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -20,10 +20,10 @@ units:
         target: definition.overtone.runtime.account-caller
   - id: rule.overtone.auth.r002
     kind: rule
-    title: SDK Local App construction
+    title: Shared Kit session construction
     modality: must
-    statement: Construct one NimiLocalAppClient through createNimiClient with createNimiLocalAppStandardShellSurface only in the shell auth boundary and reuse that client for protected App Access operations.
-    condition: When bootstrapping the protected Local App session.
+    statement: Construct the platform session through createDesktopNimiAppSession or createWebNimiAppSession at the entry and provide its captured common NimiAppRuntimeClient to product consumers. Reuse Kit account controls and access gates instead of implementing OAuth, session polling or native proof in the App.
+    condition: When bootstrapping Desktop or the declared Web source.
     failure: Fail bootstrap and expose a typed unavailable state without constructing a direct Runtime client or bearer-token transport.
     relations:
       - type: applies_to
@@ -34,19 +34,19 @@ units:
     kind: rule
     title: No app token custody
     modality: must_not
-    statement: Give the renderer or Electron shell custody of access tokens, refresh tokens, subject-user-id providers, session stores, session cookies, OAuth codes, caller identity material, or launch proof; place protected material in renderer state or environment variables; or bypass the host-injected Local App surface.
+    statement: Implement App-owned custody of Nimi account credentials, refresh tokens, caller identity or native launch proof, or bypass the SDK/Kit identity and Runtime admission boundaries. The Web factory alone handles its scoped login transaction; product state contains no credential material.
     condition: Always.
-    failure: Fail closed at the SDK helper, auth adapter, renderer-state, or environment boundary and retain token material solely in Runtime.
+    failure: Reject the bypass and keep credential ownership in the admitted platform implementation.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
   - id: rule.overtone.auth.r004
     kind: rule
-    title: Desktop-owned session establishment
+    title: Platform-owned session establishment
     modality: must_not
-    statement: Implement login, account registration, OAuth completion, or session establishment inside Overtone; the user establishes account and development posture in Nimi Desktop before running the official app command.
-    condition: When the protected Local App session is unavailable.
-    failure: Keep the app gate blocked and direct recovery to Nimi Desktop without exposing an in-app credential surface.
+    statement: Implement independent Nimi login, account registration or OAuth completion inside Overtone. Desktop account management stays in Home; Web starts the official login through Kit and returns to its exact registered source.
+    condition: When Nimi identity or Runtime access is unavailable.
+    failure: Keep protected operations unavailable and show the appropriate shared Kit recovery action.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -54,31 +54,31 @@ units:
         target: definition.overtone.runtime.account-caller
   - id: rule.overtone.auth.r005
     kind: rule
-    title: Local App session status
+    title: Current session posture
     modality: must
-    statement: Resolve session status through NimiLocalAppClient.auth.status; treat sessionBound true as ready and every other state as unavailable or action-required without inferring authentication from cached state, environment overrides, or an absent error.
-    condition: When resolving Local App session status.
-    failure: Project the typed unavailable posture whenever the host does not return an exact bound session.
+    statement: Observe current identity and connection state through Kit rather than caching one successful startup check. A valid identity alone does not grant Runtime operations; reconnect establishes a new technical scope and never resubmits a business task.
+    condition: When rendering or resuming a Nimi session.
+    failure: Discard stale scope results and show the actual unavailable state.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
   - id: rule.overtone.auth.r006
     kind: rule
-    title: No first-party account controls
+    title: No first-party account authority
     modality: must_not
-    statement: Call runtime.account methods, load or save a shared auth session, expose account switching or logout, or register any app-owned auth IPC handler.
+    statement: Call runtime.account methods, load or save Home account credentials, or register an App-owned auth IPC handler. Desktop delegates account management to Home; Web may end or switch only its own scoped Kit App session.
     condition: Always.
-    failure: Fail closed at the call or registration boundary and expose no first-party control, raw token, shared-session bridge, or IPC handler.
+    failure: Expose no first-party credential or account-management authority to the App.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
   - id: rule.overtone.auth.r007
     kind: rule
-    title: No standalone auth bypass
+    title: Admitted platform entry
     modality: must_not
-    statement: Enable standalone auth modes, consume developer-session environment credentials, synthesize session credentials, launch Electron directly, or self-open registration; local development must enter through pnpm dev and the Desktop supervisor.
+    statement: Consume developer credentials, fabricate session or process proof, launch native Electron outside Desktop supervision, or self-approve a source. Desktop development uses the official supervised command; Web uses its declared HTTPS entry, source admission and first Home confirmation.
     condition: During local development or session bootstrap.
-    failure: Reject the bypass, keep the session unavailable, and require the official Desktop-supervised launch path.
+    failure: Keep the unsupported entry unavailable without borrowing another App identity or bypassing approval.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session
@@ -90,7 +90,7 @@ units:
     modality: must_not
     statement: Build a login form, OTP code-entry surface, password-reset surface, or embedded browser authorization surface inside Overtone.
     condition: Always.
-    failure: Fail UI validation and render only the typed Local App unavailable state with Desktop recovery guidance.
+    failure: Use the shared Kit account action and official page; never collect Nimi credentials in App-owned forms.
     relations:
       - type: applies_to
         target: definition.overtone.auth.runtime-account-session

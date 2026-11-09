@@ -11,3 +11,6 @@ src-tauri/target/
 
 # Windows production package
 dist-electron-package/
+
+dist-web/
+.env.*.local

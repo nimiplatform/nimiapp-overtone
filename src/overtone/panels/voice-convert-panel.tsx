@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, FieldShell, InlineAlert, NimiText, SelectField, TextField } from '@nimiplatform/kit/ui';
 import { ScenarioJobStatus, type ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { useTranslation } from 'react-i18next';
-import { getNimiLocalAppClient } from '../../shell/auth/local-app-client.js';
+import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { recoverVoiceConvert, runVoiceConvert, type VoiceConvertStages } from '../voice-convert.js';
 import { buildVoiceConvertTargetChoice, selectionFrames } from '../voice-convert-target.js';
 import { useOvertonePersistence, useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
@@ -16,6 +16,8 @@ const JOB_STATES: Partial<Record<ScenarioJobStatus, GenerationJob['status']>> = 
 
 // @nimi-authority: rule.overtone.runtime.r005
 export function VoiceConvertPanel() {
+  const { scope } = useOvertoneSession();
+  const client = scope.client;
   const { t } = useTranslation();
   const persistence = useOvertonePersistence();
   const { project, readiness, activeJobs } = useOvertoneState();
@@ -89,10 +91,9 @@ export function VoiceConvertPanel() {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(projectId);
-      const client = getNimiLocalAppClient();
-      const result = recovery ? await recoverVoiceConvert({ client, cache, operation: recovery, mixTitle, signal: controller.signal,
+      const result = recovery ? await recoverVoiceConvert({ client, cache, operation: recovery, mixTitle, signal: AbortSignal.any([controller.signal, scope.signal]),
         onStage: stage => { if (mounted.current) setStage(stage); }, onJobUpdate })
-        : await runVoiceConvert({ client, cache, mixTitle, signal: controller.signal,
+        : await runVoiceConvert({ client, cache, mixTitle, signal: AbortSignal.any([controller.signal, scope.signal]),
           onStage: stage => { if (mounted.current) setStage(stage); }, onPrepared: actions.rememberVoiceConvert, onJobUpdate,
           operation: {
             clientSubmissionId: submissionId, projectId, title,

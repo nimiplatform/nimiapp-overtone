@@ -1,37 +1,11 @@
-import React, { Suspense, lazy } from 'react';
-import { createRoot } from 'react-dom/client';
-import { NimiThemeProvider, TooltipProvider } from '@nimiplatform/kit/ui';
-import { installNimiShellRuntimeBridge } from '@nimiplatform/kit/shell/renderer/bridge';
-import {
-  DEFAULT_DEV_RENDERER_ENTRY_IMPORT_RETRY_DELAYS_MS,
-  createRendererEntryModuleLoader,
-} from '@nimiplatform/kit/shell/renderer/bootstrap';
-import { resolveInitialOvertoneScheme } from './overtone/theme-scheme.js';
-import { applyOvertoneDocumentLocale, resolveInitialOvertoneLocale } from './overtone/i18n.js';
-import './styles.css';
-
-// Install the Kit-owned standard shell bridge before the protected Local App
-// client is constructed. The host owns the carrier and its session posture.
-installNimiShellRuntimeBridge();
-applyOvertoneDocumentLocale(resolveInitialOvertoneLocale());
-
-const entryModuleLoader = createRendererEntryModuleLoader({
-  retryDelaysMs: DEFAULT_DEV_RENDERER_ENTRY_IMPORT_RETRY_DELAYS_MS,
+import { createDesktopNimiAppSession } from '@nimiplatform/kit/auth/app/desktop';
+import { openNimiLocalAppAssetMediaUrl, createNimiLocalAppStandardShellSurface } from '@nimiplatform/kit/shell/renderer/bridge';
+import { mountOvertone } from './shell/mount-overtone.js';
+const session = createDesktopNimiAppSession();
+const host = createNimiLocalAppStandardShellSurface();
+const dispose = mountOvertone(session, {
+  kind: 'desktop',
+  async openMedia(scope, path) { scope.signal.throwIfAborted(); return openNimiLocalAppAssetMediaUrl(path); },
+  async deliver(scope, path) { scope.signal.throwIfAborted(); await host.storage.assets.reveal(path); },
 });
-
-const App = lazy(async () => {
-  const mod = await entryModuleLoader.load('entry:nimi-overtone-app', () => import('./shell/App.js'));
-  return { default: mod.App };
-});
-
-createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <NimiThemeProvider accentPack="nimi-accent" defaultScheme={resolveInitialOvertoneScheme()}>
-      <TooltipProvider>
-        <Suspense fallback={null}>
-          <App />
-        </Suspense>
-      </TooltipProvider>
-    </NimiThemeProvider>
-  </React.StrictMode>,
-);
+if (import.meta.hot) import.meta.hot.dispose(dispose);
