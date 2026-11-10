@@ -3,7 +3,7 @@ import test from 'node:test';
 import { loadSource } from './load-source.mjs';
 const { MusicAudioCache } = await loadSource('../src/overtone/media-cache.ts');
 const { overtoneReducer } = await loadSource('../src/overtone/store.tsx');
-const { generateRuntimeText, recoverRuntimeMusic, createMusicVersion } = await loadSource('../src/overtone/runtime-workflow.ts');
+const { createMusicJobSignals, generateRuntimeText, generateRuntimeMusic, recoverRuntimeMusic, createMusicVersion } = await loadSource('../src/overtone/runtime-workflow.ts');
 const audio = () => ({ info: { sampleRateHz: 8000, channels: 1, frameCount: 8000 }, peaks: [0.1, 0.8], mimeType: 'audio/wav', sizeBytes: 8, sha256: 'sha256:' + 'a'.repeat(64) });
 const signal = () => new AbortController().signal;
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -94,6 +94,43 @@ test('text cancellation calls protected cancellation and rejects unfinished outp
   const stream={cancel:async()=>{canceled++;finish?.({done:true});},[Symbol.asyncIterator](){return {next:()=>new Promise(resolve=>{finish=resolve;}),return:async()=>({done:true})};}};
   const task=generateRuntimeText({client:{ai:{text:{streamTurn:async()=>stream}}},input:'Idea',system:'Write',signal:controller.signal});
   await new Promise(resolve=>setImmediate(resolve));controller.abort();await assert.rejects(task,{name:'AbortError'});assert.ok(canceled>0);
+});
+
+test('music connection loss stops observation while an explicit stop cancels the original Job', async () => {
+  for (const action of ['disconnect', 'unmount', 'stop']) {
+    const scope = new AbortController();
+    const jobSignals = createMusicJobSignals(scope.signal);
+    const canceled = [];
+    let job = { jobId: 'music-job', scenarioType: 'music-generate', status: 'running', progressPercent: 20,
+      progressCurrentStep: 1, progressTotalSteps: 5, reasonCode: 'action-executed', reasonDetail: '', traceId: 'trace',
+      createdAt: null, updatedAt: null, transcriptionText: '', artifacts: [] };
+    const client = { ai: { scenarioJobs: {
+      submit: async () => ({ job }),
+      get: async () => ({ job }),
+      subscribe: async () => ({ cancel: async () => {}, async *[Symbol.asyncIterator]() {} }),
+      cancel: async id => {
+        canceled.push(id);
+        job = { ...job, status: 'canceled', stopOutcome: 'confirmed' };
+        return { job };
+      },
+    } } };
+    let signaled = false;
+    const pending = generateRuntimeMusic({
+      client, cache: new MusicAudioCache(544), signal: jobSignals.signal, cancelSignal: jobSignals.cancelSignal,
+      operation: { clientSubmissionId: 'author-action', promptSnapshot: 'A short test song', lyricsSnapshot: 'Test lyric', targetDurationSeconds: 20 },
+      onJobUpdate() {
+        if (signaled) return;
+        signaled = true;
+        if (action === 'disconnect') scope.abort();
+        else if (action === 'unmount') jobSignals.stopObserving();
+        else jobSignals.requestCancel();
+      },
+    });
+    await assert.rejects(pending);
+    assert.equal(signaled, true);
+    assert.deepEqual(canceled, action === 'stop' ? ['music-job'] : []);
+    assert.equal(job.status, action === 'stop' ? 'canceled' : 'running');
+  }
 });
 test('text waiting deadline cancels the stream, including a stream that opens after the deadline',async t=>{
   t.mock.timers.enable({apis:['setTimeout']});let open,canceled=0;

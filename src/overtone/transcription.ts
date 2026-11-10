@@ -1,7 +1,7 @@
 import { createNimiLocalAppRuntimeScenarioJobClient, type NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeMusicTranscription, runRuntimeMusicTranscribe, type RuntimeMusicTranscribeResult } from '@nimiplatform/kit/features/generation/runtime';
-import { adoptMusicArtifacts } from './runtime-workflow.js';
+import { adoptMusicArtifacts, musicJobWorkSignal } from './runtime-workflow.js';
 import { makeId, sameProjectAudio, type MusicTranscriptionDocument, type RecoverableMusicTranscription, type ScoreDocument } from './types.js';
 
 export type AdoptedTranscription = { readonly document: MusicTranscriptionDocument; readonly scores: ScoreDocument[] };
@@ -10,10 +10,12 @@ type Client = Pick<NimiAppRuntimeClient, 'ai' | 'aiConfig' | 'storage'>;
 // @nimi-authority: rule.overtone.transcription.r001
 export async function transcribeRecording(input: {
   readonly client: Client; readonly operation: Omit<RecoverableMusicTranscription, 'sourceArtifactId'>;
-  readonly signal: AbortSignal; readonly onPrepared: (operation: RecoverableMusicTranscription) => Promise<void>;
+  readonly signal: AbortSignal; readonly cancelSignal?: AbortSignal;
+  readonly onPrepared: (operation: RecoverableMusicTranscription) => Promise<void>;
   readonly onJobUpdate: (job: ScenarioJob) => void;
 }): Promise<AdoptedTranscription> {
-  const { client, signal, operation } = input; signal.throwIfAborted();
+  const { client, operation } = input;
+  const signal = musicJobWorkSignal(input.signal, input.cancelSignal); signal.throwIfAborted();
   const selection = (await client.aiConfig.get()).effectiveSelections.find(item => item.capabilityContract === 'music.transcribe');
   const resource = selection?.resource;
   const profiles = resource?.oneofKind === 'local' ? resource.local.musicInput?.transcription : resource?.oneofKind === 'cloud' ? resource.cloud.target?.musicInput?.transcription : undefined;
@@ -42,7 +44,7 @@ export async function transcribeRecording(input: {
   const result = await runRuntimeMusicTranscribe({ runtime: { ai: createNimiLocalAppRuntimeScenarioJobClient(protectedAI) },
     appId: 'nimi.overtone', scenarioId: 'overtone.music.transcribe', surfaceId: 'nimi.overtone.transcription',
     sourceAudio: { artifactId: prepared.artifactId, range }, requestedFormats: operation.requestedFormats, requestedParts: [operation.requestedPart],
-    signal, onJobUpdate: input.onJobUpdate });
+    signal: input.cancelSignal, observationSignal: input.signal, onJobUpdate: input.onJobUpdate });
   if (!result.ok) throw result.error;
   return adoptTranscription(client, captured, result, signal);
 }
@@ -50,13 +52,15 @@ export async function transcribeRecording(input: {
 // @nimi-authority: rule.overtone.transcription.r002
 export async function recoverRecordingTranscription(input: {
   readonly client: Client; readonly operation: RecoverableMusicTranscription; readonly signal: AbortSignal;
+  readonly cancelSignal?: AbortSignal;
   readonly onJobUpdate?: (job: ScenarioJob) => void;
 }): Promise<AdoptedTranscription> {
-  const { client, operation, signal } = input; signal.throwIfAborted();
+  const { client, operation } = input;
+  const signal = musicJobWorkSignal(input.signal, input.cancelSignal); signal.throwIfAborted();
   const found = await client.ai.scenarioJobs.lookupSubmission(operation.clientSubmissionId);
   if (operation.jobId && operation.jobId !== found.job.jobId) throw new Error('OVERTONE_TRANSCRIPTION_IDENTITY');
   const result = await observeRuntimeMusicTranscription({ runtime: { ai: createNimiLocalAppRuntimeScenarioJobClient(client.ai) },
-    jobId: found.job.jobId, signal, onJobUpdate: input.onJobUpdate });
+    jobId: found.job.jobId, signal: input.signal, cancelSignal: input.cancelSignal, onJobUpdate: input.onJobUpdate });
   if (!result.ok) throw result.error;
   return adoptTranscription(client, operation, result, signal);
 }

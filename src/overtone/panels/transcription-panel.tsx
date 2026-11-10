@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { useOvertonePersistence, useOvertoneActions, useOvertonePlayback, useOvertoneState } from '../store.js';
 import { recoverRecordingTranscription, transcribeRecording } from '../transcription.js';
+import { createMusicJobSignals } from '../runtime-workflow.js';
 import { makeId, type GenerationJob, type RecoverableMusicTranscription } from '../types.js';
 import { formatAudioTime } from '../exploration.js';
 
@@ -26,10 +27,10 @@ export function TranscriptionPanel() {
   const [stage, setStage] = useState<Stage | null>(null); const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const [rangeMode, setRangeMode] = useState('full'); const [start, setStart] = useState(''); const [end, setEnd] = useState('');
   const [part, setPart] = useState(''); const [activeTitle, setActiveTitle] = useState(''); const [canceling, setCanceling] = useState(false);
-  const request = useRef<AbortController | null>(null); const projectIdRef = useRef(project?.projectId); projectIdRef.current = project?.projectId;
+  const request = useRef<ReturnType<typeof createMusicJobSignals> | null>(null); const projectIdRef = useRef(project?.projectId); projectIdRef.current = project?.projectId;
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.abort(); }; }, []);
-  useEffect(() => () => request.current?.abort(), [project?.projectId]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.stopObserving(); }; }, []);
+  useEffect(() => () => request.current?.stopObserving(), [project?.projectId]);
   const source = project?.takes.find(take => take.takeId === project.selectedTakeId && !take.discarded);
   useEffect(() => { setStart(''); setEnd(''); setRangeMode('full'); }, [source?.takeId]);
   const profiles = readiness.musicTranscriptionInput?.filter(profile => profile.formats.includes('abc')) ?? [];
@@ -47,7 +48,8 @@ export function TranscriptionPanel() {
   async function run(recovery?: RecoverableMusicTranscription) {
     if (!project || request.current || (!recovery && (!source || !profile || !selectedPart))) return;
     const projectId = recovery?.projectId ?? project.projectId;
-    const controller = new AbortController(); request.current = controller;
+    const jobSignals = createMusicJobSignals(scope.signal); request.current = jobSignals;
+    const { signal, cancelSignal } = jobSignals;
     setError(''); setNotice(''); setCanceling(false); setActiveTitle(recovery?.title ?? source!.title); setStage(recovery ? 'recovering' : 'preparing');
     let jobId = recovery?.jobId; let savedJob = Promise.resolve();
     const operation = recovery ?? {
@@ -60,12 +62,12 @@ export function TranscriptionPanel() {
       requestedPart: selectedPart!, title: source!.title, createdAt: Date.now(),
     };
     const onJobUpdate = (job: ScenarioJob) => {
+      if (signal.aborted) return;
       if (jobId !== job.jobId) {
         savedJob = actions.captureTranscriptionJob(projectId, operation.clientSubmissionId, job.jobId);
         void savedJob.catch(() => undefined);
       }
       jobId = job.jobId;
-      if (controller.signal.aborted) return;
       const status = JOB_STATES[job.status]; if (!status) return;
       actions.setJob({ jobId: job.jobId, capability: 'music.transcribe', status });
       if (mounted.current && (status === 'pending' || status === 'running' || status === 'completed')) setStage(status === 'completed' ? 'saving' : status);
@@ -73,9 +75,9 @@ export function TranscriptionPanel() {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(projectId);
-      const result = recovery ? await recoverRecordingTranscription({ client, operation: recovery, signal: AbortSignal.any([controller.signal, scope.signal]), onJobUpdate })
-        : await transcribeRecording({ client, operation, signal: AbortSignal.any([controller.signal, scope.signal]), onPrepared: actions.rememberTranscription, onJobUpdate });
-      await savedJob; controller.signal.throwIfAborted();
+      const result = recovery ? await recoverRecordingTranscription({ client, operation: recovery, signal, cancelSignal, onJobUpdate })
+        : await transcribeRecording({ client, operation, signal, cancelSignal, onPrepared: actions.rememberTranscription, onJobUpdate });
+      await savedJob; signal.throwIfAborted(); cancelSignal.throwIfAborted();
       if (mounted.current) setStage('saving');
       await actions.completeTranscription(projectId, result);
       if (mounted.current && projectIdRef.current === projectId) {
@@ -84,14 +86,14 @@ export function TranscriptionPanel() {
         if (panel) { panel.open = true; scrollIntoView(panel, { block: 'nearest' }); }
       }
     } catch (cause) {
-      if (mounted.current && projectIdRef.current === projectId) {
-        if (controller.signal.aborted) setNotice(t('Overtone.transcription.stopped'));
+      if (!signal.aborted && mounted.current && projectIdRef.current === projectId) {
+        if (cancelSignal.aborted) setNotice(t('Overtone.transcription.stopped'));
         else setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
       release?.();
       if (jobId) actions.removeJob(jobId);
-      if (request.current === controller) request.current = null;
+      if (request.current === jobSignals) request.current = null;
       if (mounted.current) { setStage(null); setCanceling(false); }
     }
   }
@@ -120,7 +122,7 @@ export function TranscriptionPanel() {
         <Button tone="primary" size="sm" disabled={!source || busy || otherBusy} loading={busy} onClick={() => void run()}>{t('Overtone.transcription.run')}</Button>
       </> : null}
       {stage ? <div role="status" className="overtone-row"><span>{activeTitle} · {t(canceling ? 'Overtone.transcription.canceling' : `Overtone.transcription.stages.${stage}`)}</span>
-        <Button tone="ghost" size="sm" disabled={canceling || stage === 'saving'} onClick={() => { setCanceling(true); request.current?.abort(); }}>{t(stage === 'preparing' ? 'Overtone.transcription.abandon' : 'Overtone.transcription.cancel')}</Button>
+        <Button tone="ghost" size="sm" disabled={canceling || stage === 'saving'} onClick={() => { setCanceling(true); request.current?.requestCancel(); }}>{t(stage === 'preparing' ? 'Overtone.transcription.abandon' : 'Overtone.transcription.cancel')}</Button>
       </div> : null}
       {notice ? <NimiText role="helper">{notice}</NimiText> : null}
       {error ? <InlineAlert tone="warning">{t('Overtone.transcription.failed')}<details><summary>{t('Overtone.playground.errorDetails')}</summary>{error}</details></InlineAlert> : null}

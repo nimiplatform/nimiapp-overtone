@@ -1,7 +1,7 @@
 import { createNimiLocalAppRuntimeScenarioJobClient, type NimiAppRuntimeClient, type NimiLocalAppAudioSeparation } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeAudioSeparation, runRuntimeAudioSeparation, type RuntimeAudioSeparationResult } from '@nimiplatform/kit/features/generation/runtime';
-import { adoptMusicArtifacts, loadProjectAudio } from './runtime-workflow.js';
+import { adoptMusicArtifacts, loadProjectAudio, musicJobWorkSignal } from './runtime-workflow.js';
 import type { MusicAudioCache } from './media-cache.js';
 import { sameProjectAudio, makeId, type AudioInfoFacts, type OwnedAsset, type ProjectAudio, type RecoverableSeparation, type SeparationSongTake, type SeparationStem, type SongTake } from './types.js';
 
@@ -20,12 +20,13 @@ const SEPARATION_DOMAIN = { sampleRateHz: 44100, channels: 2 } as const;
 export async function runSeparation(input: {
   readonly client: Client; readonly cache: MusicAudioCache;
   readonly operation: SeparationSubmit; readonly titles: Readonly<Record<SeparationStem, string>>;
-  readonly signal: AbortSignal;
+  readonly signal: AbortSignal; readonly cancelSignal?: AbortSignal;
   readonly onStage?: (stage: SeparationStages) => void;
   readonly onPrepared: (operation: RecoverableSeparation) => Promise<void>;
   readonly onJobUpdate: (job: ScenarioJob) => void;
 }): Promise<AdoptedSeparationRun> {
-  const { client, signal, operation } = input; signal.throwIfAborted();
+  const { client, operation } = input;
+  const signal = musicJobWorkSignal(input.signal, input.cancelSignal); signal.throwIfAborted();
   const source = operation.sourceAudio; const range = operation.sourceRange;
   const full = range.startFrame === 0 && range.endFrame === source.frameCount;
   if (!Number.isSafeInteger(range.startFrame) || !Number.isSafeInteger(range.endFrame) || range.startFrame < 0
@@ -63,7 +64,7 @@ export async function runSeparation(input: {
     appId: 'nimi.overtone', scenarioId: 'overtone.audio.separate', surfaceId: 'nimi.overtone.separation',
     mimeType: 'audio/wav', sourceAudio: { artifactId: preparedSource.artifactId, ...(full ? {} : { range: submittedRange }) },
     ...(operation.requestedInstrumentParts ? { includeInstrumentParts: true } : {}),
-    signal, onJobUpdate: input.onJobUpdate });
+    signal: input.cancelSignal, observationSignal: input.signal, onJobUpdate: input.onJobUpdate });
   if (!result.ok) throw result.error;
   input.onStage?.('saving');
   return finishSeparation({ client, cache: input.cache, operation: captured, titles: input.titles, signal }, result);
@@ -73,15 +74,16 @@ export async function runSeparation(input: {
 export async function recoverSeparation(input: {
   readonly client: Client; readonly cache: MusicAudioCache;
   readonly operation: RecoverableSeparation; readonly titles: Readonly<Record<SeparationStem, string>>;
-  readonly signal: AbortSignal;
+  readonly signal: AbortSignal; readonly cancelSignal?: AbortSignal;
   readonly onStage?: (stage: SeparationStages) => void;
   readonly onJobUpdate?: (job: ScenarioJob) => void;
 }): Promise<AdoptedSeparationRun> {
-  const { client, operation, signal } = input; signal.throwIfAborted();
+  const { client, operation } = input;
+  const signal = musicJobWorkSignal(input.signal, input.cancelSignal); signal.throwIfAborted();
   if (!operation.jobId) throw new Error('OVERTONE_SEPARATION_NO_JOB');
   input.onStage?.('recovering');
   const result = await observeRuntimeAudioSeparation({ runtime: { ai: createNimiLocalAppRuntimeScenarioJobClient(client.ai) },
-    jobId: operation.jobId, signal, onJobUpdate: input.onJobUpdate });
+    jobId: operation.jobId, signal: input.signal, cancelSignal: input.cancelSignal, onJobUpdate: input.onJobUpdate });
   if (!result.ok) throw result.error;
   return finishSeparation({ client, cache: input.cache, operation, titles: input.titles, signal }, result);
 }

@@ -1,7 +1,7 @@
 import { createNimiLocalAppRuntimeScenarioJobClient, type NimiAppRuntimeClient } from '@nimiplatform/sdk/app';
 import type { ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { observeRuntimeVoiceConversion, runRuntimeVoiceConvert, type RuntimeVoiceConvertInput, type RuntimeVoiceConvertResult } from '@nimiplatform/kit/features/generation/runtime';
-import { adoptVoiceConversion, createVoiceConvertVersions, type AdoptedVoiceConversion } from './runtime-workflow.js';
+import { adoptVoiceConversion, createVoiceConvertVersions, musicJobWorkSignal, type AdoptedVoiceConversion } from './runtime-workflow.js';
 import { preparedVoiceTarget, validFrameRange } from './voice-convert-target.js';
 import type { MusicAudioCache } from './media-cache.js';
 import { sameProjectAudio, type RecoverableVoiceConvert, type SongTake, type VoiceConvertTargetChoice, type VoiceConvertTargetVoice } from './types.js';
@@ -27,12 +27,13 @@ function protectedScenarioJobs(client: Client, clientSubmissionId: string) {
 export async function runVoiceConvert(input: {
   readonly client: Client; readonly cache: MusicAudioCache;
   readonly operation: VoiceConvertSubmit;
-  readonly mixTitle: string; readonly signal: AbortSignal;
+  readonly mixTitle: string; readonly signal: AbortSignal; readonly cancelSignal?: AbortSignal;
   readonly onStage?: (stage: VoiceConvertStages) => void;
   readonly onPrepared: (operation: RecoverableVoiceConvert) => Promise<void>;
   readonly onJobUpdate: (job: ScenarioJob) => void;
 }): Promise<AdoptedVoiceConvertRun> {
-  const { client, signal, operation } = input; signal.throwIfAborted();
+  const { client, operation } = input;
+  const signal = musicJobWorkSignal(input.signal, input.cancelSignal); signal.throwIfAborted();
   const choice = operation.targetChoice;
   const selection = (await client.aiConfig.get()).effectiveSelections.find(item => item.capabilityContract === 'audio.voice.convert');
   const resource = selection?.resource;
@@ -96,7 +97,7 @@ export async function runVoiceConvert(input: {
   const spec: Omit<RuntimeVoiceConvertInput, 'runtime' | 'appId' | 'scenarioId' | 'surfaceId'> = {
     sourceVocal: { artifactId: preparedSource.artifactId, ...(full ? {} : { range }) }, sourceKind: 'singing',
     targetVoice: preparedTarget, ...(semitone !== undefined ? { semitoneShift: semitone } : {}),
-    signal, onJobUpdate: input.onJobUpdate,
+    signal: input.cancelSignal, observationSignal: input.signal, onJobUpdate: input.onJobUpdate,
   };
   const result = await runRuntimeVoiceConvert({ ...spec, runtime: { ai: protectedScenarioJobs(client, operation.clientSubmissionId) },
     appId: 'nimi.overtone', scenarioId: 'overtone.voice.convert', surfaceId: 'nimi.overtone.voice-convert' });
@@ -108,16 +109,17 @@ export async function runVoiceConvert(input: {
 // @nimi-authority: rule.overtone.data-model.r007
 export async function recoverVoiceConvert(input: {
   readonly client: Client; readonly cache: MusicAudioCache; readonly operation: RecoverableVoiceConvert;
-  readonly mixTitle: string; readonly signal: AbortSignal;
+  readonly mixTitle: string; readonly signal: AbortSignal; readonly cancelSignal?: AbortSignal;
   readonly onStage?: (stage: VoiceConvertStages) => void;
   readonly onJobUpdate?: (job: ScenarioJob) => void;
 }): Promise<AdoptedVoiceConvertRun> {
-  const { client, operation, signal } = input; signal.throwIfAborted();
+  const { client, operation } = input;
+  const signal = musicJobWorkSignal(input.signal, input.cancelSignal); signal.throwIfAborted();
   const found = await client.ai.scenarioJobs.lookupSubmission(operation.clientSubmissionId);
   if (operation.jobId && operation.jobId !== found.job.jobId) throw new Error('OVERTONE_VOICE_CONVERT_IDENTITY');
   input.onStage?.('recovering');
   const result = await observeRuntimeVoiceConversion({ runtime: { ai: createNimiLocalAppRuntimeScenarioJobClient(client.ai) },
-    jobId: found.job.jobId, signal, onJobUpdate: input.onJobUpdate });
+    jobId: found.job.jobId, signal: input.signal, cancelSignal: input.cancelSignal, onJobUpdate: input.onJobUpdate });
   if (!result.ok) throw result.error;
   return finishVoiceConvert({ client, cache: input.cache, operation, mixTitle: input.mixTitle, signal }, result);
 }

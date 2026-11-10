@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { useOvertonePersistence, useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
 import { recoverSeparation, runSeparation, type SeparationStages } from '../separation.js';
+import { createMusicJobSignals } from '../runtime-workflow.js';
 import { makeId, type GenerationJob, type RecoverableSeparation, type SeparationStem } from '../types.js';
 
 const JOB_STATES: Partial<Record<ScenarioJobStatus, GenerationJob['status']>> = {
@@ -29,11 +30,11 @@ export function SeparationPanel() {
   const [rangeMode, setRangeMode] = useState('full'); const [start, setStart] = useState(''); const [end, setEnd] = useState('');
   const [instrumentParts, setInstrumentParts] = useState(false);
   const [activeTitle, setActiveTitle] = useState(''); const [canceling, setCanceling] = useState(false);
-  const request = useRef<AbortController | null>(null);
+  const request = useRef<ReturnType<typeof createMusicJobSignals> | null>(null);
   const projectIdRef = useRef(project?.projectId); projectIdRef.current = project?.projectId;
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.abort(); }; }, []);
-  useEffect(() => () => request.current?.abort(), [project?.projectId]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.stopObserving(); }; }, []);
+  useEffect(() => () => request.current?.stopObserving(), [project?.projectId]);
 
   const takes = project?.takes.filter(take => !take.discarded) ?? [];
   const source = takes.find(take => take.takeId === sourceTakeId);
@@ -51,7 +52,8 @@ export function SeparationPanel() {
   async function run(recovery?: RecoverableSeparation) {
     if (!project || request.current || (!recovery && (!source || !ready))) return;
     const projectId = recovery?.projectId ?? project.projectId;
-    const controller = new AbortController(); request.current = controller;
+    const jobSignals = createMusicJobSignals(scope.signal); request.current = jobSignals;
+    const { signal, cancelSignal } = jobSignals;
     setError(''); setNotice(''); setCanceling(false);
     setActiveTitle(recovery?.title ?? source!.title);
     setStage(recovery ? 'recovering' : 'preparing');
@@ -66,12 +68,12 @@ export function SeparationPanel() {
       requestedInstrumentParts: instrumentParts, createdAt: Date.now(),
     };
     const onJobUpdate = (job: ScenarioJob) => {
+      if (signal.aborted) return;
       if (jobId !== job.jobId) {
         savedJob = actions.captureSeparationJob(projectId, operation.separationId, job.jobId);
         void savedJob.catch(() => undefined);
       }
       jobId = job.jobId;
-      if (controller.signal.aborted) return;
       const status = JOB_STATES[job.status]; if (!status) return;
       actions.setJob({ jobId: job.jobId, capability: 'audio.separate', status });
       if (mounted.current && (status === 'pending' || status === 'running' || status === 'completed')) setStage(status === 'completed' ? 'saving' : status);
@@ -79,11 +81,11 @@ export function SeparationPanel() {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(projectId);
-      const result = recovery ? await recoverSeparation({ client, cache, operation: recovery, titles: recovery ? recoveryTitles(recovery) : titles(), signal: AbortSignal.any([controller.signal, scope.signal]),
+      const result = recovery ? await recoverSeparation({ client, cache, operation: recovery, titles: recoveryTitles(recovery), signal, cancelSignal,
         onStage: stage => { if (mounted.current) setStage(stage); }, onJobUpdate })
-        : await runSeparation({ client, cache, operation, titles: titles(), signal: AbortSignal.any([controller.signal, scope.signal]),
+        : await runSeparation({ client, cache, operation, titles: titles(), signal, cancelSignal,
           onStage: stage => { if (mounted.current) setStage(stage); }, onPrepared: actions.rememberSeparation, onJobUpdate });
-      await savedJob; controller.signal.throwIfAborted();
+      await savedJob; signal.throwIfAborted(); cancelSignal.throwIfAborted();
       if (mounted.current) setStage('saving');
       await actions.completeSeparation(projectId, [...result.takes]);
       if (mounted.current && projectIdRef.current === projectId) {
@@ -91,15 +93,15 @@ export function SeparationPanel() {
         requestAnimationFrame(() => scrollIntoView(document.querySelector('.overtone-takes-stack'), { behavior: 'smooth', block: 'start' }));
       }
     } catch (cause) {
-      if (mounted.current && projectIdRef.current === projectId) {
-        if (controller.signal.aborted) setNotice(t('Overtone.separation.stopped'));
+      if (!signal.aborted && mounted.current && projectIdRef.current === projectId) {
+        if (cancelSignal.aborted) setNotice(t('Overtone.separation.stopped'));
         else if (cause instanceof Error && cause.message === 'OVERTONE_SEPARATION_NO_JOB') setError(t('Overtone.separation.recoveryMissingJob'));
         else setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
       release?.();
       if (jobId) actions.removeJob(jobId);
-      if (request.current === controller) request.current = null;
+      if (request.current === jobSignals) request.current = null;
       if (mounted.current) { setStage(null); setCanceling(false); }
     }
   }
@@ -137,7 +139,7 @@ export function SeparationPanel() {
           disabled={!ready || busy || otherBusy} loading={busy} onClick={() => void run()}>{t('Overtone.separation.run')}</Button>
       </> : null}
       {stage ? <div role="status" className="overtone-row"><span>{activeTitle} · {t(canceling ? 'Overtone.separation.canceling' : `Overtone.separation.stages.${stage}`)}</span>
-        <Button tone="ghost" size="sm" disabled={canceling || stage === 'saving'} onClick={() => { setCanceling(true); request.current?.abort(); }}>{t(stage === 'preparing' ? 'Overtone.separation.abandon' : 'Overtone.separation.cancel')}</Button>
+        <Button tone="ghost" size="sm" disabled={canceling || stage === 'saving'} onClick={() => { setCanceling(true); request.current?.requestCancel(); }}>{t(stage === 'preparing' ? 'Overtone.separation.abandon' : 'Overtone.separation.cancel')}</Button>
       </div> : null}
       {notice ? <NimiText role="helper">{notice}</NimiText> : null}
       {error ? <InlineAlert tone="warning">{t('Overtone.separation.failed')}<details><summary>{t('Overtone.playground.errorDetails')}</summary>{error}</details></InlineAlert> : null}

@@ -55,6 +55,21 @@ export function textFailureMessage(cause: unknown, t: (key: string) => string): 
 }
 export const SKETCH_DURATION_SECONDS = 20;
 type MusicClient = Pick<NimiAppRuntimeClient, 'ai' | 'storage'>;
+
+export function createMusicJobSignals(scopeSignal: AbortSignal) {
+  const observation = new AbortController();
+  const cancellation = new AbortController();
+  return {
+    signal: AbortSignal.any([observation.signal, scopeSignal]),
+    cancelSignal: cancellation.signal,
+    stopObserving: () => observation.abort(),
+    requestCancel: () => cancellation.abort(),
+  };
+}
+
+export function musicJobWorkSignal(signal: AbortSignal, cancelSignal?: AbortSignal): AbortSignal {
+  return cancelSignal ? AbortSignal.any([signal, cancelSignal]) : signal;
+}
 export interface AdoptedMusicResult {
   readonly jobId: string;
   readonly audio: ProjectAudio;
@@ -81,7 +96,8 @@ export function createMusicVersion(operation: RecoverableMusicResult, result: Ad
 export async function generateRuntimeMusic(input: {
   readonly client: MusicClient; readonly cache: MusicAudioCache;
   readonly operation: RecoverableMusicResult; readonly score?: ScoreDocument;
-  readonly signal: AbortSignal; readonly onJobUpdate: (job: ScenarioJob) => void;
+  readonly signal: AbortSignal; readonly cancelSignal: AbortSignal;
+  readonly onJobUpdate: (job: ScenarioJob) => void;
 }): Promise<AdoptedMusicResult> {
   const operation = input.operation;
   let score: { artifactId: string; format: 'abc' } | undefined;
@@ -102,10 +118,11 @@ export async function generateRuntimeMusic(input: {
     ...(operation.instrumental !== undefined ? { instrumental: operation.instrumental } : {}),
     ...(operation.returnGeneratedScore !== undefined ? { returnGeneratedScore: operation.returnGeneratedScore } : {}),
     ...(score ? { score, scoreConditioning: operation.scoreConditioning ?? 'melody-and-harmony' } : {}),
-    scenarioId: 'overtone.music.generate', surfaceId: 'nimi.overtone.generate', signal: input.signal, onJobUpdate: input.onJobUpdate,
+    scenarioId: 'overtone.music.generate', surfaceId: 'nimi.overtone.generate',
+    signal: input.cancelSignal, observationSignal: input.signal, onJobUpdate: input.onJobUpdate,
   });
   if (!result.ok) throw result.error;
-  return adoptMusicResult(input, result);
+  return adoptMusicResult({ ...input, signal: musicJobWorkSignal(input.signal, input.cancelSignal) }, result);
 }
 
 // @nimi-authority: rule.overtone.data-model.r007

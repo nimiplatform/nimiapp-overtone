@@ -5,6 +5,7 @@ import { ScenarioJobStatus, type ScenarioJob } from '@nimiplatform/sdk/runtime/g
 import { useTranslation } from 'react-i18next';
 import { useOvertoneSession } from '../../shell/auth/app-session.js';
 import { recoverVoiceConvert, runVoiceConvert, type VoiceConvertStages } from '../voice-convert.js';
+import { createMusicJobSignals } from '../runtime-workflow.js';
 import { buildVoiceConvertTargetChoice, selectionFrames } from '../voice-convert-target.js';
 import { useOvertonePersistence, useAudioCache, useOvertoneActions, useOvertoneState } from '../store.js';
 import { makeId, type GenerationJob, type RecoverableVoiceConvert, type VoiceConvertTargetChoice } from '../types.js';
@@ -34,11 +35,11 @@ export function VoiceConvertPanel() {
   const [start, setStart] = useState(''); const [end, setEnd] = useState('');
   const [semitone, setSemitone] = useState('');
   const [activeTitle, setActiveTitle] = useState(''); const [canceling, setCanceling] = useState(false);
-  const request = useRef<AbortController | null>(null);
+  const request = useRef<ReturnType<typeof createMusicJobSignals> | null>(null);
   const projectIdRef = useRef(project?.projectId); projectIdRef.current = project?.projectId;
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.abort(); }; }, []);
-  useEffect(() => () => request.current?.abort(), [project?.projectId]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; request.current?.stopObserving(); }; }, []);
+  useEffect(() => () => request.current?.stopObserving(), [project?.projectId]);
 
   const takes = project?.takes.filter(take => !take.discarded) ?? [];
   const source = takes.find(take => take.takeId === sourceTakeId);
@@ -68,7 +69,8 @@ export function VoiceConvertPanel() {
   async function run(recovery?: RecoverableVoiceConvert) {
     if (!project || request.current || (!recovery && (!source || !accompaniment || !ready))) return;
     const projectId = recovery?.projectId ?? project.projectId;
-    const controller = new AbortController(); request.current = controller;
+    const jobSignals = createMusicJobSignals(scope.signal); request.current = jobSignals;
+    const { signal, cancelSignal } = jobSignals;
     setError(''); setNotice(''); setCanceling(false);
     setActiveTitle(recovery?.title ?? source!.title);
     setStage(recovery ? 'recovering' : 'preparing');
@@ -78,12 +80,12 @@ export function VoiceConvertPanel() {
     const title = recovery?.title ?? t('Overtone.voiceConvert.takeTitle', { title: source!.title, number }).slice(0, 80);
     const mixTitle = t('Overtone.voiceConvert.mixTakeTitle', { title: recovery?.title ?? source!.title, number });
     const onJobUpdate = (job: ScenarioJob) => {
+      if (signal.aborted) return;
       if (jobId !== job.jobId) {
         savedJob = actions.captureVoiceConvertJob(projectId, submissionId, job.jobId);
         void savedJob.catch(() => undefined);
       }
       jobId = job.jobId;
-      if (controller.signal.aborted) return;
       const status = JOB_STATES[job.status]; if (!status) return;
       actions.setJob({ jobId: job.jobId, capability: 'audio.voice.convert', status });
       if (mounted.current && (status === 'pending' || status === 'running' || status === 'completed')) setStage(status === 'completed' ? 'saving' : status);
@@ -91,9 +93,9 @@ export function VoiceConvertPanel() {
     let release: (() => void) | undefined;
     try {
       release = persistence.beginOperation(projectId);
-      const result = recovery ? await recoverVoiceConvert({ client, cache, operation: recovery, mixTitle, signal: AbortSignal.any([controller.signal, scope.signal]),
+      const result = recovery ? await recoverVoiceConvert({ client, cache, operation: recovery, mixTitle, signal, cancelSignal,
         onStage: stage => { if (mounted.current) setStage(stage); }, onJobUpdate })
-        : await runVoiceConvert({ client, cache, mixTitle, signal: AbortSignal.any([controller.signal, scope.signal]),
+        : await runVoiceConvert({ client, cache, mixTitle, signal, cancelSignal,
           onStage: stage => { if (mounted.current) setStage(stage); }, onPrepared: actions.rememberVoiceConvert, onJobUpdate,
           operation: {
             clientSubmissionId: submissionId, projectId, title,
@@ -104,7 +106,7 @@ export function VoiceConvertPanel() {
             createdAt: Date.now(),
           },
         });
-      await savedJob; controller.signal.throwIfAborted();
+      await savedJob; signal.throwIfAborted(); cancelSignal.throwIfAborted();
       if (mounted.current) setStage('saving');
       await actions.completeVoiceConvert(projectId, result.take, result.mixTake);
       if (mounted.current && projectIdRef.current === projectId) {
@@ -119,14 +121,14 @@ export function VoiceConvertPanel() {
         requestAnimationFrame(() => scrollIntoView(document.querySelector('.overtone-takes-stack'), { behavior: 'smooth', block: 'start' }));
       }
     } catch (cause) {
-      if (mounted.current && projectIdRef.current === projectId) {
-        if (controller.signal.aborted) setNotice(t('Overtone.voiceConvert.stopped'));
+      if (!signal.aborted && mounted.current && projectIdRef.current === projectId) {
+        if (cancelSignal.aborted) setNotice(t('Overtone.voiceConvert.stopped'));
         else setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
       release?.();
       if (jobId) actions.removeJob(jobId);
-      if (request.current === controller) request.current = null;
+      if (request.current === jobSignals) request.current = null;
       if (mounted.current) { setStage(null); setCanceling(false); }
     }
   }
@@ -177,7 +179,7 @@ export function VoiceConvertPanel() {
           disabled={!ready || busy || otherBusy} loading={busy} onClick={() => void run()}>{t('Overtone.voiceConvert.run')}</Button>
       </> : null}
       {stage ? <div role="status" className="overtone-row"><span>{activeTitle} · {t(canceling ? 'Overtone.voiceConvert.canceling' : `Overtone.voiceConvert.stages.${stage}`)}</span>
-        <Button tone="ghost" size="sm" disabled={canceling || stage === 'saving'} onClick={() => { setCanceling(true); request.current?.abort(); }}>{t(stage === 'preparing' ? 'Overtone.voiceConvert.abandon' : 'Overtone.voiceConvert.cancel')}</Button>
+        <Button tone="ghost" size="sm" disabled={canceling || stage === 'saving'} onClick={() => { setCanceling(true); request.current?.requestCancel(); }}>{t(stage === 'preparing' ? 'Overtone.voiceConvert.abandon' : 'Overtone.voiceConvert.cancel')}</Button>
       </div> : null}
       {notice ? <NimiText role="helper">{notice}</NimiText> : null}
       {error ? <InlineAlert tone="warning">{t('Overtone.voiceConvert.failed')}<details><summary>{t('Overtone.playground.errorDetails')}</summary>{error}</details></InlineAlert> : null}

@@ -1,10 +1,10 @@
 import { scrollIntoView } from '../motion.js';
 import { useEffect, useRef, useState } from 'react';
-import { ScenarioJobStatus, ScenarioType } from '@nimiplatform/sdk/runtime/generated';
+import { ScenarioJobStatus, ScenarioType, type ScenarioJob } from '@nimiplatform/sdk/runtime/generated';
 import { Button, FieldShell, InlineAlert, NimiText, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useOvertoneSession } from '../../shell/auth/app-session.js';
-import { createMusicVersion, generateRuntimeMusic, SKETCH_DURATION_SECONDS } from '../runtime-workflow.js';
+import { createMusicJobSignals, createMusicVersion, generateRuntimeMusic, SKETCH_DURATION_SECONDS } from '../runtime-workflow.js';
 import { useOvertonePersistence, useOvertoneActions, useOvertoneState, useAudioCache } from '../store.js';
 import { makeId, scoreSourceTakeId, type GenerationJob, type RecoverableMusicResult } from '../types.js';
 import { buildMusicPrompt, musicInputValid } from '../exploration.js';
@@ -39,7 +39,8 @@ export function GeneratePanel() {
   const [errorDetail, setErrorDetail] = useState('');
   const [failedResultId, setFailedResultId] = useState('');
   const [notice, setNotice] = useState('');
-  const active = useRef<AbortController | null>(null);
+  const [stopping, setStopping] = useState(false);
+  const active = useRef<ReturnType<typeof createMusicJobSignals> | null>(null);
   const brief = project?.brief;
   const song = creative.stage === 'song' ? project?.fullSong : null;
   const songValid = !!song && fullSongDraftValid(song);
@@ -63,12 +64,21 @@ export function GeneratePanel() {
     ? project?.recoverableResults?.some(result => result.jobId === failedResultId) ? t('Overtone.recovery.failedAfterGeneration') : ''
     : error;
 
-  useEffect(() => () => active.current?.abort(), []);
+  useEffect(() => () => active.current?.stopObserving(), []);
+
+  function cancelGeneration() {
+    const operation = active.current;
+    if (!operation || operation.cancelSignal.aborted) return;
+    setStopping(true);
+    setNotice(t('Overtone.generate.cancelRequested'));
+    operation.requestCancel();
+  }
 
   async function generate() {
     if (!project || !canGenerate || active.current) return;
-    const controller = new AbortController();
-    active.current = controller;
+    const jobSignals = createMusicJobSignals(scope.signal);
+    const { signal, cancelSignal } = jobSignals;
+    active.current = jobSignals;
     setGenerating(true);
     const title = inputScore?.title || song?.title || brief?.title || t('Overtone.playground.ownDirection');
     setSubmittedTitle(title);
@@ -77,6 +87,7 @@ export function GeneratePanel() {
     setErrorDetail('');
     setNotice('');
     let jobId = '';
+    let latestJob: ScenarioJob | undefined;
     let completed = false;
     let release: (() => void) | undefined;
     const submission: Omit<RecoverableMusicResult, 'jobId'> = {
@@ -91,22 +102,25 @@ export function GeneratePanel() {
     try {
       release = persistence.beginOperation(project.projectId);
       await rememberResult(submission, project.projectId);
-      controller.signal.throwIfAborted();
+      signal.throwIfAborted();
+      cancelSignal.throwIfAborted();
       const result = await generateRuntimeMusic({
-        client: client, cache, operation: submission, score: inputScore, signal: AbortSignal.any([controller.signal, scope.signal]),
+        client: client, cache, operation: submission, score: inputScore, signal, cancelSignal,
         onJobUpdate(job) {
+          if (signal.aborted) return;
+          latestJob = job;
           const status = JOB_STATUS[job.status];
           if (jobId !== job.jobId) captureJob(submission.clientSubmissionId, job.jobId);
           jobId = job.jobId;
           if (status === 'completed' && job.scenarioType === ScenarioType.MUSIC_GENERATE) {
             completed = true;
           }
-          if (controller.signal.aborted) return;
-          if (!status || job.scenarioType !== ScenarioType.MUSIC_GENERATE) { setError(t('Overtone.generate.invalidStatus')); controller.abort(); return; }
+          if (!status || job.scenarioType !== ScenarioType.MUSIC_GENERATE) { setError(t('Overtone.generate.invalidStatus')); jobSignals.stopObserving(); return; }
           setJob({ jobId, status });
         },
       });
-      controller.signal.throwIfAborted();
+      signal.throwIfAborted();
+      cancelSignal.throwIfAborted();
       const version = createMusicVersion(submission, result);
       await addTake(project.projectId, version.take, version.score);
       if (song) setNotice(t(songFallsShort(result.durationSeconds, durationSeconds) ? 'Overtone.song.shortResultNotice' : 'Overtone.song.readyNotice', {
@@ -114,20 +128,29 @@ export function GeneratePanel() {
       }));
       requestAnimationFrame(() => scrollIntoView(document.querySelector('.overtone-takes-stack'), { behavior: 'smooth', block: 'start' }));
     } catch (cause) {
+      if (signal.aborted) return;
+      if (cancelSignal.aborted) {
+        const stopped = latestJob?.status === ScenarioJobStatus.CANCELED
+          ? await client.ai.scenarioJobs.get(latestJob.jobId).catch(() => undefined)
+          : undefined;
+        if (signal.aborted) return;
+        const confirmed = stopped?.job.status === 'canceled'
+          && (stopped.job.stopOutcome === 'confirmed' || stopped.job.stopOutcome === 'not-dispatched');
+        setNotice(t(confirmed ? 'Overtone.generate.cancelConfirmed' : completed ? 'Overtone.generate.cancelCompleted' : 'Overtone.generate.cancelUnconfirmed'));
+        return;
+      }
       const reason = (cause as { reasonCode?: string })?.reasonCode;
       const message = cause instanceof Error ? cause.message : String(cause);
       const actionHint = (cause as { actionHint?: string })?.actionHint;
-      if (!controller.signal.aborted) setErrorDetail([reason, actionHint, message !== reason ? message : ''].filter(Boolean).join(' · '));
+      setErrorDetail([reason, actionHint, message !== reason ? message : ''].filter(Boolean).join(' · '));
       if (completed) setFailedResultId(jobId);
-      if (!controller.signal.aborted) setError([
-        controller.signal.aborted ? t('Overtone.generate.cancelRequested') : '',
-        completed ? t('Overtone.recovery.failedAfterGeneration') : reason === 'ai-media-option-unsupported' ? t('Overtone.playground.musicRejected') : message,
-      ].filter(Boolean).join(': '));
+      setError(completed ? t('Overtone.recovery.failedAfterGeneration') : reason === 'ai-media-option-unsupported' ? t('Overtone.playground.musicRejected') : message);
     } finally {
       release?.();
       if (jobId) removeJob(jobId);
       active.current = null;
       setGenerating(false);
+      setStopping(false);
     }
   }
 
@@ -145,7 +168,7 @@ export function GeneratePanel() {
         void generate();
       }} leadingIcon={<OvertoneIcon name="music"/>}>
       {t(generating ? 'Overtone.song.rendering' : creative.arranging ? 'Overtone.song.arranging' : !song.sections.length ? 'Overtone.song.arrange' : 'Overtone.song.generate')}
-    </Button>{creative.arranging ? <Button tone="secondary" onClick={creative.cancelSongArrangement}>{t('Overtone.text.cancel')}</Button> : null}{generating ? <Button tone="secondary" onClick={() => { active.current?.abort(); setError(t('Overtone.generate.cancelRequested')); }}>{t('Overtone.generate.cancel')}</Button> : null}</div>
+    </Button>{creative.arranging ? <Button tone="secondary" onClick={creative.cancelSongArrangement}>{t('Overtone.text.cancel')}</Button> : null}{generating ? <Button tone="secondary" disabled={stopping} onClick={cancelGeneration}>{t('Overtone.generate.cancel')}</Button> : null}</div>
   </section>;
 
   return (
@@ -162,6 +185,7 @@ export function GeneratePanel() {
         <TextField type="number" min={1} max={profile.maxDurationSeconds} step={1} value={durationSeconds} disabled={generating} onChange={event => setSketchBudget(Number(event.target.value))} />
       </FieldShell> : null}
       {profile?.lyricsMode === 'unsupported' && lyrics.trim() ? <InlineAlert tone="warning">{t('Overtone.generate.lyricsUnsupported')}</InlineAlert> : null}
+      {notice ? <p className="ot-song-result-notice" role="status">{notice}</p> : null}
       {errorMessage ? <InlineAlert tone="warning">{errorMessage}{errorDetail ? <details><summary>{t('Overtone.playground.errorDetails')}</summary>{errorDetail}</details> : null}</InlineAlert> : null}
       <div className="ot-generation-tools"><Button className="ot-tool-button" tone="ghost" size="sm" aria-expanded={creative.notesOpen} aria-controls="ot-notebook" leadingIcon={<OvertoneIcon name="notes" size={15} />} onClick={() => creative.setNotesOpen(!creative.notesOpen)}>{t('Overtone.studio.editDraft')}</Button>
       <details className="overtone-style-details"><summary>{t('Overtone.score.options')}</summary><FieldShell label={t('Overtone.generate.styleTags')}>
@@ -185,7 +209,7 @@ export function GeneratePanel() {
           <OvertoneIcon name={nextApply ? 'arrow' : 'music'} />
           {t(generating ? 'Overtone.generate.submitting' : nextApply ? 'Overtone.studio.applyNext' : inputScore ? 'Overtone.score.generate' : 'Overtone.generate.submit')}
         </Button>
-        {generating ? <Button type="button" tone="secondary" onClick={() => { active.current?.abort(); setError(t('Overtone.generate.cancelRequested')); }}>
+        {generating ? <Button type="button" tone="secondary" disabled={stopping} onClick={cancelGeneration}>
           {t('Overtone.generate.cancel')}
         </Button> : null}
       </div>}
