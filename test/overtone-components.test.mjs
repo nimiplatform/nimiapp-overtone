@@ -79,8 +79,14 @@ test('switching cached takes starts and loops B over its visible default range, 
     }
     actions.selectTake('a');
   });
-  await click('Overtone.player.trimStartIncreaseAria', 3);
-  await click('Overtone.player.trimEndDecreaseAria', 12);
+  const trimStart = document.querySelector('[aria-label="Overtone.player.trimStartAria"]');
+  const trimEnd = document.querySelector('[aria-label="Overtone.player.trimEndAria"]');
+  await act(async () => {
+    trimStart.value = '3';
+    trimStart.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    trimEnd.value = '8';
+    trimEnd.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  });
   await click('Overtone.playground.loop');
   await change(({ playback }) => playback.requestTake('a'));
   assert.equal(sources.at(-1).currentTime, 3); assert.equal(sources.at(-1).paused, false);
@@ -88,8 +94,8 @@ test('switching cached takes starts and loops B over its visible default range, 
   assert.equal(sources.at(-1).currentTime, 0); assert.equal(sources.at(-1).paused, false);
   await act(async () => { sources.at(-1).currentTime = 20; sources.at(-1).dispatchEvent(new dom.window.Event('ended')); });
   assert.equal(sources.at(-1).currentTime, 0);
-  assert.equal(document.querySelector('[aria-label="Overtone.player.trimStartAria"]').textContent, '0');
-  assert.equal(document.querySelector('[aria-label="Overtone.player.trimEndAria"]').textContent, '20');
+  assert.equal(document.querySelector('[aria-label="Overtone.player.trimStartAria"]').value, '0');
+  assert.equal(document.querySelector('[aria-label="Overtone.player.trimEndAria"]').value, '20');
 });
 
 test('failed draft persistence is visible; retry saves the same completed reference across remount', async () => {

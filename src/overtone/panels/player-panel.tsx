@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, IconToggleAction, InlineAlert, NimiText, NumberStepper, SegmentedControl, Slider, Surface } from '@nimiplatform/kit/ui';
+import { Button, IconToggleAction, InlineAlert, NimiText, SegmentedControl, Slider, Surface, TextField } from '@nimiplatform/kit/ui';
 import { useTranslation } from 'react-i18next';
 import { useAudioCache, useAudioSnapshot, useOvertonePlayback, useOvertoneState } from '../store.js';
 import { useOvertoneSession } from '../../shell/auth/app-session.js';
@@ -26,13 +26,22 @@ export function PlayerPanel({ openMedia }: { openMedia?: (path: string) => Promi
   const [audioRetry, setAudioRetry] = useState(0); const [exporting, setExporting] = useState(false);
   const [lastExport, setLastExport] = useState<{ sourceTakeId: string; audio: ProjectAudio } | null>(null);
   const [volume, setVolume] = useState(resolveInitialOvertoneVolume); const [speed, setSpeed] = useState(1); const [loop, setLoop] = useState(false);
-  const [trim, setTrim] = useState<{ takeId: string; start: number | null; end: number | null } | null>(null);
-  const trimStartSec = trim?.takeId === selectedTake?.takeId ? trim?.start ?? null : null;
-  const trimEndSec = trim?.takeId === selectedTake?.takeId ? trim?.end ?? null : null;
-  const duration = selectedTake ? selectedTake.audio.frameCount / selectedTake.audio.sampleRateHz : 0;
-  const trimStart = Math.max(0, Math.min(trimStartSec ?? 0, duration));
-  const trimEnd = Math.max(0, Math.min(trimEndSec ?? duration, duration));
-  const trimInvalid = duration > 0 && trimEnd <= trimStart;
+  const [trim, setTrim] = useState<{ takeId: string; start: string | null; end: string | null } | null>(null);
+  const trimStartInput = trim?.takeId === selectedTake?.takeId ? trim?.start ?? null : null;
+  const trimEndInput = trim?.takeId === selectedTake?.takeId ? trim?.end ?? null : null;
+  const sampleRate = selectedTake?.audio.sampleRateHz ?? 1;
+  const frameCount = selectedTake?.audio.frameCount ?? 0;
+  const duration = frameCount / sampleRate;
+  const requestedStart = trimStartInput === null ? 0 : Number.parseFloat(trimStartInput);
+  const requestedEnd = trimEndInput === null ? duration : Number.parseFloat(trimEndInput);
+  const trimStart = Number.isFinite(requestedStart) ? Math.max(0, Math.min(requestedStart, duration)) : 0;
+  const trimEnd = Number.isFinite(requestedEnd) ? Math.max(0, Math.min(requestedEnd, duration)) : duration;
+  const trimStartFrame = Math.floor(trimStart * sampleRate);
+  const trimEndFrame = trimEnd === duration ? frameCount : Math.floor(trimEnd * sampleRate);
+  const trimInvalid = duration > 0 && (!Number.isFinite(requestedStart) || !Number.isFinite(requestedEnd)
+    || requestedStart < 0 || requestedEnd > duration || trimEndFrame <= trimStartFrame);
+  const trimStartSec = trimStartInput !== null && !trimInvalid ? trimStart : null;
+  const trimEndSec = trimEndInput !== null && !trimInvalid ? trimEnd : null;
   const bounds = useRef({ start: trimStart, end: trimEnd }); bounds.current = { start: trimStart, end: trimEnd };
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const volumeRef = useRef(volume); const speedRef = useRef(speed); const loopRef = useRef(loop);
@@ -136,10 +145,12 @@ export function PlayerPanel({ openMedia }: { openMedia?: (path: string) => Promi
     speedRef.current = next; setSpeed(next); if (elementRef.current) elementRef.current.playbackRate = next;
   }
   function toggleLoop() { loopRef.current = !loopRef.current; setLoop(loopRef.current); }
-  function trimChange(value: number, edge: 'start' | 'end') {
+  function trimChange(value: string, edge: 'start' | 'end') {
     if (!selectedTake) return; stopPlayback();
-    const aligned = Math.floor(value * selectedTake.audio.sampleRateHz) / selectedTake.audio.sampleRateHz;
-    setTrim({ takeId: selectedTake.takeId, start: edge === 'start' ? aligned : trimStartSec, end: edge === 'end' ? aligned : trimEndSec });
+    setTrim(previous => {
+      const current = previous?.takeId === selectedTake.takeId ? previous : null;
+      return { takeId: selectedTake.takeId, start: current?.start ?? null, end: current?.end ?? null, [edge]: value };
+    });
   }
   async function exportAudio(trimmed: boolean) {
     if (!selectedTake || !ready || exporting || (trimmed && trimInvalid)) return;
@@ -147,9 +158,8 @@ export function PlayerPanel({ openMedia }: { openMedia?: (path: string) => Promi
     try {
       let audio = selectedTake.audio;
       if (trimmed) {
-        const sourceStartFrame = Math.floor(trimStart * audio.sampleRateHz), sourceEndFrame = Math.min(audio.frameCount, Math.floor(trimEnd * audio.sampleRateHz));
-        const result = await renderProjectMix({ client: client, tracks: [{ audio, gain: 1, startFrame: 0, sourceStartFrame, sourceEndFrame }],
-          output: { sampleRateHz: audio.sampleRateHz, channels: audio.channels as 1 | 2, frameCount: sourceEndFrame - sourceStartFrame },
+        const result = await renderProjectMix({ client: client, tracks: [{ audio, gain: 1, startFrame: 0, sourceStartFrame: trimStartFrame, sourceEndFrame: trimEndFrame }],
+          output: { sampleRateHz: audio.sampleRateHz, channels: audio.channels as 1 | 2, frameCount: trimEndFrame - trimStartFrame },
           relativePath: 'music/exports/' + makeId('trim') + '.wav', signal: AbortSignal.any([controller.signal, scope.signal]) });
         audio = result.audio;
       }
@@ -224,17 +234,17 @@ export function PlayerPanel({ openMedia }: { openMedia?: (path: string) => Promi
       <details><summary>{t('Overtone.playground.trim')}</summary>
         <div className="overtone-trim-controls">
           <div className="ot-trim-field"><NimiText as="span" role="caption">{t('Overtone.player.trimStartAria')}</NimiText>
-          <NumberStepper ariaLabel={t('Overtone.player.trimStartAria')} decreaseLabel={t('Overtone.player.trimStartDecreaseAria')} increaseLabel={t('Overtone.player.trimStartIncreaseAria')}
-            min={0} max={duration} step={1} value={Math.round(trimStart * 1000) / 1000} onValueChange={(value) => trimChange(value, 'start')} disabled={!ready} /></div>
+          <TextField type="number" aria-label={t('Overtone.player.trimStartAria')} min={0} max={duration} step="any"
+            value={trimStartInput ?? '0'} onInput={event => trimChange(event.currentTarget.value, 'start')} disabled={!ready} /></div>
           <div className="ot-trim-field"><NimiText as="span" role="caption">{t('Overtone.player.trimEndAria')}</NimiText>
-          <NumberStepper ariaLabel={t('Overtone.player.trimEndAria')} decreaseLabel={t('Overtone.player.trimEndDecreaseAria')} increaseLabel={t('Overtone.player.trimEndIncreaseAria')}
-            min={0} max={duration} step={1} value={Math.round(trimEnd * 1000) / 1000} onValueChange={(value) => trimChange(value, 'end')} disabled={!ready} /></div>
+          <TextField type="number" aria-label={t('Overtone.player.trimEndAria')} min={0} max={duration} step="any"
+            value={trimEndInput ?? String(Math.floor(duration * 1000) / 1000)} onInput={event => trimChange(event.currentTarget.value, 'end')} disabled={!ready} /></div>
           <Button tone="ghost" size="sm" disabled={!ready} onClick={() => { stopPlayback(); setTrim(null); }}>{t('Overtone.player.clearTrim')}</Button>
           <Button tone="secondary" size="sm" loading={exporting} disabled={!ready || trimInvalid || exporting} onClick={() => void exportAudio(true)}>{t('Overtone.playground.exportTrim')}</Button>
           {exporting ? <Button tone="ghost" size="sm" onClick={() => exportController.current?.abort()}>{t('Overtone.takes.cancel')}</Button> : null}
           {lastExport?.sourceTakeId === selectedTake.takeId ? <Button tone="secondary" size="sm" onClick={() => void host.deliver(scope, lastExport.audio.relativePath, lastExport.audio.relativePath.split('/').at(-1)!).catch(error => setAudioError(String(error)))}>{host.kind === 'web' ? t('Overtone.playground.downloadExport') : t('Overtone.playground.openExport')}</Button> : null}
         </div>
-        <NimiText role="caption" className="ot-trim-hint">{t('Overtone.playground.exportHint')}</NimiText>
+        <NimiText role="caption" className="ot-trim-hint">{t(host.kind === 'web' ? 'Overtone.playground.exportHintWeb' : 'Overtone.playground.exportHint')}</NimiText>
       </details>
       <Button tone="ghost" size="sm" disabled={!ready || exporting} onClick={() => void exportAudio(false)}><OvertoneIcon name="download" size={15} />{host.kind === 'web' ? t('Overtone.playground.downloadOriginal') : t('Overtone.playground.exportOriginal')}</Button>
     </div> : null}

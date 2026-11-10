@@ -356,6 +356,7 @@ export const overtoneI18nResources = {
           "openExport": "Open the exported WAV location", "downloadExport": "Download exported WAV", "downloadOriginal": "Download original audio",
           "trim": "Trim & export",
           "exportHint": "Trimming saves a separate WAV file, which you can open in its folder once saved. Playback speed and volume won't affect the exported audio.",
+          "exportHintWeb": "Trimming saves a separate WAV file. You can download it once it is ready. Playback speed and volume do not change the exported audio.",
           "selectedRecording": "Now selected",
           "collision": "{{scene}}, with {{genre}} — {{twist}}.",
           "scenes": {
@@ -581,10 +582,6 @@ export const overtoneI18nResources = {
           "trimStartAria": "Trim start (s)",
           "clearTrim": "Clear trim",
           "trimEndAria": "Trim end (s)",
-          "trimStartDecreaseAria": "Decrease trim start",
-          "trimStartIncreaseAria": "Increase trim start",
-          "trimEndDecreaseAria": "Decrease trim end",
-          "trimEndIncreaseAria": "Increase trim end",
           "volumeAria": "Volume",
           "invalidTrim": "Invalid trim"
         },
@@ -994,6 +991,7 @@ export const overtoneI18nResources = {
           "openExport": "打开已导出 WAV 的位置", "downloadExport": "下载已导出的 WAV", "downloadOriginal": "下载原音频",
           "trim": "裁剪与导出",
           "exportHint": "裁剪结果将另存为独立 WAV 文件，完成后可打开文件位置。试听速度与音量不影响导出的音频样本。",
+          "exportHintWeb": "裁剪结果将另存为独立 WAV 文件，完成后可下载。试听速度与音量不影响导出的音频样本。",
           "selectedRecording": "当前选择",
           "collision": "{{scene}}，配上{{genre}}——{{twist}}。",
           "scenes": {
@@ -1219,10 +1217,6 @@ export const overtoneI18nResources = {
           "trimStartAria": "裁剪起点（秒）",
           "clearTrim": "清除裁剪",
           "trimEndAria": "裁剪终点（秒）",
-          "trimStartDecreaseAria": "减小裁剪起点",
-          "trimStartIncreaseAria": "增大裁剪起点",
-          "trimEndDecreaseAria": "减小裁剪终点",
-          "trimEndIncreaseAria": "增大裁剪终点",
           "volumeAria": "音量",
           "invalidTrim": "裁剪无效"
         },
