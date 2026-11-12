@@ -5,7 +5,7 @@ units:
   - id: definition.overtone.auth.runtime-account-session
     kind: definition
     title: Nimi App session
-    meaning: Overtone uses the verified Nimi App session from the shared Kit Desktop or Web factory. Desktop and Runtime own native process binding; the admitted Web source uses official Nimi login and direct Runtime access. The App observes bounded identity and connection scopes and owns no alternative account authority.
+    meaning: Overtone uses the verified Nimi App session from the shared Kit Desktop, Web or Android factory. Desktop and Runtime own native process binding; the admitted Web or Android source uses official Nimi login and direct Runtime access. The App observes bounded identity and connection scopes and owns no alternative account authority.
   - id: rule.overtone.auth.r001
     kind: rule
     title: Verified identity and connected scope
@@ -22,8 +22,8 @@ units:
     kind: rule
     title: Shared Kit session construction
     modality: must
-    statement: Construct the platform session through createDesktopNimiAppSession or createWebNimiAppSession at the entry and provide its captured common NimiAppRuntimeClient to product consumers. Reuse Kit account controls and access gates instead of implementing OAuth, session polling or native proof in the App.
-    condition: When bootstrapping Desktop or the declared Web source.
+    statement: Construct the platform session through createDesktopNimiAppSession, createWebNimiAppSession or createMobileNimiAppSession at the entry and provide its captured common NimiAppRuntimeClient to product consumers. Reuse Kit account controls and access gates instead of implementing OAuth, session polling or native proof in the App.
+    condition: When bootstrapping Desktop or a declared Web or Android source.
     failure: Fail bootstrap and expose a typed unavailable state without constructing a direct Runtime client or bearer-token transport.
     relations:
       - type: applies_to
@@ -34,7 +34,7 @@ units:
     kind: rule
     title: No app token custody
     modality: must_not
-    statement: Implement App-owned custody of Nimi account credentials, refresh tokens, caller identity or native launch proof, or bypass the SDK/Kit identity and Runtime admission boundaries. The Web factory alone handles its scoped login transaction; product state contains no credential material.
+    statement: Implement App-owned custody of Nimi account credentials, refresh tokens, caller identity or native launch proof, or bypass the SDK/Kit identity and Runtime admission boundaries. The Web and Android factories alone handles its scoped login transaction; product state contains no credential material.
     condition: Always.
     failure: Reject the bypass and keep credential ownership in the admitted platform implementation.
     relations:
@@ -44,7 +44,7 @@ units:
     kind: rule
     title: Platform-owned session establishment
     modality: must_not
-    statement: Implement independent Nimi login, account registration or OAuth completion inside Overtone. Desktop account management stays in Home; Web starts the official login through Kit and returns to its exact registered source.
+    statement: Implement independent Nimi login, account registration or OAuth completion inside Overtone. Desktop account management stays in Home; Web and Android start the official login through Kit and return to their exact registered source.
     condition: When Nimi identity or Runtime access is unavailable.
     failure: Keep protected operations unavailable and show the appropriate shared Kit recovery action.
     relations:
@@ -66,7 +66,7 @@ units:
     kind: rule
     title: No first-party account authority
     modality: must_not
-    statement: Call runtime.account methods, load or save Home account credentials, or register an App-owned auth IPC handler. Desktop delegates account management to Home; Web may end or switch only its own scoped Kit App session.
+    statement: Call runtime.account methods, load or save Home account credentials, or register an App-owned auth IPC handler. Desktop delegates account management to Home; Web and Android may end or switch only their own scoped Kit App session.
     condition: Always.
     failure: Expose no first-party credential or account-management authority to the App.
     relations:
@@ -76,7 +76,7 @@ units:
     kind: rule
     title: Admitted platform entry
     modality: must_not
-    statement: Consume developer credentials, fabricate session or process proof, launch native Electron outside Desktop supervision, or self-approve a source. Desktop development uses the official supervised command; Web uses its declared HTTPS entry, source admission and first Home confirmation.
+    statement: Consume developer credentials, fabricate session or process proof, launch native Electron outside Desktop supervision, or self-approve a source. Desktop development uses the official supervised command; Web uses its declared HTTPS entry; Android uses the admitted platform callback, with source admission and first Home confirmation for both.
     condition: During local development or session bootstrap.
     failure: Keep the unsupported entry unavailable without borrowing another App identity or bypassing approval.
     relations:

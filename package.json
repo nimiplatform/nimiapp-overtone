@@ -25,20 +25,33 @@
     "build:electron:production": "nimi-app check --production && node scripts/clean-electron-production.mjs && pnpm run build && node scripts/package-electron-production.mjs",
     "dev:web": "nimi-app dev --platform web",
     "dev:web-renderer": "vite --config vite.web.config.ts --mode web",
-    "build:web": "pnpm run typecheck && vite build --config vite.web.config.ts --mode web"
+    "build:web": "pnpm run typecheck && vite build --config vite.web.config.ts --mode web",
+    "build:mobile": "pnpm run typecheck && vite build --config vite.mobile.config.ts",
+    "sync:android": "pnpm run build:mobile && cap sync android",
+    "dev:android": "pnpm run sync:android && cap run android --no-sync",
+    "dev:mobile": "nimi-app dev --platform mobile"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3",
+    "@nimiplatform/kit": "^0.23.0",
+    "@nimiplatform/sdk": "^0.23.0",
+    "@tonejs/midi": "2.0.28",
+    "abcjs": "6.7.0",
     "i18next": "^26.4.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-i18next": "^17.0.0",
-    "@nimiplatform/sdk": "^0.22.2",
-    "@nimiplatform/kit": "^0.22.1",
-    "abcjs": "6.7.0",
-    "@tonejs/midi": "2.0.28"
+    "react-i18next": "^17.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
     "@electron/packager": "^20.3.0",
+    "@nimiplatform/app-tools": "^0.15.0",
+    "@nimiplatform/nimi-coding": "0.7.0",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.14",
@@ -51,9 +64,7 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^8.3.3",
-    "yaml": "^2.9.0",
-    "@nimiplatform/app-tools": "^0.14.0",
-    "@nimiplatform/nimi-coding": "0.7.0"
+    "yaml": "^2.9.0"
   },
   "main": "dist-electron/main.js",
   "author": "Nimi Overtone",

@@ -16,6 +16,8 @@ local_development:
     realm_url: http://127.0.0.1:3002
     official_web_url: http://localhost:3000
     command: pnpm run dev:web-renderer
+  mobile:
+    command: pnpm run dev:android
 metadata:
   summary: 整理音乐创作项目、歌词与音频候选，比较和管理创作版本。
   icon: assets/app-icon.png
@@ -62,6 +64,9 @@ safety_profile:
 storage_policy:
   kind: app-owned-os-storage
   os_storage_disclosure:
+    - path_pattern: <Android app cache>/overtone-exports/**
+      purpose: On explicit export, stage the selected owned audio or score for the Android system share sheet. The recipient is selected by the user; canonical media remains in protected Runtime App storage. Android may evict cached files.
+      expected_size_band: One selected media file per export; depends on duration and format.
     - path_pattern: <Electron userData>/Local Storage/**
       purpose: Non-secret language, theme and volume preferences. Current projects and
         adopted audio and score assets use protected Nimi-mediated App storage.

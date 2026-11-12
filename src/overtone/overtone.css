@@ -265,3 +265,26 @@ label.ot-prompt-field:focus-within{box-shadow:none}
 
 :root{--nimi-status-warning-soft-text:var(--ot-ink)}
 .ot-result-recovery{min-width:0;overflow-wrap:anywhere}
+
+@media (max-width: 580px) {
+  .overtone-screen button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .overtone-brand strong { font-size: 22px; }
+  .ot-ai-settings { font-size: 12px; }
+  .ot-take-row__head { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .ot-take-row__sound { margin-left: 52px; }
+  .overtone-transport__extras { flex-wrap: wrap; }
+  .overtone-transport__extras > button {
+    width: auto;
+    font-size: 12px;
+    padding: 0 10px;
+  }
+  .overtone-transport__extras summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    font-size: 12px;
+  }
+}

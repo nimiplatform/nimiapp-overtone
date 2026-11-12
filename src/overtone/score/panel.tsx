@@ -126,7 +126,7 @@ export function ScorePanel() {
         <div className="overtone-row"><Button tone="primary" active={project?.generationScoreId === selected.scoreId} aria-pressed={project?.generationScoreId === selected.scoreId}
           disabled={busy || generationBusy || !profile?.scoreFormats.includes(selected.format)} onClick={() => useScoreForGeneration(selected.scoreId)}>{t(project?.generationScoreId === selected.scoreId ? 'Overtone.score.usingScore' : 'Overtone.score.useScore')}</Button>
           {project?.generationScoreId ? <Button tone="ghost" onClick={() => useScoreForGeneration(null)}>{t('Overtone.score.clearCondition')}</Button> : null}
-          <Button tone="ghost" onClick={() => void host.deliver(scope, selected.asset.relativePath, selected.asset.relativePath.split('/').at(-1)!).catch(cause => setError(String(cause)))}>{host.kind === 'web' ? t('Overtone.score.download') : t('Overtone.score.reveal')}</Button>
+          <Button tone="ghost" onClick={() => void host.deliver(scope, selected.asset.relativePath, selected.asset.relativePath.split('/').at(-1)!).catch(cause => setError(String(cause)))}>{host.kind === 'mobile' ? t('Overtone.score.share') : host.kind === 'web' ? t('Overtone.score.download') : t('Overtone.score.reveal')}</Button>
         </div>
         {!profile?.scoreFormats.includes(selected.format) ? <p>{t('Overtone.score.configurationNeeded')}</p> : <FieldShell label={t('Overtone.score.budget')}>
           <SelectField value={String(project?.scoreBudgetSeconds ?? 20)} disabled={generationBusy}

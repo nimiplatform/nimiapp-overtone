@@ -3,7 +3,7 @@ import type { NimiAppScope } from '@nimiplatform/kit/core/app-session';
 
 export type AssetMediaHandle = { readonly url: string; readonly revoke: () => Promise<void> };
 export type OvertoneHost = {
-  readonly kind: 'desktop' | 'web';
+  readonly kind: 'desktop' | 'web' | 'mobile';
   openMedia(scope: NimiAppScope, path: string): Promise<AssetMediaHandle>;
   deliver(scope: NimiAppScope, path: string, name: string): Promise<void>;
 };

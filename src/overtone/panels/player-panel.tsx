@@ -242,11 +242,11 @@ export function PlayerPanel({ openMedia }: { openMedia?: (path: string) => Promi
           <Button tone="ghost" size="sm" disabled={!ready} onClick={() => { stopPlayback(); setTrim(null); }}>{t('Overtone.player.clearTrim')}</Button>
           <Button tone="secondary" size="sm" loading={exporting} disabled={!ready || trimInvalid || exporting} onClick={() => void exportAudio(true)}>{t('Overtone.playground.exportTrim')}</Button>
           {exporting ? <Button tone="ghost" size="sm" onClick={() => exportController.current?.abort()}>{t('Overtone.takes.cancel')}</Button> : null}
-          {lastExport?.sourceTakeId === selectedTake.takeId ? <Button tone="secondary" size="sm" onClick={() => void host.deliver(scope, lastExport.audio.relativePath, lastExport.audio.relativePath.split('/').at(-1)!).catch(error => setAudioError(String(error)))}>{host.kind === 'web' ? t('Overtone.playground.downloadExport') : t('Overtone.playground.openExport')}</Button> : null}
+          {lastExport?.sourceTakeId === selectedTake.takeId ? <Button tone="secondary" size="sm" onClick={() => void host.deliver(scope, lastExport.audio.relativePath, lastExport.audio.relativePath.split('/').at(-1)!).catch(error => setAudioError(String(error)))}>{host.kind === 'mobile' ? t('Overtone.playground.shareExport') : host.kind === 'web' ? t('Overtone.playground.downloadExport') : t('Overtone.playground.openExport')}</Button> : null}
         </div>
-        <NimiText role="caption" className="ot-trim-hint">{t(host.kind === 'web' ? 'Overtone.playground.exportHintWeb' : 'Overtone.playground.exportHint')}</NimiText>
+        <NimiText role="caption" className="ot-trim-hint">{t(host.kind === 'mobile' ? 'Overtone.playground.exportHintMobile' : host.kind === 'web' ? 'Overtone.playground.exportHintWeb' : 'Overtone.playground.exportHint')}</NimiText>
       </details>
-      <Button tone="ghost" size="sm" disabled={!ready || exporting} onClick={() => void exportAudio(false)}><OvertoneIcon name="download" size={15} />{host.kind === 'web' ? t('Overtone.playground.downloadOriginal') : t('Overtone.playground.exportOriginal')}</Button>
+      <Button tone="ghost" size="sm" disabled={!ready || exporting} onClick={() => void exportAudio(false)}><OvertoneIcon name="download" size={15} />{host.kind === 'mobile' ? t('Overtone.playground.shareOriginal') : host.kind === 'web' ? t('Overtone.playground.downloadOriginal') : t('Overtone.playground.exportOriginal')}</Button>
     </div> : null}
     {trimInvalid ? <NimiText role="helper" className="overtone-trim-error">{t('Overtone.player.invalidTrim')}</NimiText> : null}
   </Surface>;

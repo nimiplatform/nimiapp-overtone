@@ -228,7 +228,7 @@ function OvertoneScreen({ children, onCloseProject }: { children: ReactNode; onC
           <Popover open={preferencesOpen} onOpenChange={setPreferencesOpen}>
             <PopoverTrigger asChild><Button className="ot-settings-button" tone="ghost" size="sm" aria-label={t('Overtone.studio.preferences')}><OvertoneIcon name="settings" size={19} /></Button></PopoverTrigger>
             <PopoverContent align="end" className="ot-preferences">
-              <section><NimiAccountControl language={documentLocale} />{host.kind === 'web' && <NimiText role="helper">{t('Overtone.session.signOutHint')}</NimiText>}</section>
+              <section><NimiAccountControl language={documentLocale} />{host.kind !== 'desktop' && <NimiText role="helper">{t('Overtone.session.signOutHint')}</NimiText>}</section>
               <div className="ot-preferences__row">
                 <span className="ot-preferences__label"><OvertoneIcon name="sun" size={14} />{t('Overtone.scheme.ariaLabel')}</span>
                 <SchemeToggle />

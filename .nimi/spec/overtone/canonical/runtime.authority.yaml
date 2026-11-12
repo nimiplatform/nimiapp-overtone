@@ -33,7 +33,7 @@ units:
   - id: definition.overtone.runtime.account-caller
     kind: definition
     title: Verified App carrier identity
-    meaning: Overtone consumes as app_id nimi.overtone for the verified Nimi user. Native Host proof is owned by Desktop and Runtime; Web source qualification and scoped context are owned by Realm, Runtime and SDK/Kit. Product code receives the current common App client and no caller-selectable identity.
+    meaning: Overtone consumes as app_id nimi.overtone for the verified Nimi user. Native Host proof is owned by Desktop and Runtime; Web and Android source qualification and scoped context are owned by Realm, Runtime and SDK/Kit. Product code receives the current common App client and no caller-selectable identity.
   - id: rule.overtone.runtime.r001
     kind: rule
     title: App-scoped runtime entry

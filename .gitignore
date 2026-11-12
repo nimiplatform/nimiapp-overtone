@@ -13,4 +13,5 @@ src-tauri/target/
 dist-electron-package/
 
 dist-web/
+dist-mobile/
 .env.*.local

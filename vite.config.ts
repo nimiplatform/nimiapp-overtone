@@ -53,7 +53,8 @@ export default defineConfig({
   base: './',
   cacheDir: '.vite',
   plugins: [react(), tailwindcss()],
-  server: { watch: { ignored: ['**/.nimi/**', '**/dist/**', '**/dist-web/**', '**/dist-electron/**'] } },
+  optimizeDeps: { entries: ['index.html'] },
+  server: { watch: { ignored: ['**/.nimi/**', '**/dist/**', '**/dist-web/**', '**/dist-electron/**', '**/dist-mobile/**', '**/android/**/build/**', '**/android/app/src/main/assets/public/**'] } },
   resolve: {
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
   },

@@ -1,7 +1,7 @@
 # AGENTS.md
 - Treat `.nimi/methodology/authority-authoring.yaml` as the `@nimiplatform/nimi-coding` managed authoring guide.
 - Keep auth, App Access declarations, manifest, and Electron shell glue aligned with the current `@nimiplatform/app-tools` Local App contract.
-- Product code lives under `src/overtone/**` and `src/shell/routes/product-area.tsx`; it consumes the common `NimiAppRuntimeClient` from the shared Kit Desktop/Web session. Native file mechanics stay in the Desktop entry; Web downloads owned media through the shared asset reader.
+- Product code lives under `src/overtone/**` and `src/shell/routes/product-area.tsx`; it consumes the common `NimiAppRuntimeClient` from the shared Kit Desktop/Web/Android session. Desktop file mechanics stay in the Desktop entry; Web downloads owned media through the shared asset reader; Android uses that reader and an App-private cache file for the system share sheet.
 - `.nimi/admission/**` and `ADMISSION.md` are developer-submitted review inputs, not platform admission truth.
 - Local checks are pre-submission self-checks only.
 

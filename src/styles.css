@@ -53,3 +53,7 @@ body {
 .ot-session-content { flex: 1; min-height: 0; overflow: clip; }
 .ot-session-content > .app-shell { height: 100%; }
 .ot-session-disconnected { padding: 1rem; }
+
+@media (max-width: 580px) {
+  #root button { min-height: 44px; }
+}
