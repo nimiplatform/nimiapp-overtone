@@ -57,7 +57,7 @@ safety_profile:
     publisher_direct_external_network: false
     telemetry: []
     third_party_account: none
-    user_content_sharing: none
+    user_content_sharing: private
     commercial_features: []
     sensitive_data_categories: []
   high_impact_decision_uses: []

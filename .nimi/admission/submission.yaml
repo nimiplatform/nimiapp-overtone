@@ -17,6 +17,12 @@ required_standardized_feature_refs: []
 storage_policy:
   kind: app-owned-os-storage
   os_storage_disclosure:
+    - path_pattern: <Android app cache>/overtone-media/**
+      purpose: Stage the selected Runtime-owned audio in bounded chunks for local file playback. The player releases this temporary copy; canonical media remains in protected Runtime App storage.
+      expected_size_band: One selected media file per active player, within the App's existing import limits.
+    - path_pattern: <Android app cache>/overtone-exports/**
+      purpose: On explicit export, stage the selected owned audio or score for the Android system share sheet. The recipient is selected by the user; canonical media remains in protected Runtime App storage. Android may evict cached files.
+      expected_size_band: One selected media file per export; depends on duration and format.
     - path_pattern: <Electron userData>/Local Storage/**
       purpose: Non-secret language, theme and volume preferences. Current projects and adopted audio and score assets use protected Nimi-mediated App storage. Retired browser drafts are unsupported development residue, not a recovery feature; this unlaunched candidate does not preserve prior development projects. Browser preferences may remain when the app is uninstalled from Nimi.
       expected_size_band: Typically KiB to a few MiB of JSON, subject to browser storage quota.
@@ -46,7 +52,7 @@ safety_profile:
     sensitive_data_categories: []
     telemetry: []
     third_party_account: none
-    user_content_sharing: none
+    user_content_sharing: private
   high_impact_decision_uses: []
   intended_audience: general
 support_manifest:
