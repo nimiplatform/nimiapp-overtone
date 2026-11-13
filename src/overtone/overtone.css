@@ -36,6 +36,8 @@ body{background:var(--ot-paper)}
 .ot-preferences{width:264px;max-width:calc(100vw - 24px);display:grid;gap:0;padding:4px 0;background:var(--ot-surface);color:var(--ot-ink);border:1px solid var(--ot-line);border-radius:14px;box-shadow:var(--ot-shadow);overflow:hidden}
 .ot-spark-menu h2{font-size:16px;font-weight:700;margin:0}
 .ot-preferences__row{display:grid;gap:10px;padding:13px 18px 15px}
+.ot-preferences__account>div{flex-wrap:wrap;min-width:0}
+.ot-preferences__account>div>span{overflow-wrap:anywhere}
 .ot-preferences__row+.ot-preferences__row{border-top:1px solid var(--ot-line)}
 .ot-preferences__label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ot-muted)}
 .ot-preferences__label svg{color:var(--ot-muted)}
