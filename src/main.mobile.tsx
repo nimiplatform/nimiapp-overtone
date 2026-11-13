@@ -1,9 +1,8 @@
 import { createMobileNimiAppSession } from '@nimiplatform/kit/auth/app/mobile';
 import type { NimiRemoteAppConfig } from '@nimiplatform/kit/core/app-session';
 import { Capacitor } from '@capacitor/core';
-import { Share } from '@capacitor/share';
 import { mountOvertone } from './shell/mount-overtone.js';
-import { cacheAndroidAsset } from './shell/android-assets.js';
+import { cacheAndroidAsset, shareAndroidAsset } from './shell/android-assets.js';
 
 declare const __NIMI_APP_MOBILE_CONFIG__: Omit<NimiRemoteAppConfig, 'fetch'>;
 
@@ -16,11 +15,7 @@ const dispose = mountOvertone(createMobileNimiAppSession(__NIMI_APP_MOBILE_CONFI
   },
   // @nimi-authority: rule.overtone.exploration.r003
   async deliver(scope, path, name) {
-    const file = await cacheAndroidAsset(scope, path, name, 'exports');
-    scope.signal.throwIfAborted();
-    // Keep the cache file available while the selected recipient reads it.
-    // Android may evict cache bytes; the canonical asset remains on Runtime.
-    await Share.share({ files: [file.uri], title: name });
+    await shareAndroidAsset(scope, path, name);
   },
 });
 if (import.meta.hot) import.meta.hot.dispose(dispose);

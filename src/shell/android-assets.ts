@@ -1,7 +1,23 @@
 import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import type { NimiAppScope } from '@nimiplatform/kit/core/app-session';
 
 const NATIVE_WRITE_BYTES = 64 * 1024;
+
+export async function shareAndroidAsset(scope: NimiAppScope, relativePath: string, name: string): Promise<'handed-off' | 'cancelled'> {
+  const file = await cacheAndroidAsset(scope, relativePath, name, 'exports');
+  try {
+    scope.signal.throwIfAborted();
+    await Share.share({ files: [file.uri], title: name });
+    // The receiving app may read after the sheet closes; Android owns cache eviction.
+    return 'handed-off';
+  } catch (error) {
+    await file.remove().catch(() => undefined);
+    // Capacitor Share 8 Android reports a dismissed chooser with this exact error.
+    if (error instanceof Error && error.message === 'Share canceled') return 'cancelled';
+    throw error;
+  }
+}
 
 function base64(bytes: Uint8Array): string {
   const parts: string[] = [];
