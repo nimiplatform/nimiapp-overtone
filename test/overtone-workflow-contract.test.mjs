@@ -153,9 +153,9 @@ test('SongTake origin enum admits only spec-listed values', () => {
 });
 
 test('workspace probes readiness and exposes unavailable state', () => {
-  assert.match(workspaceSource, /probeReadiness/);
+  assert.match(workspaceSource, /useReadiness/);
   assert.match(workspaceSource, /runtimeStatus === 'unavailable'/);
-  assert.match(workspaceSource, /musicCapabilityAvailable/);
+  assert.match(readinessSource, /musicCapabilityAvailable/);
 });
 
 test('escape key exits compare mode when no dialog owns it', () => {

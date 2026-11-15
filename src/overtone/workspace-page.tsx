@@ -27,7 +27,7 @@ import { VoiceConvertPanel } from './panels/voice-convert-panel.js';
 import { PlayerPanel } from './panels/player-panel.js';
 import { DraftSaveNotice } from './panels/draft-save-notice.js';
 import { StorageCleanupDialog } from './panels/storage-cleanup-dialog.js';
-import { probeReadiness } from './readiness.js';
+import { useReadiness } from './use-readiness.js';
 import { useOvertoneSession } from '../shell/auth/app-session.js';
 import { usePlaybackShortcuts } from './use-playback-shortcuts.js';
 import { persistOvertoneScheme } from './theme-scheme.js';
@@ -86,28 +86,7 @@ function WorkspaceInner() {
     if (creative.notesOpen) scrollIntoView(document.getElementById('ot-notebook'), { block: 'nearest', behavior: 'smooth' });
   }, [creative.notesOpen]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let revision = 0;
-    const refresh = () => {
-      const current = ++revision;
-      void probeReadiness(client, scope.signal)
-      .then((snapshot) => { if (!cancelled && current === revision) setReadiness(snapshot); })
-      .catch((error) => {
-        if (!cancelled && current === revision) {
-          setReadiness({
-            runtimeStatus: 'unavailable',
-            runtimeErrorMessage: error instanceof Error ? error.message : String(error),
-            textCapabilityAvailable: false,
-            musicCapabilityAvailable: false,
-          });
-        }
-      });
-    };
-    const visible = () => { if (document.visibilityState === 'visible') refresh(); };
-    refresh(); scope.signal.addEventListener('abort', refresh, { once: true }); window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', visible);
-    return () => { cancelled = true; scope.signal.removeEventListener('abort', refresh); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible); };
-  }, [reloadKey, setReadiness, client, scope]);
+  useReadiness(client, scope.signal, setReadiness, reloadKey);
 
   usePlaybackShortcuts({
     enabled: !scope.signal.aborted && projectAction === null && !!state.project,
