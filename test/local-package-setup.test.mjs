@@ -5,7 +5,12 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-test('package preparation uses locked Kit rc4 and native rc1, preserving existing archive bytes', async () => {
+const hostKey = `${process.platform}-${process.arch}`;
+const hasDeclaredNativeCarrier = ['darwin-arm64', 'win32-x64'].includes(hostKey);
+
+test('package preparation uses locked Kit rc4 and native rc1, preserving existing archive bytes', {
+  skip: !hasDeclaredNativeCarrier && `No declared Desktop native carrier on ${hostKey}`,
+}, async () => {
   const testParent = path.resolve('.nimi/local');
   await mkdir(testParent, { recursive: true });
   const directory = await mkdtemp(path.join(testParent, 'package-setup-'));
