@@ -4,7 +4,7 @@
 
 ## 连接与账号
 
-桌面版从 Nimi Home 打开，沿用 Home 当前账号。开发中的网页版和 Android 测试版使用 Nimi 官方登录，连接此账号的主 Runtime，首次接入来源需要在主机 Home 确认一次。两者尚未正式开放，Android 当前仍待本地来源接纳和完整验收。
+桌面版从 Nimi Home 打开，沿用 Home 当前账号。网页版（可从 [nimi.ai/apps/overtone](https://nimi.ai/apps/overtone) 进入 `https://overtone.nimi.xyz`）使用 Nimi 官方登录连接此账号的主 PC Runtime，首次接入来源需要在主机 Home 的设置中确认一次；普通内容更新沿用原授权，来源或权限声明发生实质变更时会再次提示确认。Android 测试版仍为本地测试形态，尚未正式开放。
 
 主机 Home 与 Runtime 需要保持运行。断线后当前页面保留未保存的编辑，恢复连接后请重试保存或查询原任务，不会自动重发生成。退出账号或关闭页面会清除尚未保存的编辑。账号操作在偏好设置中；网页版退出只结束该 App 的会话。
 

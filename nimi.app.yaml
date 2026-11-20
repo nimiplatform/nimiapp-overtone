@@ -1,6 +1,8 @@
+schema_version: 1
 app_id: nimi.overtone
+public_slug: overtone
 display_name: Nimi Overtone
-version: 0.1.8
+version: 0.1.9
 profile: standalone
 manifest_role: submitted-input
 app_access:

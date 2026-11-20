@@ -1,4 +1,10 @@
-## Current local cohort — 2026-11-15
+## Hosted Web release & published 0.24 RC baseline — 2026-11-20
+
+Overtone `0.1.9` adopts the published npm RC baseline (`@nimiplatform/app-tools@0.16.0-rc.10`, `@nimiplatform/sdk@0.24.0-rc.10`, `@nimiplatform/kit@0.24.0-rc.16`, `electron@^45.4.1`, `vite@^8.3.8`, `@nimiplatform/nimi-coding@0.7.0`), removes local tarball overrides from `pnpm-workspace.yaml`, locks all dependencies to public npm in `pnpm-lock.yaml`, declares `public_slug: overtone`, adds `build:web:release` (`vite.web.config.ts` with `release: mode === 'web-release'`), and syncs `.github/workflows/nimi-web-release.yml`. Desktop Catalog stays on `v0.1.8`; Android remains an unreleased local test carrier.
+
+Local verification passed: `pnpm run check` (133 tests + `nimi-app check` + Kit-first style check), `pnpm exec nimi-app check --production`, `pnpm run spec:authority:check` (13 files, 180 units, 0 diagnostics), `pnpm run build`, Windows production build/pack (`nimi-app build/pack --target windows-x86_64 --production`), and hosted Web release ZIP (`nimi-web-0.1.9.zip`, verified against Registry `verifyHostedBundle`: `nimi.overtone`, `overtone`, `nimi.overtone.web`, `https://overtone.nimi.xyz`, `_releases/0.1.9/assets/**`). Desktop-supervised Electron regression (`pnpm dev -- --cdp-port 9231`) connected to Nimi Home, configured `text.generate` (local Gemma 4) and `music.generate` (cloud Gemini `lyria-3-clip-preview`), generated 3 structured directions and adopted a draft, and submitted a real music job with persisted recovery record; audio transcoding on this host returned `ai-media-codec-unavailable` pending installation of Nimi Home's managed audio/video codec component.
+
+## Previous local cohort — 2026-11-15
 
 Overtone remains **0.1.8**. Complete SDK **0.24.0-rc.2**, Kit **0.24.0-rc.4**, Windows native **0.24.0-rc.1** and App Tools **0.16.0-rc.2** archives are selected through explicit overrides and the lockfile from `.nimi/local/packages/integration-20261114-android-http-rc.4`. Kit's declaration stays `^0.24.0-rc.1`; the override selects rc.4. Coding 0.7.0, Electron 45, original sources, model choices and saved music data are preserved. The actual Android plugin uses the shared `CoordinationHttpClient` fix without changing retry/cookie/redirect policy. This does not identify the cause of older intermittent network errors.
 
