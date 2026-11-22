@@ -1,9 +1,9 @@
-## 0.1.9 · Published 0.24 RC carrier & hosted Web release
+## 0.1.9 · Storefront presentation, 0.24 RC carrier & hosted Web alignment
 
-- Adopts the published npm RC baseline (`@nimiplatform/app-tools@0.16.0-rc.10`, `@nimiplatform/sdk@0.24.0-rc.10`, `@nimiplatform/kit@0.24.0-rc.16`) with frozen public lockfiles and removes local tarball overrides.
-- Adds hosted Web release support (`public_slug: overtone`, `build:web:release`, and managed `.github/workflows/nimi-web-release.yml`) for `https://overtone.nimi.xyz`.
-- Shares the Kit managed Desktop/Web session with disconnect readiness fencing, job observation separated from cancellation, and Web blob download for audio and score exports.
-- Desktop Catalog remains on `v0.1.8`; Android remains an unreleased local test carrier.
+- Upgrades to the verified public `@nimiplatform/app-tools@0.16.0-rc.12` baseline alongside `@nimiplatform/sdk@0.24.0-rc.10` and `@nimiplatform/kit@0.24.0-rc.16` with frozen public npm lockfiles and no local tarball overrides.
+- Adds complete bilingual (`zh` / `en`) Nimi App Storefront metadata under `audio-music`: localized display copy, user guides (`NIMI_APP.md` and `NIMI_APP.en.md`), tags, highlights, 16:9 cover artwork, and 5 real-interface gallery screenshots packaged separately in `nimi.overtone-0.1.9-storefront-media.zip` without increasing the `.nimiapp` bundle size.
+- Aligns the native Desktop release candidate (`0.1.9`) with the live hosted Web release (`https://overtone.nimi.xyz`, `web-v0.1.9`), sharing the Kit managed Desktop/Web session, disconnect readiness fencing, job observation separated from cancellation, and Web blob download for audio and score exports.
+- Android remains an unreleased local test carrier.
 
 ## 0.1.8 · Published platform dependencies
 

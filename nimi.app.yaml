@@ -19,12 +19,97 @@ local_development:
   mobile:
     command: pnpm run dev:android
 metadata:
-  summary: 整理音乐创作项目、歌词与音频候选，比较和管理创作版本。
+  summary: 以个人 Runtime 为核心的 AI 音乐创作工坊：通过声音坐标探索多方向灵感、编排完整曲目与歌词、A/B 对比试听、编辑 ABC/MIDI 乐谱，并支持分轨、转谱与参考录音换声。
   icon: assets/app-icon.png
   release_notes: RELEASE_NOTES.md
   author: Nimi Overtone
   homepage_url: https://github.com/nimiplatform/nimiapp-overtone
   support_url: https://github.com/nimiplatform/nimiapp-overtone/issues
+  storefront:
+    category: audio-music
+    default_locale: zh
+    locales:
+      zh:
+        tags:
+          - AI 音乐创作
+          - 编排与歌词
+          - A/B 对比试听
+          - 乐谱编辑
+          - 分轨与换声
+        highlights:
+          - title: 声音坐标与三方向灵感探索
+            description: 在二维能量与意外感坐标盘上定位创作意图，一次展开 3 个风格迥异的音乐方向、编排简报与歌词草稿。
+          - title: 完整编排与分段歌词本
+            description: 锁定心仪试听小样后展开为 1.5、2 或 3 分钟完整曲目结构，逐段打磨主歌、副歌与桥段编排及演唱歌词。
+          - title: 多版本录音架与 A/B 波形试听
+            description: 所有生成、导入与局部混音均保留为独立版本，支持同进度 A/B 切换对比、区间循环、变速试听与无损 WAV 裁剪导出。
+          - title: ABC / MIDI 乐谱与音频实验室
+            description: 内置五线谱渲染与旋律卷帘编辑，并按需接入录音转谱、人声伴奏分轨与参考录音换声混音。
+      en:
+        display_name: Nimi Overtone
+        summary: AI music studio powered by your personal Runtime—explore musical directions on a 2D sound coordinate pad, arrange full songs and lyrics, A/B audition takes, edit ABC/MIDI scores, and run stem separation, transcription, and voice conversion.
+        introduction: NIMI_APP.en.md
+        tags:
+          - AI Music Studio
+          - Song Arrangement
+          - A/B Audition
+          - Score Editing
+          - Stems & Voice
+        highlights:
+          - title: Sound Coordinates & 3 Musical Worlds
+            description: Plot Energy and Surprise on a live 2D graphic score pad to explore three distinct musical directions, briefs, and lyric sketches.
+          - title: Full Song Arrangement & Lyric Notebook
+            description: Expand any promising sketch into a structured 1.5-, 2-, or 3-minute song with section-by-section arrangement notes and editable lyrics.
+          - title: Recording Shelf, A/B Audition & Trim
+            description: Every generated, imported, or mixed take stays non-destructive on the shelf with position-matched A/B switching, looping, speed control, and WAV trim export.
+          - title: ABC / MIDI Scores & Audio Lab
+            description: Render staff notation and edit melodies with local synth preview, plus optional recording transcription, stem separation, and reference voice conversion.
+    media:
+      cover:
+        path: assets/storefront/cover-zh.webp
+        locales:
+          en: assets/storefront/cover-en.webp
+      gallery:
+        - id: explore-directions
+          kind: image
+          path: assets/storefront/cover-zh.webp
+          locales:
+            en: assets/storefront/cover-en.webp
+          caption:
+            zh: 声音坐标与方向探索：在二维能量与意外感坐标盘上定位意图，展开三组风格迥异的音乐提案
+            en: "Sound Coordinates & 3 Musical Worlds: steer Energy and Surprise on the 2D graphic score pad to explore three distinct musical directions"
+        - id: song-arrangement
+          kind: image
+          path: assets/storefront/song-arrangement-zh.webp
+          locales:
+            en: assets/storefront/song-arrangement-en.webp
+          caption:
+            zh: 完整歌曲编排：将试听小样展开为 1.5–3 分钟多段落结构，逐段细化配器提示与演唱歌词
+            en: "Full Song Arrangement: expand a sketch into a 1.5–3 minute multi-section plan with per-section arrangement notes and editable lyrics"
+        - id: ab-audition-trim
+          kind: image
+          path: assets/storefront/ab-audition-trim-zh.webp
+          locales:
+            en: assets/storefront/ab-audition-trim-en.webp
+          caption:
+            zh: A/B 对比试听与波形裁剪：同进度切换版本对比，支持区间循环、变速试听与无损 WAV 导出
+            en: "A/B Audition & Waveform Trim: switch versions at the active playhead with range looping, speed control, and lossless WAV export"
+        - id: score-editor
+          kind: image
+          path: assets/storefront/score-editor-zh.webp
+          locales:
+            en: assets/storefront/score-editor-en.webp
+          caption:
+            zh: ABC / MIDI 乐谱与旋律编辑：渲染标准五线谱、调整音高节拍并用本地合成器预听，按谱生成新录音
+            en: "ABC / MIDI Score & Melody Editor: render staff notation, edit note pitch and timing with local synth preview, and generate new takes from the score"
+        - id: audio-lab
+          kind: image
+          path: assets/storefront/audio-lab-zh.webp
+          locales:
+            en: assets/storefront/audio-lab-en.webp
+          caption:
+            zh: 进阶音频实验室：直接发起录音转谱、人声伴奏分轨与参考录音换声混音，原始录音始终保持完好
+            en: "Audio Lab: run recording transcription, vocal/backing stem separation, and reference voice conversion with local mixing while keeping originals intact"
 capability_contract_refs:
   - text.generate
   - music.generate
