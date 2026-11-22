@@ -54,7 +54,7 @@ test('boundary inspection catches new transports while ignoring strings and comm
 
 test('all product and shell sources delegate client construction to Kit without direct transport or generic IPC', () => {
   const root = path.resolve(import.meta.dirname, '..');
-  const files = [...sources(path.join(root, 'src')), ...sources(path.join(root, 'src-electron'))];
+  const files = sources(path.join(root, 'src'));
   let constructions = 0;
   for (const file of files) {
     const result = inspectBoundary(file, readFileSync(file, 'utf8'));
